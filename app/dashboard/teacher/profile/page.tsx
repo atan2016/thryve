@@ -1,10 +1,18 @@
 import Image from "next/image";
 
-import { addStoryAction, updateTeacherProfileAction } from "@/lib/actions";
-import { getTeacherById, DEFAULT_TEACHER_ID } from "@/lib/store";
+import { getCurrentUser } from "@/lib/auth/session";
+import { addStoryAction, updateStoryAction, updateTeacherProfileAction } from "@/lib/actions";
+import { getTeacherByUserId } from "@/lib/store";
 
-export default function TeacherProfileDashboardPage() {
-  const teacher = getTeacherById(DEFAULT_TEACHER_ID);
+type TeacherProfileDashboardPageProps = {
+  searchParams: Promise<{ saved?: string }>;
+};
+
+export default async function TeacherProfileDashboardPage({ searchParams }: TeacherProfileDashboardPageProps) {
+  const user = await getCurrentUser();
+  const teacher = user ? getTeacherByUserId(user.id) : null;
+  const params = await searchParams;
+  const saved = params.saved;
 
   if (!teacher) {
     return null;
@@ -15,6 +23,15 @@ export default function TeacherProfileDashboardPage() {
       <section className="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
         <h1 className="text-3xl font-semibold">Teacher profile dashboard</h1>
         <p className="mt-2 text-stone-500">Update the public page fields students rely on before booking.</p>
+        {saved ? (
+          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            {saved === "profile"
+              ? "Profile saved."
+              : saved === "story-added"
+                ? "Story added."
+                : "Story updated."}
+          </div>
+        ) : null}
         <form action={updateTeacherProfileAction} className="mt-8 grid gap-4 md:grid-cols-2">
           <label className="block md:col-span-2">
             <span className="mb-2 block text-sm font-medium">Full name</span>
@@ -87,9 +104,32 @@ export default function TeacherProfileDashboardPage() {
                 <div className="relative h-40">
                   <Image alt={story.title} fill className="object-cover" src={story.mediaUrl} />
                 </div>
-                <div className="space-y-2 p-4">
-                  <p className="font-medium">{story.title}</p>
-                  <p className="text-sm text-stone-500">{story.caption}</p>
+                <div className="space-y-4 p-4">
+                  <form action={updateStoryAction} className="space-y-3">
+                    <input name="storyId" type="hidden" value={story.id} />
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium">Title</span>
+                      <input defaultValue={story.title} name="title" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium">Caption</span>
+                      <textarea className="min-h-24" defaultValue={story.caption} name="caption" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium">Media URL</span>
+                      <input defaultValue={story.mediaUrl} name="mediaUrl" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium">Media type</span>
+                      <select defaultValue={story.mediaType} name="mediaType">
+                        <option value="image">Image</option>
+                        <option value="video">Video</option>
+                      </select>
+                    </label>
+                    <button className="rounded-full bg-stone-900 px-5 py-3 text-white" type="submit">
+                      Update story
+                    </button>
+                  </form>
                 </div>
               </div>
             ))}

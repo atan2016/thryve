@@ -9,14 +9,31 @@ import { purchaseCredits } from "@/lib/credits/purchase-credits";
 import { schedulePayout } from "@/lib/payouts/payout-provider";
 import {
   DEFAULT_CUSTOMER_ID,
-  DEFAULT_TEACHER_ID,
   addAvailabilitySlot,
   addTeacherOffering,
   addTeacherStory,
+  getTeacherByUserId,
   markPayoutPaid,
+  updateTeacherStory,
   updateTeacherProfile
 } from "@/lib/store";
 import type { DeliveryMode, ServiceCategory } from "@/lib/types";
+
+async function requireCurrentTeacher() {
+  const user = await getCurrentUser();
+
+  if (!user || user.role !== "teacher") {
+    throw new Error("You must be signed in as a teacher to manage this page.");
+  }
+
+  const teacher = getTeacherByUserId(user.id);
+
+  if (!teacher) {
+    throw new Error("Teacher profile not found.");
+  }
+
+  return teacher;
+}
 
 export async function signInAction(formData: FormData) {
   const email = String(formData.get("email") ?? "");
@@ -76,7 +93,9 @@ export async function bookSessionAction(formData: FormData) {
 }
 
 export async function updateTeacherProfileAction(formData: FormData) {
-  updateTeacherProfile(DEFAULT_TEACHER_ID, {
+  const teacher = await requireCurrentTeacher();
+
+  updateTeacherProfile(teacher.id, {
     fullName: String(formData.get("fullName") ?? ""),
     city: String(formData.get("city") ?? ""),
     serviceRadiusMiles: Number(formData.get("serviceRadiusMiles") ?? 0),
@@ -88,11 +107,14 @@ export async function updateTeacherProfileAction(formData: FormData) {
   });
 
   revalidatePath("/dashboard/teacher/profile");
-  revalidatePath("/teachers/ashley-tan");
+  revalidatePath(`/teachers/${teacher.slug}`);
+  redirect("/dashboard/teacher/profile?saved=profile");
 }
 
 export async function addAvailabilityAction(formData: FormData) {
-  addAvailabilitySlot(DEFAULT_TEACHER_ID, {
+  const teacher = await requireCurrentTeacher();
+
+  addAvailabilitySlot(teacher.id, {
     startsAt: new Date(String(formData.get("startsAt"))).toISOString(),
     endsAt: new Date(String(formData.get("endsAt"))).toISOString(),
     timezone: String(formData.get("timezone") ?? "America/Los_Angeles")
@@ -102,7 +124,9 @@ export async function addAvailabilityAction(formData: FormData) {
 }
 
 export async function addOfferingAction(formData: FormData) {
-  addTeacherOffering(DEFAULT_TEACHER_ID, {
+  const teacher = await requireCurrentTeacher();
+
+  addTeacherOffering(teacher.id, {
     title: String(formData.get("title") ?? ""),
     description: String(formData.get("description") ?? ""),
     category: String(formData.get("category") ?? "private") as ServiceCategory,
@@ -112,11 +136,13 @@ export async function addOfferingAction(formData: FormData) {
   });
 
   revalidatePath("/dashboard/teacher/bookings");
-  revalidatePath("/teachers/ashley-tan");
+  revalidatePath(`/teachers/${teacher.slug}`);
 }
 
 export async function addStoryAction(formData: FormData) {
-  addTeacherStory(DEFAULT_TEACHER_ID, {
+  const teacher = await requireCurrentTeacher();
+
+  addTeacherStory(teacher.id, {
     title: String(formData.get("title") ?? ""),
     caption: String(formData.get("caption") ?? ""),
     mediaUrl: String(formData.get("mediaUrl") ?? ""),
@@ -124,11 +150,28 @@ export async function addStoryAction(formData: FormData) {
   });
 
   revalidatePath("/dashboard/teacher/profile");
-  revalidatePath("/teachers/ashley-tan");
+  revalidatePath(`/teachers/${teacher.slug}`);
+  redirect("/dashboard/teacher/profile?saved=story-added");
+}
+
+export async function updateStoryAction(formData: FormData) {
+  const teacher = await requireCurrentTeacher();
+
+  updateTeacherStory(teacher.id, String(formData.get("storyId") ?? ""), {
+    title: String(formData.get("title") ?? ""),
+    caption: String(formData.get("caption") ?? ""),
+    mediaUrl: String(formData.get("mediaUrl") ?? ""),
+    mediaType: String(formData.get("mediaType") ?? "image") as "image" | "video"
+  });
+
+  revalidatePath("/dashboard/teacher/profile");
+  revalidatePath(`/teachers/${teacher.slug}`);
+  redirect("/dashboard/teacher/profile?saved=story-updated");
 }
 
 export async function markPayoutPaidAction(formData: FormData) {
-  const teacherId = String(formData.get("teacherId") ?? DEFAULT_TEACHER_ID);
+  const providedTeacherId = formData.get("teacherId");
+  const teacherId = providedTeacherId ? String(providedTeacherId) : (await requireCurrentTeacher()).id;
   const providerResult = await schedulePayout({
     teacherId,
     amountCredits: Number(formData.get("amountCredits") ?? 0),

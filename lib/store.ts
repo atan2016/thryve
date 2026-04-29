@@ -124,6 +124,11 @@ export function getTeacherById(teacherId: string) {
   return teacher ? hydrateTeacher(teacher) : null;
 }
 
+export function getTeacherByUserId(userId: string) {
+  const teacher = state.teachers.find((entry) => entry.userId === userId);
+  return teacher ? hydrateTeacher(teacher) : null;
+}
+
 function matchesDate(teacherId: string, date: string) {
   return state.availability.some((slot) => {
     if (slot.teacherId !== teacherId || slot.isBooked) return false;
@@ -247,6 +252,21 @@ export function addTeacherStory(teacherId: string, story: Pick<TeacherStory, "ti
 
   state.stories.push(created);
   return created;
+}
+
+export function updateTeacherStory(
+  teacherId: string,
+  storyId: string,
+  story: Pick<TeacherStory, "title" | "caption" | "mediaUrl" | "mediaType">
+) {
+  const existing = state.stories.find((entry) => entry.id === storyId && entry.teacherId === teacherId);
+
+  if (!existing) {
+    throw new Error("Story not found.");
+  }
+
+  Object.assign(existing, story);
+  return existing;
 }
 
 export function addTeacherOffering(
