@@ -153,3 +153,14 @@ export type SearchFilters = {
   date?: string;
   city?: string;
 };
+
+export type CommunityDiscussion = {
+  id: string;
+  authorName: string;
+  authorRole: "member" | "teacher" | "admin";
+  title: string;
+  body: string;
+  tags: string[];
+  createdAt: string;
+  replyCount: number;
+};

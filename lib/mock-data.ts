@@ -12,6 +12,7 @@ import type {
   TeacherEarningsLedger,
   TeacherOffering,
   TeacherPayoutAccount,
+  CommunityDiscussion,
   TeacherStory,
   TeacherStyle,
   TeachingHourCounter,
@@ -288,4 +289,40 @@ export const demoTeachingHours: TeachingHourCounter[] = [
   { teacherId: "teacher-2", category: "corporate-events", totalHours: 8 },
   { teacherId: "teacher-2", category: "kids", totalHours: 84 },
   { teacherId: "teacher-2", category: "older", totalHours: 110 }
+];
+
+export const demoCommunityDiscussions: CommunityDiscussion[] = [
+  {
+    id: "discussion-1",
+    authorName: "Ashley Tan",
+    authorRole: "teacher",
+    title: "What helps you stay consistent with your practice?",
+    body:
+      "I would love to hear how people keep a rhythm with movement and breath when life gets busy. Do short daily sessions help more than longer weekend practices?",
+    tags: ["practice", "habits"],
+    createdAt: addDays(today, -2).toISOString(),
+    replyCount: 6
+  },
+  {
+    id: "discussion-2",
+    authorName: "Maya Student",
+    authorRole: "member",
+    title: "Favorite restorative props for home sessions",
+    body:
+      "I am building a cozy home setup and would love recommendations for bolsters, blocks, blankets, or other props that make restorative sessions feel more supportive.",
+    tags: ["restorative", "home-practice"],
+    createdAt: addDays(today, -1).toISOString(),
+    replyCount: 4
+  },
+  {
+    id: "discussion-3",
+    authorName: "Jordan Admin",
+    authorRole: "admin",
+    title: "Welcome to the Thryve community forum",
+    body:
+      "Use this space to ask questions, swap wellness ideas, share resources, and connect with teachers and members across the platform.",
+    tags: ["welcome", "community"],
+    createdAt: today.toISOString(),
+    replyCount: 2
+  }
 ];

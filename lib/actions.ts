@@ -9,6 +9,7 @@ import { purchaseCredits } from "@/lib/credits/purchase-credits";
 import { schedulePayout } from "@/lib/payouts/payout-provider";
 import {
   DEFAULT_CUSTOMER_ID,
+  addCommunityDiscussion,
   addAvailabilitySlot,
   addTeacherOffering,
   addTeacherStory,
@@ -68,6 +69,24 @@ export async function purchaseCreditsAction(formData: FormData) {
   }
 
   revalidatePath("/credits");
+}
+
+export async function addCommunityDiscussionAction(formData: FormData) {
+  const user = await getCurrentUser();
+
+  addCommunityDiscussion({
+    authorName: user?.name ?? "Community Member",
+    authorRole: user?.role === "teacher" ? "teacher" : user?.role === "admin" ? "admin" : "member",
+    title: String(formData.get("title") ?? ""),
+    body: String(formData.get("body") ?? ""),
+    tags: String(formData.get("tags") ?? "")
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+  });
+
+  revalidatePath("/community");
+  redirect("/community?posted=1");
 }
 
 export async function bookSessionAction(formData: FormData) {

@@ -4,6 +4,7 @@ import {
   demoAvailability,
   demoBadges,
   demoBookings,
+  demoCommunityDiscussions,
   demoEarnings,
   demoOfferings,
   demoPayoutAccounts,
@@ -24,6 +25,7 @@ import type {
   AppUser,
   AvailabilitySlot,
   Booking,
+  CommunityDiscussion,
   SearchFilters,
   ServiceCategory,
   Teacher,
@@ -46,6 +48,7 @@ const state = {
   stories: JSON.parse(JSON.stringify(demoStories)) as typeof demoStories,
   availability: JSON.parse(JSON.stringify(demoAvailability)) as typeof demoAvailability,
   bookings: JSON.parse(JSON.stringify(demoBookings)) as typeof demoBookings,
+  discussions: JSON.parse(JSON.stringify(demoCommunityDiscussions)) as typeof demoCommunityDiscussions,
   wallets: JSON.parse(JSON.stringify(demoWallets)) as typeof demoWallets,
   transactions: JSON.parse(JSON.stringify(demoTransactions)) as typeof demoTransactions,
   earnings: JSON.parse(JSON.stringify(demoEarnings)) as typeof demoEarnings,
@@ -226,6 +229,22 @@ export function getAdminSnapshot() {
     pendingPayout,
     earnings: [...state.earnings]
   };
+}
+
+export function listCommunityDiscussions() {
+  return [...state.discussions].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function addCommunityDiscussion(input: Pick<CommunityDiscussion, "authorName" | "authorRole" | "title" | "body" | "tags">) {
+  const discussion: CommunityDiscussion = {
+    id: `discussion-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    replyCount: 0,
+    ...input
+  };
+
+  state.discussions.push(discussion);
+  return discussion;
 }
 
 export function updateTeacherProfile(

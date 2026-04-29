@@ -25,6 +25,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
           </div>
           <nav className="shrink-0 flex items-center gap-3 text-sm">
             <Link href="/teachers">Find teachers</Link>
+            <Link href="/community">Community</Link>
             <Link href="/credits">Credits</Link>
             <Link href="/bookings">My bookings</Link>
             <Link href="/dashboard/teacher/profile">Teacher dashboard</Link>
