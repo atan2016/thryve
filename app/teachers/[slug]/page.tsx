@@ -116,10 +116,21 @@ export default async function TeacherProfilePage({ params }: TeacherProfileProps
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-5">
-        {teacher.teachingHours.map((counter) => (
-          <MetricCard key={counter.category} label={counter.category} value={`${counter.totalHours} hrs`} />
-        ))}
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-semibold">Teaching history booked on Thryve</h2>
+          <p className="text-stone-500">These hours reflect sessions booked through this platform, grouped by teaching category.</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-5">
+          {teacher.teachingHours.map((counter) => (
+            <MetricCard
+              hint="Booked through Thryve"
+              key={counter.category}
+              label={counter.category}
+              value={`${counter.totalHours} hrs`}
+            />
+          ))}
+        </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
