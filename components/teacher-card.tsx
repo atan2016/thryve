@@ -59,16 +59,18 @@ export function TeacherCard({ teacher }: TeacherCardProps) {
             <Image
               alt={badge.name}
               className={
-                badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga"
+                badge.name === "Background Checked"
+                  ? "h-[97px] w-[97px] object-contain"
+                  : badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga"
                   ? "h-[45px] w-[45px] object-contain"
                   : badge.name === "Red Cross"
                     ? "h-[62px] w-[62px] object-contain"
                     : "h-14 w-14 object-contain"
               }
-              height={badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga" ? 45 : badge.name === "Red Cross" ? 62 : 56}
+              height={badge.name === "Background Checked" ? 97 : badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga" ? 45 : badge.name === "Red Cross" ? 62 : 56}
               key={badge.name}
               src={badge.imageUrl}
-              width={badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga" ? 45 : badge.name === "Red Cross" ? 62 : 56}
+              width={badge.name === "Background Checked" ? 97 : badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga" ? 45 : badge.name === "Red Cross" ? 62 : 56}
             />
           ) : (
             <span className="rounded-full border border-stone-200 px-3 py-1" key={badge.name}>

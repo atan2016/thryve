@@ -93,13 +93,15 @@ export const demoBadges: Badge[] = [
   { id: "badge-3", name: "Corporate Wellness", description: "Experienced in workplace and event facilitation" },
   { id: "badge-4", name: "Red Cross", description: "Red Cross verified credential", imageUrl: "/assets/images/red_cross_CPR.png" },
   { id: "badge-5", name: "200RYT", description: "Registered Yoga Teacher 200-hour certification", imageUrl: "/assets/images/200RYT_certification.jpeg" },
-  { id: "badge-6", name: "Yin Yoga", description: "Yin Yoga certification", imageUrl: "/assets/images/Yin_Yoga_Certification_badge.jpeg" }
+  { id: "badge-6", name: "Yin Yoga", description: "Yin Yoga certification", imageUrl: "/assets/images/Yin_Yoga_Certification_badge.jpeg" },
+  { id: "badge-7", name: "Background Checked", description: "Background check verified", imageUrl: "/assets/images/background_checked.png" }
 ];
 
 export const demoTeacherBadges: TeacherBadge[] = [
   { teacherId: "teacher-1", badgeId: "badge-4", verified: true },
-  { teacherId: "teacher-1", badgeId: "badge-6", verified: true },
   { teacherId: "teacher-1", badgeId: "badge-5", verified: true },
+  { teacherId: "teacher-1", badgeId: "badge-7", verified: true },
+  { teacherId: "teacher-1", badgeId: "badge-6", verified: true },
   { teacherId: "teacher-2", badgeId: "badge-2", verified: true },
   { teacherId: "teacher-2", badgeId: "badge-5", verified: true },
   { teacherId: "teacher-2", badgeId: "badge-6", verified: true }

@@ -2,7 +2,13 @@ import Image from "next/image";
 
 import { TeacherAvatar } from "@/components/teacher-avatar";
 import { TeacherDashboardAccessCard } from "@/components/teacher-dashboard-access-card";
-import { addStoryAction, addUpcomingEventAction, updateStoryAction, updateTeacherProfileAction } from "@/lib/actions";
+import {
+  addStoryAction,
+  addTeacherCertificationSubmissionAction,
+  addUpcomingEventAction,
+  updateStoryAction,
+  updateTeacherProfileAction
+} from "@/lib/actions";
 import { getTeacherDashboardContext } from "@/lib/teacher-dashboard";
 
 type TeacherProfileDashboardPageProps = {
@@ -43,6 +49,8 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
                 ? "Story added."
                 : saved === "event-added"
                   ? "Upcoming event added."
+                  : saved === "certification-submitted"
+                    ? "Certification file submitted for admin review."
                 : "Story updated."}
           </div>
         ) : null}
@@ -83,11 +91,13 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
             </select>
           </label>
           <label className="block md:col-span-2">
-            <span className="mb-2 block text-sm font-medium">Certification</span>
-            <select defaultValue={teacher.certificationStatus} name="certificationStatus">
-              <option value="certified">Certified</option>
-              <option value="not_certified">Not certified</option>
-            </select>
+            <span className="mb-2 block text-sm font-medium">Certification status</span>
+            <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
+              <p className="font-medium text-stone-900">
+                {teacher.certificationStatus === "certified" ? "Certified" : "Not certified"}
+              </p>
+              <p className="mt-1">Upload certification files below for admin review. Teachers cannot self-verify badges.</p>
+            </div>
           </label>
           <label className="block md:col-span-2">
             <span className="mb-2 block text-sm font-medium">Bio</span>
@@ -106,6 +116,64 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
       </section>
 
       <section className="space-y-6">
+        <div className="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
+          <h2 className="text-2xl font-semibold">Certification files</h2>
+          <p className="mt-2 text-stone-500">Upload proof like PDFs or image certificates so the admin can review them before granting badges.</p>
+          <form action={addTeacherCertificationSubmissionAction} className="mt-6 space-y-4">
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Credential name</span>
+              <input name="credentialName" placeholder="200RYT, Yin Yoga Teacher Training, Kids Yoga Certification..." required />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Notes for admin (optional)</span>
+              <textarea className="min-h-24" name="notes" placeholder="Anything the admin should know about this certificate or badge request." />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Upload certification file</span>
+              <input accept="application/pdf,image/png,image/jpeg,image/webp" name="certificationFile" required type="file" />
+            </label>
+            <button className="rounded-full bg-stone-900 px-5 py-3 text-white" type="submit">
+              Submit certification
+            </button>
+          </form>
+          <div className="mt-6 space-y-4">
+            {teacher.certificationSubmissions?.length ? (
+              teacher.certificationSubmissions.map((submission) => (
+                <div className="rounded-3xl border border-stone-200 bg-stone-50 p-4" key={submission.id}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="font-medium">{submission.credentialName}</p>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide ${
+                        submission.status === "approved"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : submission.status === "rejected"
+                            ? "bg-rose-100 text-rose-700"
+                            : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {submission.status}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm text-stone-500">{submission.fileName}</p>
+                  {submission.notes ? <p className="mt-2 text-sm text-stone-600">{submission.notes}</p> : null}
+                  {submission.reviewNote ? <p className="mt-2 text-sm text-stone-600">Admin note: {submission.reviewNote}</p> : null}
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    <a className="inline-flex text-sm font-medium text-emerald-700" href={submission.fileUrl} rel="noreferrer" target="_blank">
+                      Open uploaded file
+                    </a>
+                    <span className="text-sm text-stone-500">
+                      Submitted {new Date(submission.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-3xl border border-dashed border-stone-300 bg-stone-50 p-6 text-sm text-stone-500">
+                No certification files uploaded yet.
+              </div>
+            )}
+          </div>
+        </div>
         <div className="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
           <h2 className="text-2xl font-semibold">Add an upcoming event</h2>
           <form action={addUpcomingEventAction} className="mt-6 space-y-4">

@@ -1,4 +1,4 @@
-import { DiscussionAuthorRole, Role, StoryMediaType } from "@prisma/client";
+import { CertificationSubmissionStatus, DiscussionAuthorRole, Role, StoryMediaType } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { getTeacherSupplement } from "@/lib/store";
@@ -7,6 +7,7 @@ import type {
   CommunityDiscussion,
   Role as AppRole,
   ServiceCategory,
+  TeacherCertificationSubmission,
   Teacher,
   TeacherStory,
   TeacherUpcomingEvent
@@ -127,6 +128,40 @@ function mapUpcomingEvent(event: {
   };
 }
 
+function mapCertificationSubmissionStatusToApp(status: CertificationSubmissionStatus): TeacherCertificationSubmission["status"] {
+  if (status === "APPROVED") return "approved";
+  if (status === "REJECTED") return "rejected";
+  return "pending";
+}
+
+function mapCertificationSubmission(submission: {
+  id: string;
+  teacherId: string;
+  credentialName: string;
+  notes: string | null;
+  fileUrl: string;
+  fileName: string;
+  mimeType: string;
+  status: CertificationSubmissionStatus;
+  reviewNote: string | null;
+  reviewedAt: Date | null;
+  createdAt: Date;
+}): TeacherCertificationSubmission {
+  return {
+    id: submission.id,
+    teacherId: submission.teacherId,
+    credentialName: submission.credentialName,
+    notes: submission.notes ?? undefined,
+    fileUrl: submission.fileUrl,
+    fileName: submission.fileName,
+    mimeType: submission.mimeType,
+    status: mapCertificationSubmissionStatusToApp(submission.status),
+    reviewNote: submission.reviewNote ?? undefined,
+    reviewedAt: submission.reviewedAt?.toISOString(),
+    createdAt: submission.createdAt.toISOString()
+  };
+}
+
 function mapTeachingHours(counter: {
   teacherId: string;
   category: string;
@@ -162,6 +197,19 @@ function hydratePersistedTeacher(teacher: {
     teacherId: string;
     category: string;
     totalHours: number;
+  }>;
+  certificationSubmissions: Array<{
+    id: string;
+    teacherId: string;
+    credentialName: string;
+    notes: string | null;
+    fileUrl: string;
+    fileName: string;
+    mimeType: string;
+    status: CertificationSubmissionStatus;
+    reviewNote: string | null;
+    reviewedAt: Date | null;
+    createdAt: Date;
   }>;
   upcomingEvents: Array<{
     id: string;
@@ -209,6 +257,7 @@ function hydratePersistedTeacher(teacher: {
     published: teacher.published,
     ...supplement,
     teachingHours,
+    certificationSubmissions: teacher.certificationSubmissions.map(mapCertificationSubmission),
     upcomingEvents: teacher.upcomingEvents.map(mapUpcomingEvent),
     stories: teacher.stories.map(mapTeacherStory)
   };
@@ -272,6 +321,9 @@ export async function ensureTeacherProfile(userId: string, fullName: string) {
       teachingHours: {
         orderBy: { category: "asc" }
       },
+      certificationSubmissions: {
+        orderBy: { createdAt: "desc" }
+      },
       stories: {
         where: { published: true },
         orderBy: { sortOrder: "asc" }
@@ -305,6 +357,9 @@ export async function ensureTeacherProfile(userId: string, fullName: string) {
       teachingHours: {
         orderBy: { category: "asc" }
       },
+      certificationSubmissions: {
+        orderBy: { createdAt: "desc" }
+      },
       stories: {
         where: { published: true },
         orderBy: { sortOrder: "asc" }
@@ -324,6 +379,9 @@ export async function getTeacherByUserId(userId: string) {
     include: {
       teachingHours: {
         orderBy: { category: "asc" }
+      },
+      certificationSubmissions: {
+        orderBy: { createdAt: "desc" }
       },
       stories: {
         where: { published: true },
@@ -345,6 +403,9 @@ export async function getTeacherBySlug(slug: string) {
       teachingHours: {
         orderBy: { category: "asc" }
       },
+      certificationSubmissions: {
+        orderBy: { createdAt: "desc" }
+      },
       stories: {
         where: { published: true },
         orderBy: { sortOrder: "asc" }
@@ -364,6 +425,9 @@ export async function listTeachers() {
     include: {
       teachingHours: {
         orderBy: { category: "asc" }
+      },
+      certificationSubmissions: {
+        orderBy: { createdAt: "desc" }
       },
       stories: {
         where: { published: true },
@@ -417,6 +481,9 @@ export async function updateTeacherProfile(
       teachingHours: {
         orderBy: { category: "asc" }
       },
+      certificationSubmissions: {
+        orderBy: { createdAt: "desc" }
+      },
       stories: {
         where: { published: true },
         orderBy: { sortOrder: "asc" }
@@ -444,6 +511,82 @@ export async function addTeacherUpcomingEvent(
       eventDate: event.eventDate ? new Date(event.eventDate) : null
     }
   });
+}
+
+export async function addTeacherCertificationSubmission(
+  teacherId: string,
+  submission: Pick<TeacherCertificationSubmission, "credentialName" | "notes" | "fileUrl" | "fileName" | "mimeType">
+) {
+  const created = await db.teacherCertificationSubmission.create({
+    data: {
+      id: `cert-${Date.now()}`,
+      teacherId,
+      credentialName: submission.credentialName,
+      notes: submission.notes || null,
+      fileUrl: submission.fileUrl,
+      fileName: submission.fileName,
+      mimeType: submission.mimeType,
+      status: "PENDING"
+    }
+  });
+
+  return mapCertificationSubmission(created);
+}
+
+export async function reviewTeacherCertificationSubmission(
+  submissionId: string,
+  decision: "approved" | "rejected",
+  reviewNote?: string
+) {
+  const updated = await db.teacherCertificationSubmission.update({
+    where: { id: submissionId },
+    data: {
+      status: decision === "approved" ? "APPROVED" : "REJECTED",
+      reviewNote: reviewNote?.trim() ? reviewNote.trim() : null,
+      reviewedAt: new Date()
+    },
+    include: {
+      teacher: {
+        select: {
+          id: true
+        }
+      }
+    }
+  });
+
+  if (decision === "approved") {
+    await db.teacher.update({
+      where: { id: updated.teacher.id },
+      data: {
+        certificationStatus: "certified"
+      }
+    });
+  }
+
+  return mapCertificationSubmission(updated);
+}
+
+export async function listTeachersForAdmin() {
+  const teachers = await db.teacher.findMany({
+    include: {
+      teachingHours: {
+        orderBy: { category: "asc" }
+      },
+      certificationSubmissions: {
+        orderBy: [{ status: "asc" }, { createdAt: "desc" }]
+      },
+      stories: {
+        where: { published: true },
+        orderBy: { sortOrder: "asc" }
+      },
+      upcomingEvents: {
+        orderBy: [{ eventDate: "asc" }, { createdAt: "asc" }]
+      }
+    },
+    orderBy: { fullName: "asc" }
+  });
+
+  return teachers.map(hydratePersistedTeacher);
 }
 
 export async function addTeacherStory(teacherId: string, story: Pick<TeacherStory, "title" | "caption" | "mediaUrl" | "mediaType">) {

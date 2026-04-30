@@ -37,6 +37,7 @@ export type Teacher = {
   certificationStatus: "certified" | "not_certified";
   published: boolean;
   upcomingEvents?: TeacherUpcomingEvent[];
+  certificationSubmissions?: TeacherCertificationSubmission[];
 };
 
 export type Badge = {
@@ -93,6 +94,20 @@ export type TeacherUpcomingEvent = {
   hostName?: string;
   eventUrl: string;
   eventDate?: string;
+};
+
+export type TeacherCertificationSubmission = {
+  id: string;
+  teacherId: string;
+  credentialName: string;
+  notes?: string;
+  fileUrl: string;
+  fileName: string;
+  mimeType: string;
+  status: "pending" | "approved" | "rejected";
+  reviewNote?: string;
+  reviewedAt?: string;
+  createdAt: string;
 };
 
 export type AvailabilitySlot = {

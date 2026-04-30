@@ -25,6 +25,12 @@ enum StoryMediaType {
   VIDEO
 }
 
+enum CertificationSubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id        String   @id
   email     String   @unique
@@ -61,6 +67,7 @@ model Teacher {
   teachingHours       TeachingHourCounter[]
   upcomingEvents      TeacherUpcomingEvent[]
   contactInquiries    ContactInquiry[]
+  certificationSubmissions TeacherCertificationSubmission[]
 }
 
 model TeacherStory {
@@ -99,6 +106,22 @@ model TeachingHourCounter {
   teacher    Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   @@unique([teacherId, category])
+}
+
+model TeacherCertificationSubmission {
+  id            String                        @id
+  teacherId     String
+  credentialName String
+  notes         String?
+  fileUrl       String
+  fileName      String
+  mimeType      String
+  status        CertificationSubmissionStatus @default(PENDING)
+  reviewNote    String?
+  reviewedAt    DateTime?
+  createdAt     DateTime                      @default(now())
+  updatedAt     DateTime                      @updatedAt
+  teacher       Teacher                       @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 }
 
 model CommunityDiscussion {

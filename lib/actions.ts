@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser, signIn, signUp, clearSession } from "@/lib/auth/session";
 import { bookSession } from "@/lib/booking/book-session";
 import { purchaseCredits } from "@/lib/credits/purchase-credits";
-import { saveProfileImage, saveStoryMedia } from "@/lib/media/storage";
+import { saveCertificationDocument, saveProfileImage, saveStoryMedia } from "@/lib/media/storage";
 import { schedulePayout } from "@/lib/payouts/payout-provider";
 import { verifyRecaptchaToken } from "@/lib/recaptcha";
 import {
@@ -15,7 +15,17 @@ import {
   addTeacherOffering,
   markPayoutPaid,
 } from "@/lib/store";
-import { addCommunityDiscussion, addTeacherStory, addTeacherUpcomingEvent, createContactInquiry, ensureTeacherProfile, updateTeacherStory, updateTeacherProfile } from "@/lib/persistence";
+import {
+  addCommunityDiscussion,
+  addTeacherCertificationSubmission,
+  addTeacherStory,
+  addTeacherUpcomingEvent,
+  createContactInquiry,
+  ensureTeacherProfile,
+  reviewTeacherCertificationSubmission,
+  updateTeacherStory,
+  updateTeacherProfile
+} from "@/lib/persistence";
 import type { DeliveryMode, ServiceCategory } from "@/lib/types";
 
 async function requireCurrentTeacher() {
@@ -26,6 +36,16 @@ async function requireCurrentTeacher() {
   }
 
   return ensureTeacherProfile(user.id, user.name);
+}
+
+async function requireCurrentAdmin() {
+  const user = await getCurrentUser();
+
+  if (!user || user.role !== "admin") {
+    throw new Error("You must be signed in as an admin to manage this page.");
+  }
+
+  return user;
 }
 
 export async function signInAction(formData: FormData) {
@@ -117,7 +137,7 @@ export async function updateTeacherProfileAction(formData: FormData) {
     experienceYears: Number(formData.get("experienceYears") ?? 0),
     bio: String(formData.get("bio") ?? ""),
     gender: String(formData.get("gender") ?? "female") as "female" | "male" | "other",
-    certificationStatus: String(formData.get("certificationStatus") ?? "certified") as "certified" | "not_certified",
+    certificationStatus: teacher.certificationStatus,
     avatarUrl: uploadedAvatarUrl
   });
 
@@ -203,6 +223,49 @@ export async function addUpcomingEventAction(formData: FormData) {
   revalidatePath("/dashboard/teacher/profile");
   revalidatePath(`/teachers/${teacher.slug}`);
   redirect("/dashboard/teacher/profile?saved=event-added");
+}
+
+export async function addTeacherCertificationSubmissionAction(formData: FormData) {
+  const teacher = await requireCurrentTeacher();
+  const certificationFile = formData.get("certificationFile");
+
+  if (!(certificationFile instanceof File) || certificationFile.size === 0) {
+    throw new Error("Please upload a certification file before submitting.");
+  }
+
+  const uploadedFile = await saveCertificationDocument(certificationFile, teacher.id);
+
+  await addTeacherCertificationSubmission(teacher.id, {
+    credentialName: String(formData.get("credentialName") ?? "").trim(),
+    notes: String(formData.get("notes") ?? "").trim() || undefined,
+    fileUrl: uploadedFile.url,
+    fileName: uploadedFile.fileName,
+    mimeType: uploadedFile.mimeType
+  });
+
+  revalidatePath("/dashboard/teacher/profile");
+  revalidatePath("/admin/teachers");
+  redirect("/dashboard/teacher/profile?saved=certification-submitted");
+}
+
+export async function reviewTeacherCertificationSubmissionAction(formData: FormData) {
+  await requireCurrentAdmin();
+
+  const submissionId = String(formData.get("submissionId") ?? "");
+  const decision = String(formData.get("decision") ?? "approved") as "approved" | "rejected";
+  const teacherSlug = String(formData.get("teacherSlug") ?? "");
+
+  await reviewTeacherCertificationSubmission(
+    submissionId,
+    decision,
+    String(formData.get("reviewNote") ?? "")
+  );
+
+  revalidatePath("/admin/teachers");
+
+  if (teacherSlug) {
+    revalidatePath(`/teachers/${teacherSlug}`);
+  }
 }
 
 export async function contactTeacherAction(formData: FormData) {

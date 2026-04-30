@@ -66,16 +66,18 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
                 <Image
                   alt={badge.name}
                   className={
-                    badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga"
+                    badge.name === "Background Checked"
+                      ? "h-[139px] w-[139px] object-contain"
+                      : badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga"
                       ? "h-16 w-16 object-contain"
                       : badge.name === "Red Cross"
                         ? "h-[88px] w-[88px] object-contain"
                         : "h-20 w-20 object-contain"
                   }
-                  height={badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga" ? 64 : badge.name === "Red Cross" ? 88 : 80}
+                  height={badge.name === "Background Checked" ? 139 : badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga" ? 64 : badge.name === "Red Cross" ? 88 : 80}
                   key={badge.name}
                   src={badge.imageUrl}
-                  width={badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga" ? 64 : badge.name === "Red Cross" ? 88 : 80}
+                  width={badge.name === "Background Checked" ? 139 : badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga" ? 64 : badge.name === "Red Cross" ? 88 : 80}
                 />
               ) : (
                 <span className="rounded-full border border-stone-200 px-3 py-1" key={badge.name}>
