@@ -21,7 +21,7 @@ export default async function TeachersPage({ searchParams }: TeachersPageProps) 
     date: typeof params.date === "string" ? params.date : undefined,
     city: typeof params.city === "string" ? params.city : undefined
   };
-  const teachers = searchTeachers(filters);
+  const teachers = await searchTeachers(filters);
 
   return (
     <div className="space-y-8">

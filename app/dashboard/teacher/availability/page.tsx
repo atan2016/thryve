@@ -1,13 +1,20 @@
+import { TeacherDashboardAccessCard } from "@/components/teacher-dashboard-access-card";
 import { addAvailabilityAction } from "@/lib/actions";
 import { formatDateTime } from "@/lib/format";
-import { DEFAULT_TEACHER_ID, getTeacherById } from "@/lib/store";
+import { getTeacherDashboardContext } from "@/lib/teacher-dashboard";
 
-export default function TeacherAvailabilityDashboardPage() {
-  const teacher = getTeacherById(DEFAULT_TEACHER_ID);
+export default async function TeacherAvailabilityDashboardPage() {
+  const context = await getTeacherDashboardContext();
 
-  if (!teacher) {
-    return null;
+  if (context.status === "signed_out") {
+    return <TeacherDashboardAccessCard state="signed_out" />;
   }
+
+  if (context.status === "wrong_role") {
+    return <TeacherDashboardAccessCard state="wrong_role" userName={context.user.name} />;
+  }
+
+  const { teacher } = context;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">

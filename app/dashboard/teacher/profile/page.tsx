@@ -1,38 +1,63 @@
 import Image from "next/image";
 
-import { getCurrentUser } from "@/lib/auth/session";
-import { addStoryAction, updateStoryAction, updateTeacherProfileAction } from "@/lib/actions";
-import { getTeacherByUserId } from "@/lib/store";
+import { TeacherAvatar } from "@/components/teacher-avatar";
+import { TeacherDashboardAccessCard } from "@/components/teacher-dashboard-access-card";
+import { addStoryAction, addUpcomingEventAction, updateStoryAction, updateTeacherProfileAction } from "@/lib/actions";
+import { getTeacherDashboardContext } from "@/lib/teacher-dashboard";
 
 type TeacherProfileDashboardPageProps = {
   searchParams: Promise<{ saved?: string }>;
 };
 
 export default async function TeacherProfileDashboardPage({ searchParams }: TeacherProfileDashboardPageProps) {
-  const user = await getCurrentUser();
-  const teacher = user ? getTeacherByUserId(user.id) : null;
+  const context = await getTeacherDashboardContext();
   const params = await searchParams;
   const saved = params.saved;
 
-  if (!teacher) {
-    return null;
+  if (context.status === "signed_out") {
+    return <TeacherDashboardAccessCard state="signed_out" />;
   }
+
+  if (context.status === "wrong_role") {
+    return <TeacherDashboardAccessCard state="wrong_role" userName={context.user.name} />;
+  }
+
+  const { teacher } = context;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
       <section className="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
         <h1 className="text-3xl font-semibold">Teacher profile dashboard</h1>
         <p className="mt-2 text-stone-500">Update the public page fields students rely on before booking.</p>
+        <div className="mt-4 rounded-2xl bg-stone-50 px-4 py-3 text-sm text-stone-600">
+          <p>Your public profile is shown at `/teachers/{teacher.slug}`.</p>
+          <a className="mt-2 inline-flex font-medium text-emerald-700" href={`/teachers/${teacher.slug}`}>
+            View public profile
+          </a>
+        </div>
         {saved ? (
           <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {saved === "profile"
-              ? "Profile saved."
+              ? "Profile saved and displayed on your public page."
               : saved === "story-added"
                 ? "Story added."
+                : saved === "event-added"
+                  ? "Upcoming event added."
                 : "Story updated."}
           </div>
         ) : null}
         <form action={updateTeacherProfileAction} className="mt-8 grid gap-4 md:grid-cols-2">
+          <div className="md:col-span-2 flex items-center gap-4 rounded-2xl bg-stone-50 p-4">
+            <TeacherAvatar className="h-24 w-24 rounded-[1.25rem]" height={96} name={teacher.fullName} src={teacher.avatarUrl} width={96} />
+            <div className="flex-1">
+              <p className="font-medium text-stone-900">Profile photo</p>
+              <p className="mt-1 text-sm text-stone-500">Upload a JPG, PNG, or WebP image to display on your public profile.</p>
+              <label className="mt-3 block">
+                <span className="mb-2 block text-sm font-medium">Upload image file</span>
+                <input accept="image/png,image/jpeg,image/webp" name="avatarFile" type="file" />
+              </label>
+            </div>
+          </div>
           <label className="block md:col-span-2">
             <span className="mb-2 block text-sm font-medium">Full name</span>
             <input defaultValue={teacher.fullName} name="fullName" />
@@ -82,11 +107,62 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
 
       <section className="space-y-6">
         <div className="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
+          <h2 className="text-2xl font-semibold">Add an upcoming event</h2>
+          <form action={addUpcomingEventAction} className="mt-6 space-y-4">
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Course or event name</span>
+              <input name="title" placeholder="Sunrise Flow, Weekend Retreat, Hot Pilates..." required />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Studio or event host</span>
+              <input name="hostName" placeholder="J8 Hot Pilates & Yoga, Community Center, Wellness Festival..." />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Schedule or event URL</span>
+              <input name="eventUrl" placeholder="https://..." required type="url" />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Date (optional for one-time events)</span>
+              <input name="eventDate" type="date" />
+            </label>
+            <button className="rounded-full bg-stone-900 px-5 py-3 text-white" type="submit">
+              Add upcoming event
+            </button>
+          </form>
+        </div>
+        <div className="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
+          <h2 className="text-2xl font-semibold">Current upcoming events</h2>
+          <div className="mt-6 space-y-4">
+            {teacher.upcomingEvents?.length ? (
+              teacher.upcomingEvents.map((event) => (
+                <div className="rounded-3xl border border-stone-200 bg-stone-50 p-4" key={event.id}>
+                  <p className="font-medium">{event.title}</p>
+                  {event.hostName ? <p className="mt-1 text-sm text-stone-500">{event.hostName}</p> : null}
+                  <p className="mt-2 text-sm text-stone-600">
+                    {event.eventDate ? new Date(event.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Ongoing schedule"}
+                  </p>
+                  <a className="mt-3 inline-flex text-sm font-medium text-emerald-700" href={event.eventUrl} rel="noreferrer" target="_blank">
+                    Open event link
+                  </a>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-3xl border border-dashed border-stone-300 bg-stone-50 p-6 text-sm text-stone-500">
+                No upcoming events yet. Add a class, workshop, retreat, or studio schedule link here.
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
           <h2 className="text-2xl font-semibold">Add a story</h2>
           <form action={addStoryAction} className="mt-6 space-y-4">
             <input name="title" placeholder="Story title" />
             <textarea className="min-h-28" name="caption" placeholder="What makes this story or offering unique?" />
-            <input name="mediaUrl" placeholder="Image or video URL" />
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Upload event image or video</span>
+              <input accept="image/*,video/mp4,video/webm,video/quicktime" name="mediaFile" type="file" />
+            </label>
+            <input name="mediaUrl" placeholder="Or paste an image/video URL" />
             <select name="mediaType">
               <option value="image">Image</option>
               <option value="video">Video</option>
@@ -114,6 +190,10 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
                     <label className="block">
                       <span className="mb-2 block text-sm font-medium">Caption</span>
                       <textarea className="min-h-24" defaultValue={story.caption} name="caption" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium">Upload replacement media</span>
+                      <input accept="image/*,video/mp4,video/webm,video/quicktime" name="mediaFile" type="file" />
                     </label>
                     <label className="block">
                       <span className="mb-2 block text-sm font-medium">Media URL</span>

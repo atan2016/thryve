@@ -1,14 +1,14 @@
 import { formatDistanceToNow } from "date-fns";
 
 import { addCommunityDiscussionAction } from "@/lib/actions";
-import { listCommunityDiscussions } from "@/lib/store";
+import { listCommunityDiscussions } from "@/lib/persistence";
 
 type CommunityPageProps = {
   searchParams: Promise<{ posted?: string }>;
 };
 
 export default async function CommunityPage({ searchParams }: CommunityPageProps) {
-  const discussions = listCommunityDiscussions();
+  const discussions = await listCommunityDiscussions();
   const params = await searchParams;
 
   return (

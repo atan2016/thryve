@@ -1,10 +1,22 @@
+import { TeacherDashboardAccessCard } from "@/components/teacher-dashboard-access-card";
 import { MetricCard } from "@/components/metric-card";
 import { formatCredits } from "@/lib/format";
-import { DEFAULT_TEACHER_ID, getTeacherBalance, getTeacherBookings } from "@/lib/store";
+import { getTeacherBalance, getTeacherBookings } from "@/lib/store";
+import { getTeacherDashboardContext } from "@/lib/teacher-dashboard";
 
-export default function TeacherEarningsDashboardPage() {
-  const balance = getTeacherBalance(DEFAULT_TEACHER_ID);
-  const bookings = getTeacherBookings(DEFAULT_TEACHER_ID);
+export default async function TeacherEarningsDashboardPage() {
+  const context = await getTeacherDashboardContext();
+
+  if (context.status === "signed_out") {
+    return <TeacherDashboardAccessCard state="signed_out" />;
+  }
+
+  if (context.status === "wrong_role") {
+    return <TeacherDashboardAccessCard state="wrong_role" userName={context.user.name} />;
+  }
+
+  const balance = getTeacherBalance(context.teacher.id);
+  const bookings = getTeacherBookings(context.teacher.id);
 
   return (
     <div className="space-y-8">

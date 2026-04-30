@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { bookSessionAction } from "@/lib/actions";
 import { formatCredits, formatDateTime } from "@/lib/format";
-import { getTeacherBySlug } from "@/lib/store";
+import { getTeacherBySlug } from "@/lib/persistence";
 
 type TeacherBookingPageProps = {
   params: Promise<{ slug: string }>;
@@ -10,7 +10,7 @@ type TeacherBookingPageProps = {
 
 export default async function TeacherBookingPage({ params }: TeacherBookingPageProps) {
   const { slug } = await params;
-  const teacher = getTeacherBySlug(slug);
+  const teacher = await getTeacherBySlug(slug);
 
   if (!teacher) {
     notFound();

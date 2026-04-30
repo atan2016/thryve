@@ -1,14 +1,22 @@
+import { TeacherDashboardAccessCard } from "@/components/teacher-dashboard-access-card";
 import { addOfferingAction } from "@/lib/actions";
 import { formatCredits, formatDateTime } from "@/lib/format";
-import { DEFAULT_TEACHER_ID, getServiceOptions, getTeacherBookings, getTeacherById } from "@/lib/store";
+import { getServiceOptions, getTeacherBookings } from "@/lib/store";
+import { getTeacherDashboardContext } from "@/lib/teacher-dashboard";
 
-export default function TeacherBookingsDashboardPage() {
-  const teacher = getTeacherById(DEFAULT_TEACHER_ID);
-  const bookings = getTeacherBookings(DEFAULT_TEACHER_ID);
+export default async function TeacherBookingsDashboardPage() {
+  const context = await getTeacherDashboardContext();
 
-  if (!teacher) {
-    return null;
+  if (context.status === "signed_out") {
+    return <TeacherDashboardAccessCard state="signed_out" />;
   }
+
+  if (context.status === "wrong_role") {
+    return <TeacherDashboardAccessCard state="wrong_role" userName={context.user.name} />;
+  }
+
+  const { teacher } = context;
+  const bookings = getTeacherBookings(teacher.id);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">

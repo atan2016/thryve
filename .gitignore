@@ -7,5 +7,6 @@ coverage
 *.log
 .vercel
 .env*.local
+.cursor-runtime-env.sh
 .DS_Store
 tsconfig.tsbuildinfo

@@ -24,6 +24,9 @@ export type Teacher = {
   slug: string;
   fullName: string;
   avatarUrl?: string;
+  studioName?: string;
+  studioWebsiteUrl?: string;
+  studioScheduleUrl?: string;
   platformHoursBooked?: number;
   city: string;
   serviceRadiusMiles: number;
@@ -33,6 +36,7 @@ export type Teacher = {
   gender: "female" | "male" | "other";
   certificationStatus: "certified" | "not_certified";
   published: boolean;
+  upcomingEvents?: TeacherUpcomingEvent[];
 };
 
 export type Badge = {
@@ -80,6 +84,15 @@ export type TeacherStory = {
   mediaType: "image" | "video";
   sortOrder: number;
   published: boolean;
+};
+
+export type TeacherUpcomingEvent = {
+  id: string;
+  teacherId: string;
+  title: string;
+  hostName?: string;
+  eventUrl: string;
+  eventDate?: string;
 };
 
 export type AvailabilitySlot = {

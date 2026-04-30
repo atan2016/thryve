@@ -1,10 +1,12 @@
 import Link from "next/link";
 
 import { TeacherCard } from "@/components/teacher-card";
-import { listTeachers } from "@/lib/store";
+import { getSession } from "@/lib/auth/session";
+import { listTeachers } from "@/lib/persistence";
 
-export default function HomePage() {
-  const teachers = listTeachers();
+export default async function HomePage() {
+  const session = await getSession();
+  const teachers = await listTeachers();
 
   return (
     <div className="space-y-10">
@@ -20,9 +22,11 @@ export default function HomePage() {
             <Link className="rounded-full bg-emerald-400 px-5 py-3 font-medium text-stone-900" href="/teachers">
               Explore teachers
             </Link>
-            <Link className="rounded-full border border-white/20 px-5 py-3" href="/dashboard/teacher/profile">
-              Open teacher dashboard
-            </Link>
+            {session?.role === "teacher" ? (
+              <Link className="rounded-full border border-white/20 px-5 py-3" href="/dashboard/teacher/profile">
+                Open teacher dashboard
+              </Link>
+            ) : null}
           </div>
         </div>
       </section>

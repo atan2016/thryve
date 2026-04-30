@@ -2,11 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { ReactNode } from "react";
 
-import { getCurrentUser } from "@/lib/auth/session";
+import { getCurrentUser, getSession } from "@/lib/auth/session";
 import { signOutAction } from "@/lib/actions";
 
 export async function AppShell({ children }: { children: ReactNode }) {
+  const session = await getSession();
   const user = await getCurrentUser();
+  const canAccessTeacherDashboard = session?.role === "teacher" || user?.role === "teacher";
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900">
@@ -28,7 +30,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
             <Link href="/community">Community</Link>
             <Link href="/credits">Credits</Link>
             <Link href="/bookings">My bookings</Link>
-            <Link href="/dashboard/teacher/profile">Teacher dashboard</Link>
+            {canAccessTeacherDashboard ? <Link href="/dashboard/teacher/profile">Teacher dashboard</Link> : null}
             {user ? (
               <form action={signOutAction}>
                 <button className="rounded-full bg-stone-900 px-4 py-2 text-white" type="submit">

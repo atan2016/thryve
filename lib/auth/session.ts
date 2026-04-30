@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 
-import { createUser, getUserByEmail, getUserById } from "@/lib/store";
+import { createUser, ensureTeacherProfile, getUserByEmail, getUserById } from "@/lib/persistence";
 import type { Role } from "@/lib/types";
 
 const SESSION_COOKIE = "yoga_session";
@@ -59,11 +59,11 @@ export async function getCurrentUser() {
     return null;
   }
 
-  return getUserById(session.userId);
+  return await getUserById(session.userId);
 }
 
 export async function signIn(email: string, password: string) {
-  const user = getUserByEmail(email);
+  const user = await getUserByEmail(email);
 
   if (!user || user.password !== password) {
     throw new Error("Invalid email or password.");
@@ -74,11 +74,14 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signUp(input: { name: string; email: string; password: string; role: Role }) {
-  if (getUserByEmail(input.email)) {
+  if (await getUserByEmail(input.email)) {
     throw new Error("That email is already in use.");
   }
 
-  const user = createUser(input);
+  const user = await createUser(input);
+  if (user.role === "teacher") {
+    await ensureTeacherProfile(user.id, user.name);
+  }
   await createSession(user.id, user.role);
   return user;
 }

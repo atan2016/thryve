@@ -46,7 +46,7 @@ export const serviceCategoryLabels = {
 export const demoUsers: AppUser[] = [
   { id: "user-customer-1", email: "student@yoga.local", password: "password123", role: "customer", name: "Maya Student" },
   { id: "user-teacher-1", email: "teacher@yoga.local", password: "password123", role: "teacher", name: "Ashley Tan" },
-  { id: "user-teacher-2", email: "teacher2@yoga.local", password: "password123", role: "teacher", name: "Kai Raman" },
+  { id: "user-teacher-2", email: "teacher2@yoga.local", password: "password123", role: "teacher", name: "Kelly Heinrich" },
   { id: "user-admin-1", email: "admin@yoga.local", password: "password123", role: "admin", name: "Jordan Admin" }
 ];
 
@@ -57,7 +57,10 @@ export const demoTeachers: Teacher[] = [
     slug: "ashley-tan",
     fullName: "Ashley Tan",
     avatarUrl: "/assets/images/ashley-tan.png",
-    platformHoursBooked: 22,
+    studioName: "J8 Hot Pilates & Yoga",
+    studioWebsiteUrl: "https://www.j8hotpilatesyoga.com/",
+    studioScheduleUrl: "https://www.j8hotpilatesyoga.com/about/classes/",
+    platformHoursBooked: 236,
     city: "San Francisco",
     serviceRadiusMiles: 20,
     training: "500-hour Vinyasa certification with advanced pre/postnatal and restorative training in Bali and California.",
@@ -71,7 +74,8 @@ export const demoTeachers: Teacher[] = [
     id: "teacher-2",
     userId: "user-teacher-2",
     slug: "kai-raman",
-    fullName: "Kai Raman",
+    fullName: "Kelly Heinrich",
+    platformHoursBooked: 264,
     city: "Oakland",
     serviceRadiusMiles: 15,
     training: "RYT-300 in Hatha and trauma-informed yoga with a specialization in seniors and kids classes.",
@@ -85,7 +89,7 @@ export const demoTeachers: Teacher[] = [
 
 export const demoBadges: Badge[] = [
   { id: "badge-1", name: "RYT-500", description: "Advanced 500-hour teacher training" },
-  { id: "badge-2", name: "Kids Specialist", description: "Certified to teach children and families" },
+  { id: "badge-2", name: "Kids Yoga", description: "Registered children's yoga school certification", imageUrl: "/assets/images/yoga_kids_certification.png" },
   { id: "badge-3", name: "Corporate Wellness", description: "Experienced in workplace and event facilitation" },
   { id: "badge-4", name: "Red Cross", description: "Red Cross verified credential", imageUrl: "/assets/images/red_cross_CPR.png" },
   { id: "badge-5", name: "200RYT", description: "Registered Yoga Teacher 200-hour certification", imageUrl: "/assets/images/200RYT_certification.jpeg" },
@@ -96,7 +100,9 @@ export const demoTeacherBadges: TeacherBadge[] = [
   { teacherId: "teacher-1", badgeId: "badge-4", verified: true },
   { teacherId: "teacher-1", badgeId: "badge-6", verified: true },
   { teacherId: "teacher-1", badgeId: "badge-5", verified: true },
-  { teacherId: "teacher-2", badgeId: "badge-2", verified: true }
+  { teacherId: "teacher-2", badgeId: "badge-2", verified: true },
+  { teacherId: "teacher-2", badgeId: "badge-5", verified: true },
+  { teacherId: "teacher-2", badgeId: "badge-6", verified: true }
 ];
 
 export const demoYogaStyles: YogaStyle[] = [

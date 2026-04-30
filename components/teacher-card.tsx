@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { HoursBookedLabel } from "@/components/hours-booked-label";
+import { TeacherAvatar } from "@/components/teacher-avatar";
 import { formatCredits } from "@/lib/format";
 
 type TeacherCardProps = {
@@ -23,24 +24,17 @@ export function TeacherCard({ teacher }: TeacherCardProps) {
     <article className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-center gap-4">
-          {teacher.avatarUrl ? (
-            <Image
-              alt={teacher.fullName}
-              className="h-[72px] w-[72px] rounded-2xl object-cover"
-              height={72}
-              src={teacher.avatarUrl}
-              width={72}
-            />
-          ) : null}
+          <TeacherAvatar className="h-[72px] w-[72px] rounded-2xl" height={72} name={teacher.fullName} src={teacher.avatarUrl} width={72} />
           <div>
             <h3 className="text-xl font-semibold">{teacher.fullName}</h3>
             <p className="text-sm text-stone-500">
-              {teacher.city} •{" "}
+              {teacher.city} • <span>{`${teacher.experienceYears} years teaching`}</span>
               {teacher.platformHoursBooked ? (
-                <HoursBookedLabel hours={teacher.platformHoursBooked} teacherName={teacher.fullName} />
-              ) : (
-                <span>{`${teacher.experienceYears} years teaching`}</span>
-              )}
+                <>
+                  {" • "}
+                  <HoursBookedLabel hours={teacher.platformHoursBooked} teacherName={teacher.fullName} />
+                </>
+              ) : null}
             </p>
           </div>
         </div>
@@ -65,16 +59,16 @@ export function TeacherCard({ teacher }: TeacherCardProps) {
             <Image
               alt={badge.name}
               className={
-                badge.name === "200RYT" || badge.name === "Yin Yoga"
+                badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga"
                   ? "h-[45px] w-[45px] object-contain"
                   : badge.name === "Red Cross"
                     ? "h-[62px] w-[62px] object-contain"
                     : "h-14 w-14 object-contain"
               }
-              height={badge.name === "200RYT" || badge.name === "Yin Yoga" ? 45 : badge.name === "Red Cross" ? 62 : 56}
+              height={badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga" ? 45 : badge.name === "Red Cross" ? 62 : 56}
               key={badge.name}
               src={badge.imageUrl}
-              width={badge.name === "200RYT" || badge.name === "Yin Yoga" ? 45 : badge.name === "Red Cross" ? 62 : 56}
+              width={badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga" ? 45 : badge.name === "Red Cross" ? 62 : 56}
             />
           ) : (
             <span className="rounded-full border border-stone-200 px-3 py-1" key={badge.name}>

@@ -4,35 +4,37 @@ import { notFound } from "next/navigation";
 
 import { HoursBookedLabel } from "@/components/hours-booked-label";
 import { MetricCard } from "@/components/metric-card";
+import { TeacherContactForm } from "@/components/teacher-contact-form";
+import { TeacherAvatar } from "@/components/teacher-avatar";
+import { contactTeacherAction } from "@/lib/actions";
 import { formatCredits, formatDateTime } from "@/lib/format";
-import { getTeacherBySlug } from "@/lib/store";
+import { getTeacherBySlug } from "@/lib/persistence";
+import { getRecaptchaSiteKey } from "@/lib/recaptcha";
 
 type TeacherProfileProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ contact?: string }>;
 };
 
-export default async function TeacherProfilePage({ params }: TeacherProfileProps) {
+export default async function TeacherProfilePage({ params, searchParams }: TeacherProfileProps) {
   const { slug } = await params;
-  const teacher = getTeacherBySlug(slug);
+  const query = await searchParams;
+  const teacher = await getTeacherBySlug(slug);
+  const recaptchaSiteKey = getRecaptchaSiteKey();
 
   if (!teacher) {
     notFound();
   }
+
+  const totalHoursBooked =
+    teacher.teachingHours.reduce((total, counter) => total + counter.totalHours, 0) || teacher.platformHoursBooked;
 
   return (
     <div className="space-y-8">
       <section className="grid gap-6 rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-5">
-            {teacher.avatarUrl ? (
-              <Image
-                alt={teacher.fullName}
-                className="h-32 w-32 rounded-[1.5rem] object-cover"
-                height={128}
-                src={teacher.avatarUrl}
-                width={128}
-              />
-            ) : null}
+            <TeacherAvatar className="h-32 w-32 rounded-[1.5rem]" height={128} name={teacher.fullName} src={teacher.avatarUrl} width={128} />
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-4xl font-semibold">{teacher.fullName}</h1>
@@ -42,8 +44,8 @@ export default async function TeacherProfilePage({ params }: TeacherProfileProps
               </div>
               <p className="text-stone-500">
                 {teacher.city} • {teacher.serviceRadiusMiles} mile service radius •{" "}
-                {teacher.platformHoursBooked ? (
-                  <HoursBookedLabel hours={teacher.platformHoursBooked} teacherName={teacher.fullName} />
+                {totalHoursBooked ? (
+                  <HoursBookedLabel hours={totalHoursBooked} teacherName={teacher.fullName} />
                 ) : (
                   <span>{`${teacher.experienceYears} years teaching`}</span>
                 )}
@@ -64,16 +66,16 @@ export default async function TeacherProfilePage({ params }: TeacherProfileProps
                 <Image
                   alt={badge.name}
                   className={
-                    badge.name === "200RYT" || badge.name === "Yin Yoga"
+                    badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga"
                       ? "h-16 w-16 object-contain"
                       : badge.name === "Red Cross"
                         ? "h-[88px] w-[88px] object-contain"
                         : "h-20 w-20 object-contain"
                   }
-                  height={badge.name === "200RYT" || badge.name === "Yin Yoga" ? 64 : badge.name === "Red Cross" ? 88 : 80}
+                  height={badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga" ? 64 : badge.name === "Red Cross" ? 88 : 80}
                   key={badge.name}
                   src={badge.imageUrl}
-                  width={badge.name === "200RYT" || badge.name === "Yin Yoga" ? 64 : badge.name === "Red Cross" ? 88 : 80}
+                  width={badge.name === "200RYT" || badge.name === "Yin Yoga" || badge.name === "Kids Yoga" ? 64 : badge.name === "Red Cross" ? 88 : 80}
                 />
               ) : (
                 <span className="rounded-full border border-stone-200 px-3 py-1" key={badge.name}>
@@ -133,6 +135,45 @@ export default async function TeacherProfilePage({ params }: TeacherProfileProps
         </div>
       </section>
 
+      {teacher.upcomingEvents?.length ? (
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-2xl font-semibold">Upcoming Events</h2>
+            <p className="text-stone-500">See where this instructor is currently teaching and explore upcoming classes or studio events.</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {teacher.upcomingEvents.map((event) => (
+              <div className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm" key={event.id}>
+                <p className="text-sm font-medium text-emerald-700">Upcoming event</p>
+                <h3 className="mt-2 text-xl font-semibold">{event.title}</h3>
+                {event.hostName ? <p className="mt-2 text-sm text-stone-500">{event.hostName}</p> : null}
+                <p className="mt-2 text-sm text-stone-600">
+                  {event.eventDate
+                    ? new Date(event.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                    : "Ongoing schedule"}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <a
+                    className="inline-flex items-center justify-center rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white"
+                    href={event.eventUrl}
+                    rel="noreferrer"
+                    style={{ color: "#ffffff" }}
+                    target="_blank"
+                  >
+                    Book
+                  </a>
+                  {teacher.studioWebsiteUrl ? (
+                    <a className="inline-flex items-center justify-center rounded-full border border-stone-300 px-4 py-2 text-sm" href={teacher.studioWebsiteUrl} rel="noreferrer" target="_blank">
+                      Studio website
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-4">
           <div>
@@ -169,6 +210,15 @@ export default async function TeacherProfilePage({ params }: TeacherProfileProps
           </div>
         </div>
       </section>
+
+      <TeacherContactForm
+        action={contactTeacherAction}
+        siteKey={recaptchaSiteKey}
+        status={query.contact}
+        teacherId={teacher.id}
+        teacherName={teacher.fullName}
+        teacherSlug={teacher.slug}
+      />
     </div>
   );
 }

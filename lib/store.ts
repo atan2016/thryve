@@ -76,21 +76,78 @@ export function createUser(input: Pick<AppUser, "email" | "password" | "name" | 
   return user;
 }
 
+function slugifyTeacherName(name: string) {
+  const slug = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || "teacher";
+}
+
+function getUniqueTeacherSlug(name: string) {
+  const baseSlug = slugifyTeacherName(name);
+  let slug = baseSlug;
+  let suffix = 2;
+
+  while (state.teachers.some((teacher) => teacher.slug === slug)) {
+    slug = `${baseSlug}-${suffix}`;
+    suffix += 1;
+  }
+
+  return slug;
+}
+
+export function ensureTeacherProfile(userId: string, fullName: string) {
+  const existingTeacher = state.teachers.find((entry) => entry.userId === userId);
+
+  if (existingTeacher) {
+    return hydrateTeacher(existingTeacher);
+  }
+
+  const teacher: Teacher = {
+    id: `teacher-${Date.now()}`,
+    userId,
+    slug: getUniqueTeacherSlug(fullName),
+    fullName,
+    city: "",
+    serviceRadiusMiles: 0,
+    training: "",
+    experienceYears: 0,
+    bio: "",
+    gender: "other",
+    certificationStatus: "not_certified",
+    published: false
+  };
+
+  state.teachers.push(teacher);
+  return hydrateTeacher(teacher);
+}
+
 function hydrateTeacher(teacher: Teacher) {
-  const badgeIds = state.teacherBadges.filter((item) => item.teacherId === teacher.id);
-  const styleIds = state.teacherStyles.filter((item) => item.teacherId === teacher.id);
-  const offerings = state.offerings.filter((offering) => offering.teacherId === teacher.id && offering.active);
-  const stories = state.stories
-    .filter((story) => story.teacherId === teacher.id && story.published)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
-  const availability = state.availability
-    .filter((slot) => slot.teacherId === teacher.id)
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  const counters = state.teachingHours.filter((item) => item.teacherId === teacher.id);
-  const earnings = state.earnings.filter((item) => item.teacherId === teacher.id);
+  const teacherData = getTeacherSupplement(teacher.id);
 
   return {
     ...teacher,
+    ...teacherData
+  };
+}
+
+export function getTeacherSupplement(teacherId: string) {
+  const badgeIds = state.teacherBadges.filter((item) => item.teacherId === teacherId);
+  const styleIds = state.teacherStyles.filter((item) => item.teacherId === teacherId);
+  const offerings = state.offerings.filter((offering) => offering.teacherId === teacherId && offering.active);
+  const stories = state.stories
+    .filter((story) => story.teacherId === teacherId && story.published)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const availability = state.availability
+    .filter((slot) => slot.teacherId === teacherId)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const counters = state.teachingHours.filter((item) => item.teacherId === teacherId);
+  const earnings = state.earnings.filter((item) => item.teacherId === teacherId);
+
+  return {
     badges: badgeIds.map((item) => {
       const badge = state.badges.find((entry) => entry.id === item.badgeId);
       return {
@@ -109,7 +166,7 @@ function hydrateTeacher(teacher: Teacher) {
       totalHours: counter.totalHours
     })),
     earnings,
-    payoutAccount: state.payoutAccounts.find((account) => account.teacherId === teacher.id) ?? null
+    payoutAccount: state.payoutAccounts.find((account) => account.teacherId === teacherId) ?? null
   };
 }
 

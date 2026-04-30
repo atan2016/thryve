@@ -6,18 +6,16 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser, signIn, signUp, clearSession } from "@/lib/auth/session";
 import { bookSession } from "@/lib/booking/book-session";
 import { purchaseCredits } from "@/lib/credits/purchase-credits";
+import { saveProfileImage, saveStoryMedia } from "@/lib/media/storage";
 import { schedulePayout } from "@/lib/payouts/payout-provider";
+import { verifyRecaptchaToken } from "@/lib/recaptcha";
 import {
   DEFAULT_CUSTOMER_ID,
-  addCommunityDiscussion,
   addAvailabilitySlot,
   addTeacherOffering,
-  addTeacherStory,
-  getTeacherByUserId,
   markPayoutPaid,
-  updateTeacherStory,
-  updateTeacherProfile
 } from "@/lib/store";
+import { addCommunityDiscussion, addTeacherStory, addTeacherUpcomingEvent, createContactInquiry, ensureTeacherProfile, updateTeacherStory, updateTeacherProfile } from "@/lib/persistence";
 import type { DeliveryMode, ServiceCategory } from "@/lib/types";
 
 async function requireCurrentTeacher() {
@@ -27,13 +25,7 @@ async function requireCurrentTeacher() {
     throw new Error("You must be signed in as a teacher to manage this page.");
   }
 
-  const teacher = getTeacherByUserId(user.id);
-
-  if (!teacher) {
-    throw new Error("Teacher profile not found.");
-  }
-
-  return teacher;
+  return ensureTeacherProfile(user.id, user.name);
 }
 
 export async function signInAction(formData: FormData) {
@@ -74,7 +66,7 @@ export async function purchaseCreditsAction(formData: FormData) {
 export async function addCommunityDiscussionAction(formData: FormData) {
   const user = await getCurrentUser();
 
-  addCommunityDiscussion({
+  await addCommunityDiscussion({
     authorName: user?.name ?? "Community Member",
     authorRole: user?.role === "teacher" ? "teacher" : user?.role === "admin" ? "admin" : "member",
     title: String(formData.get("title") ?? ""),
@@ -113,8 +105,11 @@ export async function bookSessionAction(formData: FormData) {
 
 export async function updateTeacherProfileAction(formData: FormData) {
   const teacher = await requireCurrentTeacher();
+  const avatarFile = formData.get("avatarFile");
+  const uploadedAvatarUrl =
+    avatarFile instanceof File && avatarFile.size > 0 ? await saveProfileImage(avatarFile, teacher.id) : undefined;
 
-  updateTeacherProfile(teacher.id, {
+  await updateTeacherProfile(teacher.id, {
     fullName: String(formData.get("fullName") ?? ""),
     city: String(formData.get("city") ?? ""),
     serviceRadiusMiles: Number(formData.get("serviceRadiusMiles") ?? 0),
@@ -122,7 +117,8 @@ export async function updateTeacherProfileAction(formData: FormData) {
     experienceYears: Number(formData.get("experienceYears") ?? 0),
     bio: String(formData.get("bio") ?? ""),
     gender: String(formData.get("gender") ?? "female") as "female" | "male" | "other",
-    certificationStatus: String(formData.get("certificationStatus") ?? "certified") as "certified" | "not_certified"
+    certificationStatus: String(formData.get("certificationStatus") ?? "certified") as "certified" | "not_certified",
+    avatarUrl: uploadedAvatarUrl
   });
 
   revalidatePath("/dashboard/teacher/profile");
@@ -160,12 +156,15 @@ export async function addOfferingAction(formData: FormData) {
 
 export async function addStoryAction(formData: FormData) {
   const teacher = await requireCurrentTeacher();
+  const mediaFile = formData.get("mediaFile");
+  const uploadedMedia =
+    mediaFile instanceof File && mediaFile.size > 0 ? await saveStoryMedia(mediaFile, teacher.id) : null;
 
-  addTeacherStory(teacher.id, {
+  await addTeacherStory(teacher.id, {
     title: String(formData.get("title") ?? ""),
     caption: String(formData.get("caption") ?? ""),
-    mediaUrl: String(formData.get("mediaUrl") ?? ""),
-    mediaType: String(formData.get("mediaType") ?? "image") as "image" | "video"
+    mediaUrl: uploadedMedia?.url ?? String(formData.get("mediaUrl") ?? ""),
+    mediaType: uploadedMedia?.type ?? (String(formData.get("mediaType") ?? "image") as "image" | "video")
   });
 
   revalidatePath("/dashboard/teacher/profile");
@@ -175,17 +174,59 @@ export async function addStoryAction(formData: FormData) {
 
 export async function updateStoryAction(formData: FormData) {
   const teacher = await requireCurrentTeacher();
+  const mediaFile = formData.get("mediaFile");
+  const uploadedMedia =
+    mediaFile instanceof File && mediaFile.size > 0 ? await saveStoryMedia(mediaFile, teacher.id) : null;
 
-  updateTeacherStory(teacher.id, String(formData.get("storyId") ?? ""), {
+  await updateTeacherStory(teacher.id, String(formData.get("storyId") ?? ""), {
     title: String(formData.get("title") ?? ""),
     caption: String(formData.get("caption") ?? ""),
-    mediaUrl: String(formData.get("mediaUrl") ?? ""),
-    mediaType: String(formData.get("mediaType") ?? "image") as "image" | "video"
+    mediaUrl: uploadedMedia?.url ?? String(formData.get("mediaUrl") ?? ""),
+    mediaType: uploadedMedia?.type ?? (String(formData.get("mediaType") ?? "image") as "image" | "video")
   });
 
   revalidatePath("/dashboard/teacher/profile");
   revalidatePath(`/teachers/${teacher.slug}`);
   redirect("/dashboard/teacher/profile?saved=story-updated");
+}
+
+export async function addUpcomingEventAction(formData: FormData) {
+  const teacher = await requireCurrentTeacher();
+
+  await addTeacherUpcomingEvent(teacher.id, {
+    title: String(formData.get("title") ?? ""),
+    hostName: String(formData.get("hostName") ?? "").trim() || undefined,
+    eventUrl: String(formData.get("eventUrl") ?? ""),
+    eventDate: String(formData.get("eventDate") ?? "").trim() || undefined
+  });
+
+  revalidatePath("/dashboard/teacher/profile");
+  revalidatePath(`/teachers/${teacher.slug}`);
+  redirect("/dashboard/teacher/profile?saved=event-added");
+}
+
+export async function contactTeacherAction(formData: FormData) {
+  const teacherSlug = String(formData.get("teacherSlug") ?? "");
+  const recaptchaToken = String(formData.get("recaptchaToken") ?? "");
+
+  if (!recaptchaToken) {
+    redirect(`/teachers/${teacherSlug}?contact=captcha`);
+  }
+
+  const verification = await verifyRecaptchaToken(recaptchaToken);
+
+  if (!verification.success) {
+    redirect(`/teachers/${teacherSlug}?contact=${verification.reason === "missing_secret" ? "error" : "captcha"}`);
+  }
+
+  await createContactInquiry({
+    teacherId: String(formData.get("teacherId") ?? ""),
+    name: String(formData.get("name") ?? ""),
+    email: String(formData.get("email") ?? ""),
+    message: String(formData.get("message") ?? "")
+  });
+
+  redirect(`/teachers/${teacherSlug}?contact=sent`);
 }
 
 export async function markPayoutPaidAction(formData: FormData) {
