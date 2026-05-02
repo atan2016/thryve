@@ -5,7 +5,6 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -100,7 +99,7 @@ model TeachingHourCounter {
   id         String   @id
   teacherId  String
   category   String
-  totalHours Int      @default(0)
+  totalHours Float    @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   teacher    Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)

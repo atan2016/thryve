@@ -86,9 +86,13 @@ export async function purchaseCreditsAction(formData: FormData) {
 export async function addCommunityDiscussionAction(formData: FormData) {
   const user = await getCurrentUser();
 
+  if (!user) {
+    redirect("/sign-in");
+  }
+
   await addCommunityDiscussion({
-    authorName: user?.name ?? "Community Member",
-    authorRole: user?.role === "teacher" ? "teacher" : user?.role === "admin" ? "admin" : "member",
+    authorName: user.name,
+    authorRole: user.role === "teacher" ? "teacher" : user.role === "admin" ? "admin" : "member",
     title: String(formData.get("title") ?? ""),
     body: String(formData.get("body") ?? ""),
     tags: String(formData.get("tags") ?? "")

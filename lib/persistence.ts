@@ -231,10 +231,12 @@ function hydratePersistedTeacher(teacher: {
   }>;
 }) {
   const supplement = getTeacherSupplement(teacher.id);
-  const teachingHours = teacher.teachingHours.map(mapTeachingHours);
+  const fromDb = teacher.teachingHours.map(mapTeachingHours);
+  const teachingHours =
+    fromDb.length > 0 ? fromDb : (supplement.teachingHours ?? []);
   const platformHoursBooked =
-    teacher.teachingHours.length > 0
-      ? teacher.teachingHours.reduce((total, counter) => total + counter.totalHours, 0)
+    teachingHours.length > 0
+      ? teachingHours.reduce((total, counter) => total + counter.totalHours, 0)
       : teacher.platformHoursBooked ?? undefined;
 
   return {
@@ -261,6 +263,21 @@ function hydratePersistedTeacher(teacher: {
     upcomingEvents: teacher.upcomingEvents.map(mapUpcomingEvent),
     stories: teacher.stories.map(mapTeacherStory)
   };
+}
+
+export async function incrementTeachingHoursInDb(teacherId: string, category: ServiceCategory, minutesAdded: number) {
+  if (minutesAdded <= 0) {
+    return;
+  }
+
+  const deltaHours = minutesAdded / 60;
+  const stableId = `hours-${teacherId}-${category}`;
+
+  await db.teachingHourCounter.upsert({
+    where: { teacherId_category: { teacherId, category } },
+    update: { totalHours: { increment: deltaHours } },
+    create: { id: stableId, teacherId, category, totalHours: deltaHours }
+  });
 }
 
 export async function getUserById(userId: string) {

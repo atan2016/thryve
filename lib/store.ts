@@ -452,8 +452,16 @@ export function bookTeacherSession(input: {
     payoutStatus: "pending"
   });
 
-  updateTeachingHours(state.teachingHours, input.teacherId, offering.category, differenceInMinutes(new Date(slot.endsAt), new Date(slot.startsAt)));
-  return booking;
+  const minutesAdded = differenceInMinutes(new Date(slot.endsAt), new Date(slot.startsAt));
+  updateTeachingHours(state.teachingHours, input.teacherId, offering.category, minutesAdded);
+  return {
+    booking,
+    teachingHoursPersist: {
+      teacherId: input.teacherId,
+      category: offering.category,
+      minutesAdded
+    }
+  };
 }
 
 export function markPayoutPaid(teacherId: string) {

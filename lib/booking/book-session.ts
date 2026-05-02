@@ -1,4 +1,5 @@
 import { bookTeacherSession } from "@/lib/store";
+import { incrementTeachingHoursInDb } from "@/lib/persistence";
 
 export async function bookSession(input: {
   customerId: string;
@@ -7,5 +8,11 @@ export async function bookSession(input: {
   slotId: string;
   notes?: string;
 }) {
-  return bookTeacherSession(input);
+  const { booking, teachingHoursPersist } = bookTeacherSession(input);
+  await incrementTeachingHoursInDb(
+    teachingHoursPersist.teacherId,
+    teachingHoursPersist.category,
+    teachingHoursPersist.minutesAdded
+  );
+  return booking;
 }

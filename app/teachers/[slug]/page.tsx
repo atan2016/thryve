@@ -43,16 +43,48 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
                 </span>
               </div>
               <p className="text-stone-500">
-                {teacher.city} • {teacher.serviceRadiusMiles} mile service radius •{" "}
+                {teacher.city} • {teacher.serviceRadiusMiles} mile service radius
                 {totalHoursBooked ? (
-                  <HoursBookedLabel hours={totalHoursBooked} teacherName={teacher.fullName} />
-                ) : (
-                  <span>{`${teacher.experienceYears} years teaching`}</span>
-                )}
+                  <>
+                    {" • "}
+                    <HoursBookedLabel hours={totalHoursBooked} teacherName={teacher.fullName} />
+                  </>
+                ) : null}
               </p>
+              {teacher.slug === "ashley-tan" ? (
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <a
+                    aria-label="Yoga by Ashley Tan website"
+                    className="opacity-80 transition-opacity hover:opacity-100"
+                    href="https://yogabyashleytan.com/"
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    <Image alt="" className="h-9 w-9 object-contain" height={36} src="/assets/images/website_icon.png" width={36} />
+                  </a>
+                  <a
+                    aria-label="Facebook"
+                    className="opacity-80 transition-opacity hover:opacity-100"
+                    href="https://www.facebook.com/xtan1"
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    <Image alt="" className="h-[28.8px] w-[28.8px] rounded-full object-cover" height={36} src="/assets/images/facebook_icon.jpeg" width={36} />
+                  </a>
+                  <a
+                    aria-label="Instagram"
+                    className="opacity-80 transition-opacity hover:opacity-100"
+                    href="https://www.instagram.com/ashleytan2017/"
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    <Image alt="" className="h-[28.8px] w-[28.8px] rounded-md object-cover" height={36} src="/assets/images/instagram_icon.jpeg" width={36} />
+                  </a>
+                </div>
+              ) : null}
             </div>
           </div>
-          <p className="max-w-3xl text-lg text-stone-700">{teacher.bio}</p>
+          <p className="max-w-3xl whitespace-pre-line text-lg text-stone-700">{teacher.bio}</p>
           <div className="flex flex-wrap gap-2 text-sm">
             {teacher.styles.map((style) => (
               <span className="rounded-full bg-stone-100 px-3 py-1" key={style}>

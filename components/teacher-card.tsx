@@ -12,7 +12,6 @@ type TeacherCardProps = {
     avatarUrl?: string;
     platformHoursBooked?: number;
     city: string;
-    experienceYears: number;
     styles: string[];
     badges: Array<{ name: string; verified: boolean; imageUrl?: string }>;
     offerings: Array<{ title: string; creditPrice: number; deliveryMode: string; sessionLengthMin: number }>;
@@ -28,7 +27,7 @@ export function TeacherCard({ teacher }: TeacherCardProps) {
           <div>
             <h3 className="text-xl font-semibold">{teacher.fullName}</h3>
             <p className="text-sm text-stone-500">
-              {teacher.city} • <span>{`${teacher.experienceYears} years teaching`}</span>
+              {teacher.city}
               {teacher.platformHoursBooked ? (
                 <>
                   {" • "}

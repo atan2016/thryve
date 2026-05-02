@@ -1,3 +1,10 @@
+const path = require("path");
+const dotenv = require("dotenv");
+
+const rootDir = path.join(__dirname, "..");
+dotenv.config({ path: path.join(rootDir, ".env") });
+dotenv.config({ path: path.join(rootDir, ".env.local"), override: true });
+
 const { PrismaClient, Role, DiscussionAuthorRole, StoryMediaType } = require("@prisma/client");
 
 const prisma = new PrismaClient();
@@ -19,12 +26,18 @@ const demoTeachers = [
     studioName: "J8 Hot Pilates & Yoga",
     studioWebsiteUrl: "https://www.j8hotpilatesyoga.com/",
     studioScheduleUrl: "https://www.j8hotpilatesyoga.com/about/classes/",
-    platformHoursBooked: 236,
+    platformHoursBooked: 14,
     city: "San Francisco",
     serviceRadiusMiles: 20,
     training: "500-hour Vinyasa certification with advanced pre/postnatal and restorative training in Bali and California.",
     experienceYears: 9,
-    bio: "Ashley blends strong alignment-driven flow with mindful storytelling for studios, private clients, and community events.",
+    bio: `Hi, I'm Ashley Tan. I've been practicing yoga for over 25 years, but my journey really began in Chengdu, China, where I spent most of my childhood. Some of my most meaningful memories are from Qingcheng Mountain—the home of Taoism—where I developed a deep appreciation for balance, nature, and inner stillness.
+
+Growing up drinking green tea every day, it feels natural for me to bring together all the things I love—yoga, tea, and movement. This blend is at the heart of my practice, creating a space that is calming, accessible, and thoughtfully designed for every individual.
+
+That same spirit is how I approach teaching: yoga isn't one shape or pace—it's meeting yourself where you are. As a certified instructor, I offer Chair, Yin, and Flow so that people of all ages can find steadiness, softness, and strength in a way that fits their body and their day.
+
+Whether you need support in a seat, depth in stillness, or rhythm in movement, sessions are built around your needs and energy—so practice stays grounded, approachable, and truly yours.`,
     gender: "female",
     certificationStatus: "certified",
     published: true
@@ -92,11 +105,9 @@ const demoUpcomingEvents = [
 ];
 
 const demoTeachingHours = [
-  { id: "hours-teacher-1-studio", teacherId: "teacher-1", category: "studio", totalHours: 48 },
-  { id: "hours-teacher-1-private", teacherId: "teacher-1", category: "private", totalHours: 122 },
-  { id: "hours-teacher-1-corporate-events", teacherId: "teacher-1", category: "corporate-events", totalHours: 36 },
-  { id: "hours-teacher-1-kids", teacherId: "teacher-1", category: "kids", totalHours: 12 },
-  { id: "hours-teacher-1-older", teacherId: "teacher-1", category: "older", totalHours: 18 },
+  { id: "hours-teacher-1-private", teacherId: "teacher-1", category: "private", totalHours: 8 },
+  { id: "hours-teacher-1-older", teacherId: "teacher-1", category: "older", totalHours: 5 },
+  { id: "hours-teacher-1-kids", teacherId: "teacher-1", category: "kids", totalHours: 1 },
   { id: "hours-teacher-2-studio", teacherId: "teacher-2", category: "studio", totalHours: 18 },
   { id: "hours-teacher-2-private", teacherId: "teacher-2", category: "private", totalHours: 44 },
   { id: "hours-teacher-2-corporate-events", teacherId: "teacher-2", category: "corporate-events", totalHours: 8 },
@@ -171,6 +182,8 @@ async function main() {
     });
   }
 
+  await prisma.teachingHourCounter.deleteMany({ where: { teacherId: "teacher-1" } });
+
   for (const counter of demoTeachingHours) {
     await prisma.teachingHourCounter.upsert({
       where: {
@@ -188,7 +201,7 @@ async function main() {
 
   await prisma.teacher.update({
     where: { id: "teacher-1" },
-    data: { platformHoursBooked: 236 }
+    data: { platformHoursBooked: 14 }
   });
 
   await prisma.teacher.update({
