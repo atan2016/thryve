@@ -8,6 +8,12 @@ const nextConfig: NextConfig = {
         hostname: "**"
       }
     ]
+  },
+  experimental: {
+    serverActions: {
+      // Default is 1mb; uploads (avatar, story media, certifications) exceed that easily.
+      bodySizeLimit: "50mb"
+    }
   }
 };
 
