@@ -1,6 +1,15 @@
+import Link from "next/link";
+
 import { signInAction } from "@/lib/actions";
 
-export default function SignInPage() {
+type SignInPageProps = {
+  searchParams: Promise<{ next?: string }>;
+};
+
+export default async function SignInPage({ searchParams }: SignInPageProps) {
+  const params = await searchParams;
+  const nextPath = params.next ?? "";
+
   return (
     <div className="mx-auto max-w-xl rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
       <h1 className="text-3xl font-semibold">Sign in</h1>
@@ -10,6 +19,7 @@ export default function SignInPage() {
         <p className="mt-1">Student demo: `student@yoga.local` / `password123`</p>
       </div>
       <form action={signInAction} className="mt-8 space-y-4">
+        <input name="next" type="hidden" value={nextPath} />
         <label className="block">
           <span className="mb-2 block text-sm font-medium">Email</span>
           <input name="email" type="email" />
@@ -22,6 +32,12 @@ export default function SignInPage() {
           Sign in
         </button>
       </form>
+      <p className="mt-6 text-center text-sm text-stone-500">
+        Don&apos;t have an account?{" "}
+        <Link className="font-semibold text-emerald-700" href={nextPath ? `/sign-up?next=${encodeURIComponent(nextPath)}` : "/sign-up"}>
+          Sign up
+        </Link>
+      </p>
     </div>
   );
 }

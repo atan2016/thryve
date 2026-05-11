@@ -6,57 +6,67 @@ import { useRef } from "react";
 type Gig = {
   id: string;
   title: string;
-  urgent?: boolean;
+  category: string;
   pay: string;
   company: string;
   location: string;
-  schedule: string;
+  posted: string;
 };
 
 const GIGS: Gig[] = [
   {
     id: "1",
-    title: "Morning Yoga Instructor",
-    urgent: true,
-    pay: "$75/hr",
-    company: "Serenity Wellness Studio",
-    location: "Downtown LA",
-    schedule: "Mon, Wed, Fri • 6–8 AM",
+    title: "Morning Hatha Yoga Instructor",
+    category: "Part-time",
+    pay: "$45-60/class",
+    company: "Zen Flow Studio",
+    location: "San Francisco, CA",
+    posted: "2 days ago",
   },
   {
     id: "2",
-    title: "Vinyasa Flow Substitute",
-    pay: "$200/session",
-    company: "Flow State Collective",
-    location: "Silver Lake",
-    schedule: "Sat & Sun • 9–11 AM",
+    title: "Corporate Wellness Program Lead",
+    category: "Contract",
+    pay: "$75/hour",
+    company: "TechCorp Wellness",
+    location: "Remote",
+    posted: "1 day ago",
   },
   {
     id: "3",
-    title: "Corporate Wellness Lead",
-    pay: "$90/hr",
-    company: "Mindful Works Inc.",
-    location: "Culver City",
-    schedule: "Tue & Thu • 12–1 PM",
+    title: "Weekend Yoga Retreat Facilitator",
+    category: "Gig",
+    pay: "$1,200/weekend",
+    company: "Mountain Peak Retreat",
+    location: "Boulder, CO",
+    posted: "3 days ago",
   },
   {
     id: "4",
-    title: "Restorative + Nidra Guide",
-    urgent: true,
-    pay: "$65/hr",
-    company: "Lotus House Yoga",
-    location: "Pasadena",
-    schedule: "Evenings • flexible",
+    title: "Prenatal Yoga Specialist",
+    category: "Full-time",
+    pay: "$50,000-65,000/yr",
+    company: "Bloom Yoga Center",
+    location: "Austin, TX",
+    posted: "5 days ago",
   },
   {
     id: "5",
-    title: "Hot Yoga Floor Support",
-    pay: "$22/hr + perks",
-    company: "Radiant Heat Studio",
-    location: "West Hollywood",
-    schedule: "Weekday evenings",
+    title: "Studio Operations + Yin Instructor",
+    category: "Part-time",
+    pay: "$28/hour + commission",
+    company: "Stillpoint Wellness",
+    location: "Los Angeles, CA",
+    posted: "4 days ago",
   },
 ];
+
+const categoryClassNames: Record<string, string> = {
+  "Part-time": "bg-teal-50 text-teal-700 ring-1 ring-teal-100",
+  Contract: "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
+  Gig: "bg-rose-50 text-rose-700 ring-1 ring-rose-100",
+  "Full-time": "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100",
+};
 
 function IconBuilding({ className }: { className?: string }) {
   return (
@@ -87,9 +97,17 @@ function IconClock({ className }: { className?: string }) {
   );
 }
 
+function IconDollar({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18m3.75-13.5c0-1.243-1.679-2.25-3.75-2.25S8.25 6.257 8.25 7.5 9.929 9.75 12 9.75s3.75 1.007 3.75 2.25-1.679 2.25-3.75 2.25-3.75-1.007-3.75-2.25" />
+    </svg>
+  );
+}
+
 function IconChevron({ direction }: { direction: "left" | "right" }) {
   return (
-    <svg className="h-5 w-5 text-stone-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+    <svg className="h-5 w-5 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} aria-hidden>
       {direction === "left" ? (
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
       ) : (
@@ -99,7 +117,15 @@ function IconChevron({ direction }: { direction: "left" | "right" }) {
   );
 }
 
-export function FeaturedLocalGigsCarousel() {
+function IconBriefcase({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.25v4.125c0 .621-.504 1.125-1.125 1.125H4.875A1.125 1.125 0 0 1 3.75 18.375V14.25m16.5 0V8.625c0-.621-.504-1.125-1.125-1.125H15.75V6.375c0-.621-.504-1.125-1.125-1.125h-5.25A1.125 1.125 0 0 0 8.25 6.375V7.5H4.875A1.125 1.125 0 0 0 3.75 8.625v5.625m16.5 0h-16.5" />
+    </svg>
+  );
+}
+
+export function FeaturedLocalGigsCarousel({ isSignedIn = false }: { isSignedIn?: boolean }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   function scrollByDirection(dir: "left" | "right") {
@@ -110,22 +136,26 @@ export function FeaturedLocalGigsCarousel() {
   }
 
   return (
-    <section className="space-y-4" aria-labelledby="featured-gigs-heading">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 id="featured-gigs-heading" className="text-2xl font-semibold text-stone-900">
-            Featured Local Gigs
-          </h2>
-          <p className="text-sm text-stone-500">Opportunities near you</p>
+    <section id="local-gigs" className="scroll-mt-24 space-y-5" aria-labelledby="featured-gigs-heading">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FFEAE1] text-[#E37E62]">
+            <IconBriefcase className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 id="featured-gigs-heading" className="text-2xl font-semibold tracking-tight text-slate-900">
+              New Jobs of the Week
+            </h2>
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-3 sm:pt-0.5">
-          <Link className="text-sm font-semibold text-emerald-700 hover:text-emerald-800" href="/teachers">
-            See all &gt;
+          <Link className="text-sm font-semibold text-[#E58768] hover:text-[#d97555]" href="/teachers">
+            View all jobs
           </Link>
           <div className="flex gap-2">
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-white shadow-sm transition hover:bg-stone-50"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-100 bg-white shadow-sm shadow-emerald-100/80 transition hover:bg-emerald-50"
               aria-label="Scroll gigs left"
               onClick={() => scrollByDirection("left")}
             >
@@ -133,7 +163,7 @@ export function FeaturedLocalGigsCarousel() {
             </button>
             <button
               type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-white shadow-sm transition hover:bg-stone-50"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-100 bg-white shadow-sm shadow-emerald-100/80 transition hover:bg-emerald-50"
               aria-label="Scroll gigs right"
               onClick={() => scrollByDirection("right")}
             >
@@ -145,24 +175,29 @@ export function FeaturedLocalGigsCarousel() {
 
       <div
         ref={scrollerRef}
-        className="-mx-1 flex gap-4 overflow-x-auto scroll-smooth px-1 pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="-mx-1 flex gap-4 overflow-x-auto scroll-smooth px-1 pb-2 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {GIGS.map((gig) => (
           <article
             key={gig.id}
-            className="flex w-[min(100%,18rem)] shrink-0 snap-start flex-col rounded-2xl border border-stone-200 bg-white p-4 shadow-sm sm:w-[17.5rem]"
+            className="flex w-[min(100%,18rem)] shrink-0 snap-start flex-col rounded-[1.55rem] border border-[#F3CFC6] bg-[#FFFDFC] p-4 shadow-[0_18px_36px_-28px_rgba(15,23,42,0.18)] sm:w-[17.5rem]"
           >
-            <div className="flex items-start justify-between gap-2 border-b border-stone-100 pb-3">
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-                <h3 className="font-semibold leading-tight text-stone-900">{gig.title}</h3>
-                {gig.urgent ? (
-                  <span className="inline-flex shrink-0 rounded-full bg-red-500 px-2 py-0.5 text-xs font-medium text-white">Urgent</span>
-                ) : null}
-              </div>
-              <span className="shrink-0 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 sm:text-sm">{gig.pay}</span>
+            <div className="flex items-start justify-between gap-3">
+              <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${categoryClassNames[gig.category] ?? "bg-stone-100 text-stone-700"}`}>
+                {gig.category}
+              </span>
+              <span className="inline-flex items-center gap-1 text-xs text-stone-400">
+                <IconClock className="h-3.5 w-3.5" />
+                {gig.posted}
+              </span>
             </div>
 
-            <ul className="mt-3 flex flex-1 flex-col gap-2.5 text-sm text-stone-600">
+            <div className="mt-4">
+              <h3 className="text-[1.02rem] font-semibold leading-snug text-slate-900">{gig.title}</h3>
+              <p className="mt-1 text-sm text-stone-500">{gig.company}</p>
+            </div>
+
+            <ul className="mt-4 flex flex-1 flex-col gap-2.5 text-sm text-stone-600">
               <li className="flex items-start gap-2">
                 <IconBuilding className="mt-0.5 h-4 w-4 shrink-0 text-stone-400" />
                 <span>{gig.company}</span>
@@ -172,14 +207,14 @@ export function FeaturedLocalGigsCarousel() {
                 <span>{gig.location}</span>
               </li>
               <li className="flex items-start gap-2">
-                <IconClock className="mt-0.5 h-4 w-4 shrink-0 text-stone-400" />
-                <span>{gig.schedule}</span>
+                <IconDollar className="mt-0.5 h-4 w-4 shrink-0 text-[#E58768]" />
+                <span>{gig.pay}</span>
               </li>
             </ul>
 
             <Link
-              href="/teachers"
-              className="mt-4 block w-full rounded-xl bg-emerald-700 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-emerald-800"
+              href={isSignedIn ? "/teachers" : "/sign-in?next=%2Fteachers"}
+              className="mt-5 block w-full rounded-full bg-gradient-to-r from-[#EE8D72] to-[#E6866A] py-2.5 text-center text-sm font-semibold text-white shadow-[0_8px_20px_-12px_rgba(229,134,106,0.95)] transition hover:from-[#e78063] hover:to-[#dc775a]"
             >
               Apply Now
             </Link>

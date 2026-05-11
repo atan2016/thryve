@@ -1,7 +1,7 @@
 import Image from "next/image";
 
-import { TeacherAvatar } from "@/components/teacher-avatar";
 import { TeacherDashboardAccessCard } from "@/components/teacher-dashboard-access-card";
+import { TeacherProfileEditor } from "@/components/teacher-profile-editor";
 import {
   addStoryAction,
   addTeacherCertificationSubmissionAction,
@@ -37,8 +37,9 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
         <p className="mt-2 text-stone-500">Update the public page fields students rely on before booking.</p>
         <div className="mt-4 rounded-2xl bg-stone-50 px-4 py-3 text-sm text-stone-600">
           <p>Your public profile is shown at `/teachers/{teacher.slug}`.</p>
+          {!teacher.published ? <p className="mt-1 text-amber-700">This profile is currently in preview mode until you save and publish it.</p> : null}
           <a className="mt-2 inline-flex font-medium text-emerald-700" href={`/teachers/${teacher.slug}`}>
-            View public profile
+            {teacher.published ? "View public profile" : "Preview public profile"}
           </a>
         </div>
         {saved ? (
@@ -54,65 +55,7 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
                 : "Story updated."}
           </div>
         ) : null}
-        <form action={updateTeacherProfileAction} className="mt-8 grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2 flex items-center gap-4 rounded-2xl bg-stone-50 p-4">
-            <TeacherAvatar className="h-24 w-24 rounded-[1.25rem]" height={96} name={teacher.fullName} src={teacher.avatarUrl} width={96} />
-            <div className="flex-1">
-              <p className="font-medium text-stone-900">Profile photo</p>
-              <p className="mt-1 text-sm text-stone-500">Upload a JPG, PNG, or WebP image to display on your public profile.</p>
-              <label className="mt-3 block">
-                <span className="mb-2 block text-sm font-medium">Upload image file</span>
-                <input accept="image/png,image/jpeg,image/webp" name="avatarFile" type="file" />
-              </label>
-            </div>
-          </div>
-          <label className="block md:col-span-2">
-            <span className="mb-2 block text-sm font-medium">Full name</span>
-            <input defaultValue={teacher.fullName} name="fullName" />
-          </label>
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium">City</span>
-            <input defaultValue={teacher.city} name="city" />
-          </label>
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium">Service radius (miles)</span>
-            <input defaultValue={teacher.serviceRadiusMiles} name="serviceRadiusMiles" type="number" />
-          </label>
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium">Years teaching</span>
-            <input defaultValue={teacher.experienceYears} name="experienceYears" type="number" />
-          </label>
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium">Gender</span>
-            <select defaultValue={teacher.gender} name="gender">
-              <option value="female">Female</option>
-              <option value="male">Male</option>
-              <option value="other">Other</option>
-            </select>
-          </label>
-          <label className="block md:col-span-2">
-            <span className="mb-2 block text-sm font-medium">Certification status</span>
-            <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
-              <p className="font-medium text-stone-900">
-                {teacher.certificationStatus === "certified" ? "Certified" : "Not certified"}
-              </p>
-              <p className="mt-1">Upload certification files below for admin review. Teachers cannot self-verify badges.</p>
-            </div>
-          </label>
-          <label className="block md:col-span-2">
-            <span className="mb-2 block text-sm font-medium">Bio</span>
-            <textarea className="min-h-32" defaultValue={teacher.bio} name="bio" />
-          </label>
-          <label className="block md:col-span-2">
-            <span className="mb-2 block text-sm font-medium">Training</span>
-            <textarea className="min-h-32" defaultValue={teacher.training} name="training" />
-          </label>
-          <div className="md:col-span-2">
-            <button className="rounded-full bg-stone-900 px-5 py-3 text-white" type="submit">
-              Save profile
-            </button>
-          </div>
-        </form>
+        <TeacherProfileEditor action={updateTeacherProfileAction} teacher={teacher} />
       </section>
 
       <section className="space-y-6">

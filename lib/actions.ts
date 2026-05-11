@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { getCurrentUser, signIn, signUp, clearSession } from "@/lib/auth/session";
-import { bookSession } from "@/lib/booking/book-session";
+import { bookCalendarSession, bookSession } from "@/lib/booking/book-session";
 import { purchaseCredits } from "@/lib/credits/purchase-credits";
 import { saveCertificationDocument, saveProfileImage, saveStoryMedia } from "@/lib/media/storage";
 import { schedulePayout } from "@/lib/payouts/payout-provider";
@@ -17,12 +17,19 @@ import {
 } from "@/lib/store";
 import {
   addCommunityDiscussion,
+  addTeacherCalendarSession,
   addTeacherCertificationSubmission,
   addTeacherStory,
   addTeacherUpcomingEvent,
   createContactInquiry,
+  deleteTeacherCalendarSession,
   ensureTeacherProfile,
+  followEventHostForUser,
+  followTeacherForUser,
   reviewTeacherCertificationSubmission,
+  unfollowEventHostForUser,
+  unfollowTeacherForUser,
+  updateTeacherCalendarSession,
   updateTeacherStory,
   updateTeacherProfile
 } from "@/lib/persistence";
@@ -48,12 +55,27 @@ async function requireCurrentAdmin() {
   return user;
 }
 
+async function requireSignedInUser() {
+  return requireSignedInUserWithNext("/");
+}
+
+async function requireSignedInUserWithNext(nextPath: string) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect(`/sign-in?next=${encodeURIComponent(nextPath)}`);
+  }
+
+  return user;
+}
+
 export async function signInAction(formData: FormData) {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
+  const nextPath = String(formData.get("next") ?? "").trim();
 
   await signIn(email, password);
-  redirect("/");
+  redirect(nextPath || "/");
 }
 
 export async function signUpAction(formData: FormData) {
@@ -61,9 +83,10 @@ export async function signUpAction(formData: FormData) {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const role = String(formData.get("role") ?? "customer") as "customer" | "teacher";
+  const nextPath = String(formData.get("next") ?? "").trim();
 
   await signUp({ name, email, password, role });
-  redirect("/");
+  redirect(nextPath || "/");
 }
 
 export async function signOutAction() {
@@ -110,10 +133,15 @@ export async function bookSessionAction(formData: FormData) {
   const offeringId = String(formData.get("offeringId"));
   const slotId = String(formData.get("slotId"));
   const notes = String(formData.get("notes") ?? "");
+  const teacherSlug = String(formData.get("teacherSlug") ?? "");
   const user = await getCurrentUser();
 
+  if (!user) {
+    redirect(`/sign-in?next=${encodeURIComponent(`/teachers/${teacherSlug}/book`)}`);
+  }
+
   await bookSession({
-    customerId: user?.id ?? DEFAULT_CUSTOMER_ID,
+    customerId: user.id,
     teacherId,
     offeringId,
     slotId,
@@ -121,7 +149,34 @@ export async function bookSessionAction(formData: FormData) {
   });
 
   revalidatePath(`/teachers`);
-  revalidatePath(`/teachers/${String(formData.get("teacherSlug"))}`);
+  revalidatePath(`/teachers/${teacherSlug}`);
+  revalidatePath("/bookings");
+  revalidatePath("/credits");
+  redirect("/bookings?created=1");
+}
+
+export async function bookCalendarSessionAction(formData: FormData) {
+  const teacherId = String(formData.get("teacherId"));
+  const sessionId = String(formData.get("sessionId"));
+  const teacherSlug = String(formData.get("teacherSlug"));
+  const notes = String(formData.get("notes") ?? "");
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect(`/sign-in?next=${encodeURIComponent(`/teachers/${teacherSlug}/book?sessionId=${sessionId}`)}`);
+  }
+
+  await bookCalendarSession({
+    customerId: user.id,
+    teacherId,
+    sessionId,
+    notes
+  });
+
+  revalidatePath(`/teachers`);
+  revalidatePath(`/teachers/${teacherSlug}`);
+  revalidatePath(`/teachers/${teacherSlug}/book`);
+  revalidatePath("/dashboard/teacher/availability");
   revalidatePath("/bookings");
   revalidatePath("/credits");
   redirect("/bookings?created=1");
@@ -142,6 +197,7 @@ export async function updateTeacherProfileAction(formData: FormData) {
     bio: String(formData.get("bio") ?? ""),
     gender: String(formData.get("gender") ?? "female") as "female" | "male" | "other",
     certificationStatus: teacher.certificationStatus,
+    studioScheduleUrl: String(formData.get("studioScheduleUrl") ?? "").trim() || undefined,
     avatarUrl: uploadedAvatarUrl
   });
 
@@ -160,6 +216,48 @@ export async function addAvailabilityAction(formData: FormData) {
   });
 
   revalidatePath("/dashboard/teacher/availability");
+}
+
+function getCalendarSessionInput(formData: FormData) {
+  return {
+    offeringId: String(formData.get("offeringId") ?? ""),
+    title: String(formData.get("title") ?? "").trim(),
+    description: String(formData.get("description") ?? "").trim(),
+    location: String(formData.get("location") ?? "").trim(),
+    startsAt: new Date(String(formData.get("startsAt"))).toISOString(),
+    endsAt: new Date(String(formData.get("endsAt"))).toISOString(),
+    timezone: String(formData.get("timezone") ?? "America/Los_Angeles").trim(),
+    sourceUrl: String(formData.get("sourceUrl") ?? "").trim() || undefined
+  };
+}
+
+export async function addCalendarSessionAction(formData: FormData) {
+  const teacher = await requireCurrentTeacher();
+
+  await addTeacherCalendarSession(teacher.id, getCalendarSessionInput(formData));
+
+  revalidatePath("/dashboard/teacher/availability");
+  revalidatePath(`/teachers/${teacher.slug}`);
+}
+
+export async function updateCalendarSessionAction(formData: FormData) {
+  const teacher = await requireCurrentTeacher();
+  const sessionId = String(formData.get("sessionId") ?? "");
+
+  await updateTeacherCalendarSession(teacher.id, sessionId, getCalendarSessionInput(formData));
+
+  revalidatePath("/dashboard/teacher/availability");
+  revalidatePath(`/teachers/${teacher.slug}`);
+}
+
+export async function deleteCalendarSessionAction(formData: FormData) {
+  const teacher = await requireCurrentTeacher();
+  const sessionId = String(formData.get("sessionId") ?? "");
+
+  await deleteTeacherCalendarSession(teacher.id, sessionId);
+
+  revalidatePath("/dashboard/teacher/availability");
+  revalidatePath(`/teachers/${teacher.slug}`);
 }
 
 export async function addOfferingAction(formData: FormData) {
@@ -227,6 +325,48 @@ export async function addUpcomingEventAction(formData: FormData) {
   revalidatePath("/dashboard/teacher/profile");
   revalidatePath(`/teachers/${teacher.slug}`);
   redirect("/dashboard/teacher/profile?saved=event-added");
+}
+
+export async function toggleTeacherFollowAction(formData: FormData) {
+  const user = await requireSignedInUser();
+  const teacherId = String(formData.get("teacherId") ?? "");
+  const teacherSlug = String(formData.get("teacherSlug") ?? "");
+  const intent = String(formData.get("intent") ?? "follow");
+
+  if (!teacherId) {
+    throw new Error("Teacher follow is missing a teacher id.");
+  }
+
+  if (intent === "unfollow") {
+    await unfollowTeacherForUser(user.id, teacherId);
+  } else {
+    await followTeacherForUser(user.id, teacherId);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/teachers");
+
+  if (teacherSlug) {
+    revalidatePath(`/teachers/${teacherSlug}`);
+  }
+}
+
+export async function toggleEventHostFollowAction(formData: FormData) {
+  const user = await requireSignedInUser();
+  const hostId = String(formData.get("hostId") ?? "");
+  const intent = String(formData.get("intent") ?? "follow");
+
+  if (!hostId) {
+    throw new Error("Host follow is missing a host id.");
+  }
+
+  if (intent === "unfollow") {
+    await unfollowEventHostForUser(user.id, hostId);
+  } else {
+    await followEventHostForUser(user.id, hostId);
+  }
+
+  revalidatePath("/");
 }
 
 export async function addTeacherCertificationSubmissionAction(formData: FormData) {

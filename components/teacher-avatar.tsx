@@ -25,6 +25,10 @@ function getInitials(name: string) {
 
 export function TeacherAvatar({ name, src, className, width, height, sizes }: TeacherAvatarProps) {
   if (src) {
+    if (src.startsWith("blob:")) {
+      return <Image alt={name} className={`${className} object-cover`} height={height} sizes={sizes} src={src} unoptimized width={width} />;
+    }
+
     return <Image alt={name} className={`${className} object-cover`} height={height} sizes={sizes} src={src} width={width} />;
   }
 

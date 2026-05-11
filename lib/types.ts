@@ -37,7 +37,30 @@ export type Teacher = {
   certificationStatus: "certified" | "not_certified";
   published: boolean;
   upcomingEvents?: TeacherUpcomingEvent[];
+  calendarSessions?: TeacherCalendarSession[];
   certificationSubmissions?: TeacherCertificationSubmission[];
+};
+
+export type EventHost = {
+  id: string;
+  name: string;
+  slug: string;
+  websiteUrl?: string;
+  imageUrl?: string;
+};
+
+export type UserTeacherFollow = {
+  id: string;
+  userId: string;
+  teacherId: string;
+  createdAt: string;
+};
+
+export type UserEventHostFollow = {
+  id: string;
+  userId: string;
+  hostId: string;
+  createdAt: string;
 };
 
 export type Badge = {
@@ -90,10 +113,47 @@ export type TeacherStory = {
 export type TeacherUpcomingEvent = {
   id: string;
   teacherId: string;
+  hostId?: string;
   title: string;
   hostName?: string;
   eventUrl: string;
   eventDate?: string;
+};
+
+export type HomepageEventCard = {
+  id: string;
+  teacherId?: string;
+  teacherSlug?: string;
+  hostId?: string;
+  sortDate?: string;
+  title: string;
+  dateRange: string;
+  host: string;
+  location: string;
+  detail: string;
+  href: string;
+  external?: boolean;
+  imageSrc: string;
+  imageAlt: string;
+  category: string;
+  attendees?: number;
+  featuredLabel?: string;
+  isFollowedHost?: boolean;
+  isFollowedTeacher?: boolean;
+};
+
+export type TeacherCalendarSession = {
+  id: string;
+  teacherId: string;
+  offeringId: string;
+  title: string;
+  description: string;
+  location: string;
+  startsAt: string;
+  endsAt: string;
+  timezone: string;
+  sourceUrl?: string;
+  isBooked: boolean;
 };
 
 export type TeacherCertificationSubmission = {

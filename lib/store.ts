@@ -464,6 +464,75 @@ export function bookTeacherSession(input: {
   };
 }
 
+export function bookTeacherCalendarSession(input: {
+  customerId: string;
+  teacherId: string;
+  offeringId: string;
+  sessionId: string;
+  startsAt: string;
+  endsAt: string;
+  notes?: string;
+}) {
+  const wallet = getCustomerWallet(input.customerId);
+  const offering = state.offerings.find((entry) => entry.id === input.offeringId && entry.teacherId === input.teacherId && entry.active);
+
+  if (!offering) {
+    throw new Error("The selected session is no longer available.");
+  }
+
+  if (wallet.balance < offering.creditPrice) {
+    throw new Error("Not enough credits. Please top up before booking.");
+  }
+
+  wallet.balance -= offering.creditPrice;
+
+  const booking: Booking = {
+    id: `booking-${Date.now()}`,
+    customerId: input.customerId,
+    teacherId: input.teacherId,
+    offeringId: offering.id,
+    slotId: input.sessionId,
+    notes: input.notes,
+    status: "confirmed",
+    paymentStatus: "paid",
+    startsAt: input.startsAt,
+    endsAt: input.endsAt,
+    creditsSpent: offering.creditPrice
+  };
+
+  state.bookings.push(booking);
+  state.transactions.push({
+    id: `txn-${Date.now()}-spend`,
+    userId: input.customerId,
+    amount: -offering.creditPrice,
+    type: "spend",
+    reference: booking.id,
+    createdAt: new Date().toISOString()
+  });
+
+  const commission = calculateCommission(offering.creditPrice);
+  state.earnings.push({
+    id: `earn-${Date.now()}`,
+    teacherId: input.teacherId,
+    bookingId: booking.id,
+    grossCredits: commission.grossCredits,
+    platformCommission: commission.platformCommission,
+    netCredits: commission.netCredits,
+    payoutStatus: "pending"
+  });
+
+  const minutesAdded = differenceInMinutes(new Date(input.endsAt), new Date(input.startsAt));
+  updateTeachingHours(state.teachingHours, input.teacherId, offering.category, minutesAdded);
+  return {
+    booking,
+    teachingHoursPersist: {
+      teacherId: input.teacherId,
+      category: offering.category,
+      minutesAdded
+    }
+  };
+}
+
 export function markPayoutPaid(teacherId: string) {
   const batchRef = `manual-${formatISO(new Date(), { representation: "date" })}-${teacherId}`;
   state.earnings.forEach((entry) => {

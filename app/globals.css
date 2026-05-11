@@ -2,12 +2,13 @@
 
 :root {
   color-scheme: light;
+  --thryve-page-bg: #fcfcfc;
 }
 
 body {
   margin: 0;
   font-family: Arial, Helvetica, sans-serif;
-  background: #f8f7f4;
+  background: var(--thryve-page-bg);
   color: #1c1917;
 }
 

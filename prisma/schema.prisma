@@ -31,42 +31,84 @@ enum CertificationSubmissionStatus {
 }
 
 model User {
-  id        String   @id
-  email     String   @unique
-  password  String
-  role      Role
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  teacher   Teacher?
+  id               String                @id
+  email            String                @unique
+  password         String
+  role             Role
+  name             String
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  teacher          Teacher?
+  teacherFollows   UserTeacherFollow[]
+  eventHostFollows UserEventHostFollow[]
 }
 
 model Teacher {
-  id                  String        @id
-  userId              String        @unique
-  slug                String        @unique
-  fullName            String
-  avatarUrl           String?
-  studioName          String?
-  studioWebsiteUrl    String?
-  studioScheduleUrl   String?
-  platformHoursBooked Int?
-  city                String
-  serviceRadiusMiles  Int
-  training            String
-  experienceYears     Int
-  bio                 String
-  gender              String
-  certificationStatus String
-  published           Boolean       @default(false)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stories             TeacherStory[]
-  teachingHours       TeachingHourCounter[]
-  upcomingEvents      TeacherUpcomingEvent[]
-  contactInquiries    ContactInquiry[]
+  id                       String                        @id
+  userId                   String                        @unique
+  slug                     String                        @unique
+  fullName                 String
+  avatarUrl                String?
+  studioName               String?
+  studioWebsiteUrl         String?
+  studioScheduleUrl        String?
+  platformHoursBooked      Int?
+  city                     String
+  serviceRadiusMiles       Int
+  training                 String
+  experienceYears          Int
+  bio                      String
+  gender                   String
+  certificationStatus      String
+  published                Boolean                       @default(false)
+  createdAt                DateTime                      @default(now())
+  updatedAt                DateTime                      @updatedAt
+  user                     User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stories                  TeacherStory[]
+  teachingHours            TeachingHourCounter[]
+  upcomingEvents           TeacherUpcomingEvent[]
+  calendarSessions         TeacherCalendarSession[]
+  contactInquiries         ContactInquiry[]
   certificationSubmissions TeacherCertificationSubmission[]
+  followers                UserTeacherFollow[]
+}
+
+model EventHost {
+  id         String                @id
+  name       String                @unique
+  slug       String                @unique
+  websiteUrl String?
+  imageUrl   String?
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  events     TeacherUpcomingEvent[]
+  followers  UserEventHostFollow[]
+}
+
+model UserTeacherFollow {
+  id        String   @id
+  userId    String
+  teacherId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teacherId])
+  @@index([userId])
+  @@index([teacherId])
+}
+
+model UserEventHostFollow {
+  id        String    @id
+  userId    String
+  hostId    String
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  host      EventHost @relation(fields: [hostId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hostId])
+  @@index([userId])
+  @@index([hostId])
 }
 
 model TeacherStory {
@@ -86,6 +128,7 @@ model TeacherStory {
 model TeacherUpcomingEvent {
   id        String    @id
   teacherId String
+  hostId    String?
   title     String
   hostName  String?
   eventUrl  String
@@ -93,6 +136,30 @@ model TeacherUpcomingEvent {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   teacher   Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  host      EventHost? @relation(fields: [hostId], references: [id], onDelete: SetNull)
+
+  @@index([hostId])
+  @@index([teacherId, eventDate])
+}
+
+model TeacherCalendarSession {
+  id          String   @id
+  teacherId   String
+  offeringId  String
+  title       String
+  description String
+  location    String
+  startsAt    DateTime
+  endsAt      DateTime
+  timezone    String
+  sourceUrl   String?
+  isBooked    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  teacher     Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([teacherId, startsAt])
+  @@index([teacherId, isBooked])
 }
 
 model TeachingHourCounter {
