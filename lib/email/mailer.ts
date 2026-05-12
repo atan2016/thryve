@@ -1,6 +1,3 @@
-import { existsSync, readFileSync } from "fs";
-import path from "path";
-
 import nodemailer from "nodemailer";
 
 type MailOptions = {
@@ -20,6 +17,10 @@ function getEnvValue(...keys: string[]) {
     }
   }
 
+  if (process.env.NODE_ENV === "production") {
+    return undefined;
+  }
+
   const localEnv = getLocalEnv();
   for (const key of keys) {
     const value = localEnv[key]?.trim();
@@ -36,7 +37,17 @@ function getLocalEnv() {
     return cachedLocalEnv;
   }
 
-  const candidates = [path.join(process.cwd(), ".env.local"), path.join(process.cwd(), ".env")];
+  if (process.env.NODE_ENV === "production") {
+    cachedLocalEnv = {};
+    return cachedLocalEnv;
+  }
+
+  const { existsSync, readFileSync } = require("fs") as typeof import("fs");
+  const path = require("path") as typeof import("path");
+  const candidates = [
+    path.join(/* turbopackIgnore: true */ process.cwd(), ".env.local"),
+    path.join(/* turbopackIgnore: true */ process.cwd(), ".env")
+  ];
   const values: Record<string, string> = {};
 
   for (const filePath of candidates) {
