@@ -1,0 +1,2 @@
+ALTER TABLE "Teacher"
+ADD COLUMN "showPublicCalendar" BOOLEAN NOT NULL DEFAULT true;

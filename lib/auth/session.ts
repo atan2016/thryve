@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createUser, ensureTeacherProfile, getUserByEmail, getUserById } from "@/lib/persistence";
 import type { Role } from "@/lib/types";
 
@@ -65,8 +66,12 @@ export async function getCurrentUser() {
 export async function signIn(email: string, password: string) {
   const user = await getUserByEmail(email);
 
-  if (!user || user.password !== password) {
+  if (!user || !(await verifyPassword(password, user.password))) {
     throw new Error("Invalid email or password.");
+  }
+
+  if (!user.emailVerifiedAt) {
+    throw new Error("Please verify your email before signing in.");
   }
 
   await createSession(user.id, user.role);
@@ -78,7 +83,11 @@ export async function signUp(input: { name: string; email: string; password: str
     throw new Error("That email is already in use.");
   }
 
-  const user = await createUser(input);
+  const user = await createUser({
+    ...input,
+    password: await hashPassword(input.password),
+    emailVerifiedAt: new Date().toISOString()
+  });
   if (user.role === "teacher") {
     await ensureTeacherProfile(user.id, user.name);
   }

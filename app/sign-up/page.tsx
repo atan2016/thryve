@@ -1,50 +1,54 @@
-import Link from "next/link";
-
-import { signUpAction } from "@/lib/actions";
+import { SignUpForm } from "@/components/sign-up-form";
 
 type SignUpPageProps = {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{
+    next?: string;
+    error?: string;
+    status?: string;
+    email?: string;
+    name?: string;
+    role?: string;
+    websiteUrl?: string;
+    linkedinUrl?: string;
+    instagramUrl?: string;
+    facebookUrl?: string;
+    profileImportConsent?: string;
+  }>;
 };
 
 export default async function SignUpPage({ searchParams }: SignUpPageProps) {
   const params = await searchParams;
   const nextPath = params.next ?? "";
+  const error = params.error;
+  const status = params.status;
+  const defaultEmail = params.email ?? "";
+  const defaultName = params.name ?? "";
+  const defaultRole = params.role === "teacher" ? "teacher" : "customer";
+  const defaultWebsiteUrl = params.websiteUrl ?? "";
+  const defaultLinkedinUrl = params.linkedinUrl ?? "";
+  const defaultInstagramUrl = params.instagramUrl ?? "";
+  const defaultFacebookUrl = params.facebookUrl ?? "";
+  const defaultProfileImportConsent = params.profileImportConsent === "1";
+  const errorMessage =
+    error === "sign_up_failed" ? "We couldn't start signup. Please try again." : null;
+  const successMessage =
+    status === "verification_sent"
+      ? `We sent a verification link to ${defaultEmail || "your email"}. Your account will be created after you confirm it.`
+      : null;
 
   return (
-    <div className="mx-auto max-w-xl rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
-      <h1 className="text-3xl font-semibold">Create account</h1>
-      <p className="mt-2 text-stone-500">Students can book with credits. Teachers get a profile, dashboard, and earnings visibility.</p>
-      <form action={signUpAction} className="mt-8 space-y-4">
-        <input name="next" type="hidden" value={nextPath} />
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium">Full name</span>
-          <input name="name" placeholder="Your name" required />
-        </label>
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium">Email</span>
-          <input name="email" type="email" placeholder="you@example.com" required />
-        </label>
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium">Password</span>
-          <input name="password" type="password" placeholder="Create a password" required />
-        </label>
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium">I am signing up as</span>
-          <select name="role" defaultValue="customer">
-            <option value="customer">Student / customer</option>
-            <option value="teacher">Teacher</option>
-          </select>
-        </label>
-        <button className="w-full rounded-full bg-stone-900 px-5 py-3 text-white" type="submit">
-          Create account
-        </button>
-      </form>
-      <p className="mt-6 text-center text-sm text-stone-500">
-        Already have an account?{" "}
-        <Link className="font-semibold text-emerald-700" href={nextPath ? `/sign-in?next=${encodeURIComponent(nextPath)}` : "/sign-in"}>
-          Sign in
-        </Link>
-      </p>
-    </div>
+    <SignUpForm
+      defaultEmail={defaultEmail}
+      defaultFacebookUrl={defaultFacebookUrl}
+      defaultInstagramUrl={defaultInstagramUrl}
+      defaultLinkedinUrl={defaultLinkedinUrl}
+      defaultName={defaultName}
+      defaultProfileImportConsent={defaultProfileImportConsent}
+      defaultRole={defaultRole}
+      defaultWebsiteUrl={defaultWebsiteUrl}
+      errorMessage={errorMessage}
+      nextPath={nextPath}
+      successMessage={successMessage}
+    />
   );
 }

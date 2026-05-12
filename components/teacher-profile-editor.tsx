@@ -16,6 +16,9 @@ type TeacherProfileEditorProps = {
     id: string;
     fullName: string;
     avatarUrl?: string;
+    showPublicCalendar?: boolean;
+    studioName?: string;
+    studioWebsiteUrl?: string;
     city: string;
     serviceRadiusMiles: number;
     experienceYears: number;
@@ -25,6 +28,15 @@ type TeacherProfileEditorProps = {
     bio: string;
     training: string;
     studioScheduleUrl?: string;
+    websiteUrl?: string;
+    linkedinUrl?: string;
+    instagramUrl?: string;
+    facebookUrl?: string;
+    resumeUrl?: string;
+    resumeFileName?: string;
+    profileImportStatus?: "not_started" | "sources_saved" | "completed" | "failed" | "skipped";
+    profileImportNotes?: string;
+    profileImportCompletedAt?: string;
     styles: string[];
     badges: Array<{ name: string; verified: boolean; imageUrl?: string }>;
     offerings: Array<{ id: string; title: string; creditPrice: number; deliveryMode: "online" | "in_person"; sessionLengthMin: number }>;
@@ -50,8 +62,18 @@ function formatGenderLabel(gender: "female" | "male" | "other") {
   return gender === "female" ? "Female" : gender === "male" ? "Male" : "Other";
 }
 
+function formatExternalLinkLabel(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
 export function TeacherProfileEditor({ action, teacher }: TeacherProfileEditorProps) {
   const [fullName, setFullName] = useState(teacher.fullName);
+  const [studioName, setStudioName] = useState(teacher.studioName ?? "");
+  const [studioWebsiteUrl, setStudioWebsiteUrl] = useState(teacher.studioWebsiteUrl ?? "");
   const [city, setCity] = useState(teacher.city);
   const [serviceRadiusMiles, setServiceRadiusMiles] = useState(String(teacher.serviceRadiusMiles));
   const [experienceYears, setExperienceYears] = useState(String(teacher.experienceYears));
@@ -59,16 +81,23 @@ export function TeacherProfileEditor({ action, teacher }: TeacherProfileEditorPr
   const [bio, setBio] = useState(teacher.bio);
   const [training, setTraining] = useState(teacher.training);
   const [studioScheduleUrl, setStudioScheduleUrl] = useState(teacher.studioScheduleUrl ?? "");
+  const [websiteUrl, setWebsiteUrl] = useState(teacher.websiteUrl ?? "");
+  const [linkedinUrl, setLinkedinUrl] = useState(teacher.linkedinUrl ?? "");
+  const [instagramUrl, setInstagramUrl] = useState(teacher.instagramUrl ?? "");
+  const [facebookUrl, setFacebookUrl] = useState(teacher.facebookUrl ?? "");
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | undefined>(undefined);
   const [previewOpen, setPreviewOpen] = useState(false);
   const previewAvatarUrl = avatarPreviewUrl ?? teacher.avatarUrl;
   const previewServiceRadius = Number(serviceRadiusMiles) || 0;
   const previewExperienceYears = Number(experienceYears) || 0;
+  const showPublicCalendar = teacher.showPublicCalendar !== false;
   const totalHoursBooked =
     teacher.teachingHours.reduce((total, counter) => total + counter.totalHours, 0) || teacher.platformHoursBooked;
-  const openCalendarSessions = (teacher.calendarSessions ?? []).filter((session) => !session.isBooked);
+  const openCalendarSessions = showPublicCalendar ? (teacher.calendarSessions ?? []).filter((session) => !session.isBooked) : [];
   const upcomingCalendarSessions = openCalendarSessions.slice(0, 3);
-  const openAvailability = teacher.availability.filter((slot) => !slot.isBooked).slice(0, studioScheduleUrl ? 3 : teacher.availability.length);
+  const openAvailability = showPublicCalendar
+    ? teacher.availability.filter((slot) => !slot.isBooked).slice(0, studioScheduleUrl ? 3 : teacher.availability.length)
+    : [];
 
   useEffect(() => {
     return () => {
@@ -106,6 +135,22 @@ export function TeacherProfileEditor({ action, teacher }: TeacherProfileEditorPr
   return (
     <div className="mt-8">
       <form action={action} className="grid gap-4 md:grid-cols-2">
+        {teacher.profileImportStatus && teacher.profileImportStatus !== "not_started" ? (
+          <div className="md:col-span-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+            <p className="font-medium">Latest import status: {teacher.profileImportStatus}</p>
+            {teacher.profileImportCompletedAt ? (
+              <p className="mt-1 text-emerald-800">
+                Completed {new Date(teacher.profileImportCompletedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </p>
+            ) : null}
+            {teacher.profileImportNotes ? <p className="mt-2 whitespace-pre-line text-emerald-800">{teacher.profileImportNotes}</p> : null}
+            {teacher.resumeUrl && teacher.resumeFileName ? (
+              <a className="mt-3 inline-flex font-medium text-emerald-800 underline-offset-2 hover:underline" href={teacher.resumeUrl} rel="noreferrer" target="_blank">
+                Open uploaded resume: {teacher.resumeFileName}
+              </a>
+            ) : null}
+          </div>
+        ) : null}
         <div className="md:col-span-2 flex items-center gap-4 rounded-2xl bg-stone-50 p-4">
           <TeacherAvatar className="h-24 w-24 rounded-[1.25rem]" height={96} name={fullName} src={previewAvatarUrl} width={96} />
           <div className="flex-1">
@@ -120,6 +165,14 @@ export function TeacherProfileEditor({ action, teacher }: TeacherProfileEditorPr
         <label className="block md:col-span-2">
           <span className="mb-2 block text-sm font-medium">Full name</span>
           <input name="fullName" onChange={(event) => setFullName(event.target.value)} value={fullName} />
+        </label>
+        <label className="block">
+          <span className="mb-2 block text-sm font-medium">Studio or business name</span>
+          <input name="studioName" onChange={(event) => setStudioName(event.target.value)} value={studioName} />
+        </label>
+        <label className="block">
+          <span className="mb-2 block text-sm font-medium">Studio or business website</span>
+          <input name="studioWebsiteUrl" onChange={(event) => setStudioWebsiteUrl(event.target.value)} placeholder="https://yourstudio.com" type="url" value={studioWebsiteUrl} />
         </label>
         <label className="block">
           <span className="mb-2 block text-sm font-medium">City</span>
@@ -142,6 +195,22 @@ export function TeacherProfileEditor({ action, teacher }: TeacherProfileEditorPr
             type="url"
             value={studioScheduleUrl}
           />
+        </label>
+        <label className="block">
+          <span className="mb-2 block text-sm font-medium">Main website</span>
+          <input name="websiteUrl" onChange={(event) => setWebsiteUrl(event.target.value)} placeholder="https://yourwebsite.com" type="url" value={websiteUrl} />
+        </label>
+        <label className="block">
+          <span className="mb-2 block text-sm font-medium">LinkedIn</span>
+          <input name="linkedinUrl" onChange={(event) => setLinkedinUrl(event.target.value)} placeholder="https://www.linkedin.com/in/your-profile" type="url" value={linkedinUrl} />
+        </label>
+        <label className="block">
+          <span className="mb-2 block text-sm font-medium">Instagram</span>
+          <input name="instagramUrl" onChange={(event) => setInstagramUrl(event.target.value)} placeholder="https://www.instagram.com/your-handle" type="url" value={instagramUrl} />
+        </label>
+        <label className="block">
+          <span className="mb-2 block text-sm font-medium">Facebook</span>
+          <input name="facebookUrl" onChange={(event) => setFacebookUrl(event.target.value)} placeholder="https://www.facebook.com/your-page" type="url" value={facebookUrl} />
         </label>
         <label className="block">
           <span className="mb-2 block text-sm font-medium">Gender</span>
@@ -228,6 +297,7 @@ export function TeacherProfileEditor({ action, teacher }: TeacherProfileEditorPr
                       {teacher.certificationStatus === "certified" ? "Certified" : "Not certified"}
                     </span>
                   </div>
+                  {studioName ? <p className="text-sm font-medium text-stone-600">{studioName}</p> : null}
                   <p className="text-stone-500">
                     {city || "City"} • {previewServiceRadius} mile service radius
                     {totalHoursBooked ? (
@@ -240,6 +310,21 @@ export function TeacherProfileEditor({ action, teacher }: TeacherProfileEditorPr
                     )}
                   </p>
                   <p className="text-sm text-stone-500">{formatGenderLabel(gender)}</p>
+                  <div className="flex flex-wrap gap-2 text-sm">
+                    {[studioWebsiteUrl, websiteUrl, linkedinUrl, instagramUrl, facebookUrl]
+                      .filter((url): url is string => Boolean(url))
+                      .map((url) => (
+                        <a
+                          className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-stone-700"
+                          href={url}
+                          key={url}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          {formatExternalLinkLabel(url)}
+                        </a>
+                      ))}
+                  </div>
                 </div>
               </div>
 
@@ -309,42 +394,48 @@ export function TeacherProfileEditor({ action, teacher }: TeacherProfileEditorPr
                 </div>
               ) : null}
 
-              <div className="mt-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h5 className="text-lg font-semibold text-stone-900">Teaching calendar</h5>
-                  {studioScheduleUrl ? (
-                    <a
-                      className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800"
-                      href={studioScheduleUrl}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      Open full availability
-                    </a>
-                  ) : null}
-                </div>
-                <div className="mt-4 space-y-3">
-                  {upcomingCalendarSessions.length > 0 ? (
-                    upcomingCalendarSessions.map((session) => {
-                      const offering = teacher.offerings.find((entry) => entry.id === session.offeringId);
+              {showPublicCalendar ? (
+                <div className="mt-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h5 className="text-lg font-semibold text-stone-900">Teaching calendar</h5>
+                    {studioScheduleUrl ? (
+                      <a
+                        className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800"
+                        href={studioScheduleUrl}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        Open full availability
+                      </a>
+                    ) : null}
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {upcomingCalendarSessions.length > 0 ? (
+                      upcomingCalendarSessions.map((session) => {
+                        const offering = teacher.offerings.find((entry) => entry.id === session.offeringId);
 
-                      return (
-                        <article className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4" key={session.id}>
-                          <p className="text-sm font-semibold text-emerald-900">{formatDateTime(session.startsAt)}</p>
-                          <h6 className="mt-1 font-semibold text-stone-900">{session.title}</h6>
-                          <p className="mt-1 text-sm text-stone-600">{session.location}</p>
-                          <p className="mt-1 text-sm text-stone-500">
-                            {offering?.deliveryMode === "online" ? "Online" : "In person"} /{" "}
-                            {differenceInMinutes(new Date(session.endsAt), new Date(session.startsAt))} min
-                          </p>
-                        </article>
-                      );
-                    })
-                  ) : (
-                    <div className="rounded-2xl border border-dashed border-stone-300 p-4 text-sm text-stone-500">No listed classes this month.</div>
-                  )}
+                        return (
+                          <article className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4" key={session.id}>
+                            <p className="text-sm font-semibold text-emerald-900">{formatDateTime(session.startsAt)}</p>
+                            <h6 className="mt-1 font-semibold text-stone-900">{session.title}</h6>
+                            <p className="mt-1 text-sm text-stone-600">{session.location}</p>
+                            <p className="mt-1 text-sm text-stone-500">
+                              {offering?.deliveryMode === "online" ? "Online" : "In person"} /{" "}
+                              {differenceInMinutes(new Date(session.endsAt), new Date(session.startsAt))} min
+                            </p>
+                          </article>
+                        );
+                      })
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-stone-300 p-4 text-sm text-stone-500">No listed classes this month.</div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="mt-6 rounded-2xl border border-dashed border-stone-300 p-4 text-sm text-stone-500">
+                  The public profile is currently set to hide live calendar sessions.
+                </div>
+              )}
 
               <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
                 <div className="space-y-4">
@@ -386,7 +477,11 @@ export function TeacherProfileEditor({ action, teacher }: TeacherProfileEditorPr
                     ) : null}
                   </div>
                   <p className="mt-2 text-sm text-stone-500">
-                    {studioScheduleUrl ? "Showing the first 3 open times from the instructor&apos;s calendar." : "Only open time slots appear here and on the booking screen."}
+                    {showPublicCalendar
+                      ? studioScheduleUrl
+                        ? "Showing the first 3 open times from the instructor&apos;s calendar."
+                        : "Only open time slots appear here and on the booking screen."
+                      : "Live availability is hidden from the public profile right now."}
                   </p>
                   <div className="mt-5 space-y-3">
                     {openAvailability.length > 0 ? (
@@ -397,7 +492,9 @@ export function TeacherProfileEditor({ action, teacher }: TeacherProfileEditorPr
                         </div>
                       ))
                     ) : (
-                      <div className="rounded-2xl border border-dashed border-stone-300 p-4 text-sm text-stone-500">No open availability yet.</div>
+                      <div className="rounded-2xl border border-dashed border-stone-300 p-4 text-sm text-stone-500">
+                        {showPublicCalendar ? "No open availability yet." : "Live booking times are hidden for now."}
+                      </div>
                     )}
                   </div>
                 </div>

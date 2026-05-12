@@ -18,6 +18,40 @@ type TeacherProfileProps = {
   searchParams: Promise<{ contact?: string }>;
 };
 
+function IconGlobe() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c4.832 0 8.75 3.918 8.75 8.75S16.832 19.75 12 19.75 3.25 15.832 3.25 11 7.168 2.25 12 2.25zm0 0c2.183 2.154 3.5 5.185 3.5 8.75s-1.317 6.596-3.5 8.75m0-17.5C9.817 4.404 8.5 7.435 8.5 11s1.317 6.596 3.5 8.75M3.9 8h16.2M3.9 14h16.2" />
+    </svg>
+  );
+}
+
+function IconInstagram() {
+  return (
+    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <rect x="3.75" y="3.75" width="16.5" height="16.5" rx="4.5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.25" cy="6.75" r="0.75" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function IconFacebook() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M13.5 21v-7.125h2.415l.36-2.79H13.5v-1.78c0-.81.225-1.36 1.39-1.36h1.485V5.45A19.7 19.7 0 0014.21 5.3c-2.145 0-3.615 1.31-3.615 3.72v2.065H8.16v2.79h2.435V21h2.905z" />
+    </svg>
+  );
+}
+
+function IconLinkedIn() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M6.94 8.5a1.69 1.69 0 110-3.38 1.69 1.69 0 010 3.38zM5.5 9.75h2.88V18H5.5V9.75zm4.7 0h2.76v1.12h.04c.38-.73 1.32-1.5 2.72-1.5 2.9 0 3.44 1.9 3.44 4.37V18h-2.88v-3.76c0-.9-.02-2.06-1.25-2.06-1.26 0-1.45.98-1.45 1.99V18H10.2V9.75z" />
+    </svg>
+  );
+}
+
 function formatTimeRange(startsAt: string, endsAt: string) {
   return `${format(new Date(startsAt), "h:mm a")} - ${format(new Date(endsAt), "h:mm a")}`;
 }
@@ -52,10 +86,36 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
 
   const totalHoursBooked =
     teacher.teachingHours.reduce((total, counter) => total + counter.totalHours, 0) || teacher.platformHoursBooked;
-  const openCalendarSessions = (teacher.calendarSessions ?? []).filter((session) => !session.isBooked);
+  const showPublicCalendar = teacher.showPublicCalendar !== false;
+  const openCalendarSessions = showPublicCalendar ? (teacher.calendarSessions ?? []).filter((session) => !session.isBooked) : [];
   const openAvailabilitySlots = teacher.availability.filter((slot) => !slot.isBooked);
-  const availabilitySlotsToShow = teacher.studioScheduleUrl ? openAvailabilitySlots.slice(0, 3) : openAvailabilitySlots;
+  const availabilitySlotsToShow = showPublicCalendar
+    ? (teacher.studioScheduleUrl ? openAvailabilitySlots.slice(0, 3) : openAvailabilitySlots)
+    : [];
   const calendarBaseDate = openCalendarSessions[0] ? new Date(openCalendarSessions[0].startsAt) : new Date();
+  const teacherLinks: Array<{ href: string; label: string; icon: ReturnType<typeof IconGlobe> }> = [];
+
+  if (teacher.websiteUrl) {
+    teacherLinks.push({ href: teacher.websiteUrl, label: "Website", icon: <IconGlobe /> });
+  } else if (teacher.studioWebsiteUrl) {
+    teacherLinks.push({ href: teacher.studioWebsiteUrl, label: "Website", icon: <IconGlobe /> });
+  }
+
+  if (teacher.studioWebsiteUrl && teacher.websiteUrl && teacher.studioWebsiteUrl !== teacher.websiteUrl) {
+    teacherLinks.push({ href: teacher.studioWebsiteUrl, label: "Studio", icon: <IconGlobe /> });
+  }
+
+  if (teacher.linkedinUrl) {
+    teacherLinks.push({ href: teacher.linkedinUrl, label: "LinkedIn", icon: <IconLinkedIn /> });
+  }
+
+  if (teacher.instagramUrl) {
+    teacherLinks.push({ href: teacher.instagramUrl, label: "Instagram", icon: <IconInstagram /> });
+  }
+
+  if (teacher.facebookUrl) {
+    teacherLinks.push({ href: teacher.facebookUrl, label: "Facebook", icon: <IconFacebook /> });
+  }
   const monthStart = startOfMonth(calendarBaseDate);
   const monthEnd = endOfMonth(calendarBaseDate);
   const calendarDays = eachDayOfInterval({
@@ -94,35 +154,21 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
                   </>
                 ) : null}
               </p>
-              {teacher.slug === "ashley-tan" ? (
+              {teacherLinks.length > 0 ? (
                 <div className="flex flex-wrap items-center gap-3 pt-1">
-                  <a
-                    aria-label="Yoga by Ashley Tan website"
-                    className="opacity-80 transition-opacity hover:opacity-100"
-                    href="https://yogabyashleytan.com/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    <Image alt="" className="h-9 w-9 object-contain" height={36} src="/assets/images/website_icon.png" width={36} />
-                  </a>
-                  <a
-                    aria-label="Facebook"
-                    className="opacity-80 transition-opacity hover:opacity-100"
-                    href="https://www.facebook.com/xtan1"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    <Image alt="" className="h-[28.8px] w-[28.8px] rounded-full object-cover" height={36} src="/assets/images/facebook_icon.jpeg" width={36} />
-                  </a>
-                  <a
-                    aria-label="Instagram"
-                    className="opacity-80 transition-opacity hover:opacity-100"
-                    href="https://www.instagram.com/ashleytan2017/"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    <Image alt="" className="h-[28.8px] w-[28.8px] rounded-md object-cover" height={36} src="/assets/images/instagram_icon.jpeg" width={36} />
-                  </a>
+                  {teacherLinks.map((link) => (
+                    <a
+                      aria-label={link.label}
+                      className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 transition hover:border-stone-300 hover:bg-stone-100"
+                      href={link.href}
+                      key={`${link.label}-${link.href}`}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      {link.icon}
+                      {link.label}
+                    </a>
+                  ))}
                 </div>
               ) : null}
             </div>
@@ -222,123 +268,125 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
         </div>
       </section>
 
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-semibold">Teaching calendar</h2>
-            <p className="text-stone-500">See upcoming sessions from this instructor and book a specific class time.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="rounded-full bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700">
-              {format(monthStart, "MMMM yyyy")}
-            </p>
-            {teacher.studioScheduleUrl ? (
-              <a
-                className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800"
-                href={teacher.studioScheduleUrl}
-                rel="noreferrer"
-                target="_blank"
-              >
-                Open full availability
-              </a>
-            ) : null}
-          </div>
-        </div>
-        <div className="overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-sm">
-          {openCalendarSessions.length === 0 ? (
-            <div className="p-8">
-              <div className="rounded-2xl border border-dashed border-stone-300 p-6 text-center text-stone-500">
-                No listed classes this month.
-              </div>
+      {showPublicCalendar ? (
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-semibold">Teaching calendar</h2>
+              <p className="text-stone-500">See upcoming sessions from this instructor and book a specific class time.</p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <div className="min-w-[980px]">
-                <div className="grid grid-cols-7 border-b border-stone-200 bg-stone-50 px-5 py-4 text-sm font-medium text-stone-500">
-                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label) => (
-                    <div key={label}>
-                      <span className="block text-stone-900">{label}</span>
-                    </div>
-                  ))}
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="rounded-full bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700">
+                {format(monthStart, "MMMM yyyy")}
+              </p>
+              {teacher.studioScheduleUrl ? (
+                <a
+                  className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800"
+                  href={teacher.studioScheduleUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Open full availability
+                </a>
+              ) : null}
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-sm">
+            {openCalendarSessions.length === 0 ? (
+              <div className="p-8">
+                <div className="rounded-2xl border border-dashed border-stone-300 p-6 text-center text-stone-500">
+                  No listed classes this month.
                 </div>
-                <div>
-                  {calendarWeeks.map((week) => (
-                    <div className="grid grid-cols-7 border-b border-stone-100 last:border-b-0" key={week[0]?.toISOString()}>
-                      {week.map((day, dayIndex) => {
-                        const daySessions = openCalendarSessions.filter((session) => isSameDay(new Date(session.startsAt), day));
-                        const isInCurrentMonth = isSameMonth(day, monthStart);
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <div className="min-w-[980px]">
+                  <div className="grid grid-cols-7 border-b border-stone-200 bg-stone-50 px-5 py-4 text-sm font-medium text-stone-500">
+                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((label) => (
+                      <div key={label}>
+                        <span className="block text-stone-900">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    {calendarWeeks.map((week) => (
+                      <div className="grid grid-cols-7 border-b border-stone-100 last:border-b-0" key={week[0]?.toISOString()}>
+                        {week.map((day, dayIndex) => {
+                          const daySessions = openCalendarSessions.filter((session) => isSameDay(new Date(session.startsAt), day));
+                          const isInCurrentMonth = isSameMonth(day, monthStart);
 
-                        return (
-                          <div
-                            className={`min-h-64 p-4 ${dayIndex < 6 ? "border-r border-stone-100" : ""} ${isInCurrentMonth ? "bg-white" : "bg-stone-50/70"}`}
-                            key={day.toISOString()}
-                          >
-                            <div className="mb-3 flex items-start justify-between gap-2">
-                              <div>
-                                <p className={`text-xs font-medium uppercase tracking-wide ${isInCurrentMonth ? "text-stone-500" : "text-stone-400"}`}>
-                                  {format(day, "EEE")}
-                                </p>
-                                <p className={`mt-1 text-lg font-semibold ${isInCurrentMonth ? "text-stone-900" : "text-stone-400"}`}>
-                                  {format(day, "d")}
-                                </p>
+                          return (
+                            <div
+                              className={`min-h-64 p-4 ${dayIndex < 6 ? "border-r border-stone-100" : ""} ${isInCurrentMonth ? "bg-white" : "bg-stone-50/70"}`}
+                              key={day.toISOString()}
+                            >
+                              <div className="mb-3 flex items-start justify-between gap-2">
+                                <div>
+                                  <p className={`text-xs font-medium uppercase tracking-wide ${isInCurrentMonth ? "text-stone-500" : "text-stone-400"}`}>
+                                    {format(day, "EEE")}
+                                  </p>
+                                  <p className={`mt-1 text-lg font-semibold ${isInCurrentMonth ? "text-stone-900" : "text-stone-400"}`}>
+                                    {format(day, "d")}
+                                  </p>
+                                </div>
+                                {daySessions.length > 0 ? (
+                                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                                    {daySessions.length}
+                                  </span>
+                                ) : null}
                               </div>
-                              {daySessions.length > 0 ? (
-                                <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">
-                                  {daySessions.length}
-                                </span>
-                              ) : null}
-                            </div>
-                            <div className="space-y-3">
-                              {daySessions.map((session) => {
-                                const offering = teacher.offerings.find((entry) => entry.id === session.offeringId);
+                              <div className="space-y-3">
+                                {daySessions.map((session) => {
+                                  const offering = teacher.offerings.find((entry) => entry.id === session.offeringId);
 
-                                return (
-                                  <article className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3" key={session.id}>
-                                    <p className="text-xs font-semibold text-emerald-900">{formatTimeRange(session.startsAt, session.endsAt)}</p>
-                                    <h3 className="mt-1 text-sm font-semibold leading-snug">{session.title}</h3>
-                                    <p className="mt-2 text-xs text-stone-600">{session.location}</p>
-                                    <p className="mt-1 text-xs text-stone-500">
-                                      {offering?.deliveryMode === "online" ? "Online" : "In person"} /{" "}
-                                      {differenceInMinutes(new Date(session.endsAt), new Date(session.startsAt))} min
-                                    </p>
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                      <Link
-                                        className="rounded-full bg-stone-900 px-3 py-1.5 text-[11px] font-medium text-white"
-                                        href={
-                                          user
-                                            ? `/teachers/${teacher.slug}/book?sessionId=${encodeURIComponent(session.id)}`
-                                            : getSignInHref(`/teachers/${teacher.slug}/book?sessionId=${encodeURIComponent(session.id)}`)
-                                        }
-                                        style={{ color: "#ffffff" }}
-                                      >
-                                        Book
-                                      </Link>
-                                      {session.sourceUrl ? (
-                                        <a
-                                          className="rounded-full border border-stone-300 px-3 py-1.5 text-[11px] font-medium"
-                                          href={session.sourceUrl}
-                                          rel="noreferrer"
-                                          target="_blank"
+                                  return (
+                                    <article className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3" key={session.id}>
+                                      <p className="text-xs font-semibold text-emerald-900">{formatTimeRange(session.startsAt, session.endsAt)}</p>
+                                      <h3 className="mt-1 text-sm font-semibold leading-snug">{session.title}</h3>
+                                      <p className="mt-2 text-xs text-stone-600">{session.location}</p>
+                                      <p className="mt-1 text-xs text-stone-500">
+                                        {offering?.deliveryMode === "online" ? "Online" : "In person"} /{" "}
+                                        {differenceInMinutes(new Date(session.endsAt), new Date(session.startsAt))} min
+                                      </p>
+                                      <div className="mt-3 flex flex-wrap gap-2">
+                                        <Link
+                                          className="rounded-full bg-stone-900 px-3 py-1.5 text-[11px] font-medium text-white"
+                                          href={
+                                            user
+                                              ? `/teachers/${teacher.slug}/book?sessionId=${encodeURIComponent(session.id)}`
+                                              : getSignInHref(`/teachers/${teacher.slug}/book?sessionId=${encodeURIComponent(session.id)}`)
+                                          }
+                                          style={{ color: "#ffffff" }}
                                         >
-                                          Source
-                                        </a>
-                                      ) : null}
-                                    </div>
-                                  </article>
-                                );
-                              })}
+                                          Book
+                                        </Link>
+                                        {session.sourceUrl ? (
+                                          <a
+                                            className="rounded-full border border-stone-300 px-3 py-1.5 text-[11px] font-medium"
+                                            href={session.sourceUrl}
+                                            rel="noreferrer"
+                                            target="_blank"
+                                          >
+                                            Source
+                                          </a>
+                                        ) : null}
+                                      </div>
+                                    </article>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-      </section>
+            )}
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-4">
@@ -375,7 +423,11 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
             ) : null}
           </div>
           <p className="mt-2 text-stone-500">
-            {teacher.studioScheduleUrl ? "Showing the first 3 open times from the instructor&apos;s calendar." : "Only open time slots appear here and on the booking screen."}
+            {showPublicCalendar
+              ? teacher.studioScheduleUrl
+                ? "Showing the first 3 open times from the instructor&apos;s calendar."
+                : "Only open time slots appear here and on the booking screen."
+              : "This teacher is not currently showing live calendar times on their public profile."}
           </p>
           <div className="mt-5 space-y-3">
             {availabilitySlotsToShow.map((slot) => (
@@ -385,7 +437,9 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
                 </div>
               ))}
             {availabilitySlotsToShow.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-stone-300 p-4 text-sm text-stone-500">No open availability yet.</div>
+              <div className="rounded-2xl border border-dashed border-stone-300 p-4 text-sm text-stone-500">
+                {showPublicCalendar ? "No open availability yet." : "Live booking times are hidden for now."}
+              </div>
             ) : null}
           </div>
         </div>

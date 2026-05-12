@@ -4,9 +4,11 @@ import path from "path";
 const PROFILE_UPLOAD_DIRECTORY = path.join(process.cwd(), "public", "uploads", "profile-photos");
 const STORY_UPLOAD_DIRECTORY = path.join(process.cwd(), "public", "uploads", "story-media");
 const CERTIFICATION_UPLOAD_DIRECTORY = path.join(process.cwd(), "public", "uploads", "certifications");
+const RESUME_UPLOAD_DIRECTORY = path.join(process.cwd(), "public", "uploads", "resumes");
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_STORY_MEDIA_BYTES = 15 * 1024 * 1024;
 const MAX_CERTIFICATION_BYTES = 10 * 1024 * 1024;
+const MAX_RESUME_BYTES = 10 * 1024 * 1024;
 
 function getFileExtension(file: File) {
   const originalExtension = path.extname(file.name).toLowerCase();
@@ -17,6 +19,11 @@ function getFileExtension(file: File) {
 
   if (file.type === "image/png") return ".png";
   if (file.type === "application/pdf") return ".pdf";
+  if (file.type === "text/plain") return ".txt";
+  if (file.type === "text/markdown") return ".md";
+  if (file.type === "application/rtf") return ".rtf";
+  if (file.type === "application/msword") return ".doc";
+  if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") return ".docx";
   if (file.type === "image/webp") return ".webp";
   if (file.type === "image/gif") return ".gif";
   if (file.type === "video/mp4") return ".mp4";
@@ -95,6 +102,74 @@ export async function saveCertificationDocument(file: File, teacherId: string) {
 
   return {
     url: `/uploads/certifications/${fileName}`,
+    fileName: file.name || fileName,
+    mimeType: file.type
+  };
+}
+
+export async function saveTeacherResume(file: File, teacherId: string) {
+  const allowedTypes = new Set([
+    "application/pdf",
+    "text/plain",
+    "text/markdown",
+    "application/rtf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ]);
+
+  if (!allowedTypes.has(file.type)) {
+    throw new Error("Resume files must be a PDF, TXT, Markdown, RTF, DOC, or DOCX file.");
+  }
+
+  if (file.size > MAX_RESUME_BYTES) {
+    throw new Error("Resume files must be smaller than 10MB.");
+  }
+
+  await mkdir(RESUME_UPLOAD_DIRECTORY, { recursive: true });
+
+  const extension = getFileExtension(file);
+  const fileName = `${teacherId}-resume-${Date.now()}${extension}`;
+  const filePath = path.join(RESUME_UPLOAD_DIRECTORY, fileName);
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  await writeFile(filePath, buffer);
+
+  return {
+    url: `/uploads/resumes/${fileName}`,
+    fileName: file.name || fileName,
+    mimeType: file.type
+  };
+}
+
+export async function savePendingSignupResume(file: File, pendingSignupId: string) {
+  const allowedTypes = new Set([
+    "application/pdf",
+    "text/plain",
+    "text/markdown",
+    "application/rtf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ]);
+
+  if (!allowedTypes.has(file.type)) {
+    throw new Error("Resume files must be a PDF, TXT, Markdown, RTF, DOC, or DOCX file.");
+  }
+
+  if (file.size > MAX_RESUME_BYTES) {
+    throw new Error("Resume files must be smaller than 10MB.");
+  }
+
+  await mkdir(RESUME_UPLOAD_DIRECTORY, { recursive: true });
+
+  const extension = getFileExtension(file);
+  const fileName = `${pendingSignupId}-resume-${Date.now()}${extension}`;
+  const filePath = path.join(RESUME_UPLOAD_DIRECTORY, fileName);
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  await writeFile(filePath, buffer);
+
+  return {
+    url: `/uploads/resumes/${fileName}`,
     fileName: file.name || fileName,
     mimeType: file.type
   };

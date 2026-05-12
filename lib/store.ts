@@ -1,6 +1,7 @@
 import { differenceInMinutes, formatISO } from "date-fns";
 
 import {
+  demoAdminContactInquiries,
   demoAvailability,
   demoBadges,
   demoBookings,
@@ -22,6 +23,9 @@ import {
 import { calculateCommission } from "@/lib/payments/calculate-commission";
 import { updateTeachingHours } from "@/lib/teachers/update-teaching-hours";
 import type {
+  AdminContentFilters,
+  AdminContactInquiry,
+  AdminManagedUser,
   AppUser,
   AvailabilitySlot,
   Booking,
@@ -53,8 +57,17 @@ const state = {
   transactions: JSON.parse(JSON.stringify(demoTransactions)) as typeof demoTransactions,
   earnings: JSON.parse(JSON.stringify(demoEarnings)) as typeof demoEarnings,
   payoutAccounts: JSON.parse(JSON.stringify(demoPayoutAccounts)) as typeof demoPayoutAccounts,
-  teachingHours: JSON.parse(JSON.stringify(demoTeachingHours)) as typeof demoTeachingHours
+  teachingHours: JSON.parse(JSON.stringify(demoTeachingHours)) as typeof demoTeachingHours,
+  adminContactInquiries: JSON.parse(JSON.stringify(demoAdminContactInquiries)) as typeof demoAdminContactInquiries,
+  adminContentFilters: {
+    hiddenEventKeywords: [],
+    hiddenJobKeywords: []
+  } as AdminContentFilters
 };
+
+const teacherPublicCalendarVisibility = Object.fromEntries(
+  demoTeachers.map((teacher) => [teacher.id, teacher.showPublicCalendar ?? true])
+) as Record<string, boolean>;
 
 export function getUserById(userId: string) {
   return state.users.find((user) => user.id === userId) ?? null;
@@ -72,6 +85,114 @@ export function createUser(input: Pick<AppUser, "email" | "password" | "name" | 
 
   state.users.push(user);
   state.wallets.push({ userId: user.id, balance: 0 });
+
+  return user;
+}
+
+export function listUsersForAdmin() {
+  return [...state.users]
+    .map<AdminManagedUser>((user) => {
+      const linkedTeacher = state.teachers.find((teacher) => teacher.userId === user.id);
+
+      return {
+        ...user,
+        linkedTeacherId: linkedTeacher?.id,
+        linkedTeacherName: linkedTeacher?.fullName,
+        linkedTeacherSlug: linkedTeacher?.slug
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function buildClaimableEmail(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (normalizedEmail.endsWith("@yoga.local")) {
+    return normalizedEmail;
+  }
+
+  const [localPart] = normalizedEmail.split("@");
+  return localPart ? `${localPart}@yoga.local` : normalizedEmail;
+}
+
+function normalizeKeywordList(keywords: string[]) {
+  return Array.from(
+    new Set(
+      keywords
+        .map((keyword) => keyword.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+}
+
+export function getAdminContentFilters(): AdminContentFilters {
+  return {
+    hiddenEventKeywords: [...state.adminContentFilters.hiddenEventKeywords],
+    hiddenJobKeywords: [...state.adminContentFilters.hiddenJobKeywords]
+  };
+}
+
+export function updateAdminContentFilters(input: AdminContentFilters) {
+  state.adminContentFilters = {
+    hiddenEventKeywords: normalizeKeywordList(input.hiddenEventKeywords),
+    hiddenJobKeywords: normalizeKeywordList(input.hiddenJobKeywords)
+  };
+
+  return getAdminContentFilters();
+}
+
+export function updateUserForAdmin(
+  userId: string,
+  input: Pick<AppUser, "name" | "email" | "role">
+) {
+  const user = state.users.find((entry) => entry.id === userId);
+
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const duplicate = state.users.find((entry) => entry.id !== userId && entry.email.toLowerCase() === normalizedEmail);
+
+  if (duplicate) {
+    throw new Error("That email is already in use.");
+  }
+
+  user.name = input.name;
+  user.email = normalizedEmail;
+  user.role = input.role;
+
+  const linkedTeacher = state.teachers.find((teacher) => teacher.userId === userId);
+
+  if (input.role === "teacher") {
+    if (!linkedTeacher) {
+      ensureTeacherProfile(userId, input.name);
+    }
+  } else if (linkedTeacher) {
+    linkedTeacher.userId = undefined;
+    linkedTeacher.claimEmail = buildClaimableEmail(normalizedEmail);
+  }
+
+  return user;
+}
+
+export function deleteUserForAdmin(userId: string) {
+  const userIndex = state.users.findIndex((entry) => entry.id === userId);
+
+  if (userIndex === -1) {
+    throw new Error("User not found.");
+  }
+
+  const [user] = state.users.splice(userIndex, 1);
+  const linkedTeacher = state.teachers.find((teacher) => teacher.userId === userId);
+
+  if (linkedTeacher) {
+    linkedTeacher.userId = undefined;
+    linkedTeacher.claimEmail = buildClaimableEmail(user.email);
+  }
+
+  state.wallets = state.wallets.filter((wallet) => wallet.userId !== userId);
+  state.transactions = state.transactions.filter((transaction) => transaction.userId !== userId);
+  state.bookings = state.bookings.filter((booking) => booking.customerId !== userId);
 
   return user;
 }
@@ -111,6 +232,7 @@ export function ensureTeacherProfile(userId: string, fullName: string) {
     userId,
     slug: getUniqueTeacherSlug(fullName),
     fullName,
+    showPublicCalendar: true,
     city: "",
     serviceRadiusMiles: 0,
     training: "",
@@ -161,6 +283,7 @@ export function getTeacherSupplement(teacherId: string) {
     offerings,
     stories,
     availability,
+    showPublicCalendar: teacherPublicCalendarVisibility[teacherId] ?? state.teachers.find((entry) => entry.id === teacherId)?.showPublicCalendar ?? true,
     teachingHours: counters.map((counter) => ({
       category: serviceCategoryLabels[counter.category],
       totalHours: counter.totalHours
@@ -304,6 +427,19 @@ export function addCommunityDiscussion(input: Pick<CommunityDiscussion, "authorN
   return discussion;
 }
 
+export function addAdminContactInquiry(input: Pick<AdminContactInquiry, "name" | "email" | "message">) {
+  const inquiry: AdminContactInquiry = {
+    id: `admin-contact-${Date.now()}`,
+    name: input.name,
+    email: input.email.toLowerCase(),
+    message: input.message,
+    createdAt: formatISO(new Date())
+  };
+
+  state.adminContactInquiries.push(inquiry);
+  return inquiry;
+}
+
 export function updateTeacherProfile(
   teacherId: string,
   input: Pick<Teacher, "fullName" | "city" | "serviceRadiusMiles" | "training" | "experienceYears" | "bio" | "gender" | "certificationStatus">
@@ -315,6 +451,15 @@ export function updateTeacherProfile(
 
   Object.assign(teacher, input);
   return hydrateTeacher(teacher);
+}
+
+export function setTeacherPublicCalendarVisibility(teacherId: string, showPublicCalendar: boolean) {
+  teacherPublicCalendarVisibility[teacherId] = showPublicCalendar;
+
+  const teacher = state.teachers.find((entry) => entry.id === teacherId);
+  if (teacher) {
+    teacher.showPublicCalendar = showPublicCalendar;
+  }
 }
 
 export function addTeacherStory(teacherId: string, story: Pick<TeacherStory, "title" | "caption" | "mediaUrl" | "mediaType">) {

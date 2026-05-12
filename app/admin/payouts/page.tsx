@@ -1,8 +1,21 @@
+import { AdminDashboardAccessCard } from "@/components/admin-dashboard-access-card";
+import { AdminDashboardNav } from "@/components/admin-dashboard-nav";
 import { markPayoutPaidAction } from "@/lib/actions";
+import { getAdminDashboardContext } from "@/lib/admin-dashboard";
 import { formatCredits } from "@/lib/format";
 import { getAdminSnapshot } from "@/lib/store";
 
-export default function AdminPayoutsPage() {
+export default async function AdminPayoutsPage() {
+  const context = await getAdminDashboardContext();
+
+  if (context.status === "signed_out") {
+    return <AdminDashboardAccessCard state="signed_out" />;
+  }
+
+  if (context.status === "wrong_role") {
+    return <AdminDashboardAccessCard state="wrong_role" userName={context.user.name} />;
+  }
+
   const snapshot = getAdminSnapshot();
   const teacherSummaries = snapshot.teachers.map((teacher) => {
     const teacherEntries = snapshot.earnings.filter((entry) => entry.teacherId === teacher.id);
@@ -18,9 +31,12 @@ export default function AdminPayoutsPage() {
 
   return (
     <div className="space-y-8">
-      <section>
-        <h1 className="text-3xl font-semibold">Admin: payouts</h1>
-        <p className="mt-2 text-stone-500">V1 uses manual payouts. This screen records payout status while keeping the ledger ready for future automation.</p>
+      <section className="space-y-4">
+        <div>
+          <h1 className="text-3xl font-semibold">Admin: payouts</h1>
+          <p className="mt-2 text-stone-500">V1 uses manual payouts. This screen records payout status while keeping the ledger ready for future automation.</p>
+        </div>
+        <AdminDashboardNav current="payouts" />
       </section>
 
       <section className="grid gap-5 lg:grid-cols-2">

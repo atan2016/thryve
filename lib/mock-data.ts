@@ -1,6 +1,7 @@
 import { addDays, addHours, addMinutes, startOfDay } from "date-fns";
 
 import type {
+  AdminContactInquiry,
   AppUser,
   AvailabilitySlot,
   Badge,
@@ -48,12 +49,15 @@ export const serviceCategoryLabels = {
 } as const;
 
 export const demoUsers: AppUser[] = [
-  { id: "user-customer-1", email: "student@yoga.local", password: "password123", role: "customer", name: "Maya Student" },
-  { id: "user-teacher-1", email: "teacher@yoga.local", password: "password123", role: "teacher", name: "Ashley Tan" },
-  { id: "user-teacher-2", email: "teacher2@yoga.local", password: "password123", role: "teacher", name: "Kelly Heinrich" },
-  { id: "user-teacher-3", email: "kj.landis@yoga.local", password: "password123", role: "teacher", name: "KJ Landis" },
-  { id: "user-teacher-4", email: "robinjaffe@yoga.local", password: "password123", role: "teacher", name: "Robin Jaffe" },
-  { id: "user-admin-1", email: "admin@yoga.local", password: "password123", role: "admin", name: "Jordan Admin" }
+  { id: "user-customer-1", email: "student@yoga.local", password: "password123", role: "customer", name: "Maya Student", emailVerifiedAt: today.toISOString() },
+  { id: "user-teacher-1", email: "teacher@yoga.local", password: "password123", role: "teacher", name: "Ashley Tan", emailVerifiedAt: today.toISOString() },
+  { id: "user-teacher-2", email: "teacher2@yoga.local", password: "password123", role: "teacher", name: "Kelly Heinrich", emailVerifiedAt: today.toISOString() },
+  { id: "user-teacher-3", email: "kj.landis@yoga.local", password: "password123", role: "teacher", name: "KJ Landis", emailVerifiedAt: today.toISOString() },
+  { id: "user-teacher-4", email: "robinjaffe@yoga.local", password: "password123", role: "teacher", name: "Robin Jaffe", emailVerifiedAt: today.toISOString() },
+  { id: "user-teacher-5", email: "denayadailey@gmail.com", password: "password123", role: "teacher", name: "Denaya Dailey", emailVerifiedAt: today.toISOString() },
+  { id: "user-teacher-6", email: "blu.high@yoga.local", password: "password123", role: "teacher", name: "Blu High", emailVerifiedAt: today.toISOString() },
+  { id: "user-admin-1", email: "admin@yoga.local", password: "password123", role: "admin", name: "Jordan Admin", emailVerifiedAt: today.toISOString() },
+  { id: "user-teacher-claim-1", email: "shared.claim@yoga.local", password: "password123", role: "teacher", name: "Shared Claim User" }
 ];
 
 export const demoEventHosts: EventHost[] = [
@@ -86,6 +90,18 @@ export const demoEventHosts: EventHost[] = [
     name: "Vennu Yoga",
     slug: "vennu-yoga",
     websiteUrl: "https://vennu-studio.com/book-a-class"
+  },
+  {
+    id: "host-peacebank-yoga-studio",
+    name: "Peacebank Yoga Studio",
+    slug: "peacebank-yoga-studio",
+    websiteUrl: "https://www.peacebankyoga.com/"
+  },
+  {
+    id: "host-yoga-source-palo-alto",
+    name: "Yoga Source Palo Alto",
+    slug: "yoga-source-palo-alto",
+    websiteUrl: "https://yogasource.com/"
   }
 ];
 
@@ -107,6 +123,8 @@ export const demoUserEventHostFollows: UserEventHostFollow[] = [
   }
 ];
 
+export const demoAdminContactInquiries: AdminContactInquiry[] = [];
+
 export const demoTeachers: Teacher[] = [
   {
     id: "teacher-1",
@@ -117,6 +135,9 @@ export const demoTeachers: Teacher[] = [
     studioName: "J8 Hot Pilates & Yoga",
     studioWebsiteUrl: "https://www.j8hotpilatesyoga.com/",
     studioScheduleUrl: "https://calendly.com/ashleyt-_z90/1-hour-meeting",
+    websiteUrl: "https://yogabyashleytan.com/",
+    instagramUrl: "https://www.instagram.com/ashleytan2017/",
+    facebookUrl: "https://www.facebook.com/xtan1",
     platformHoursBooked: 14,
     city: "San Francisco",
     serviceRadiusMiles: 20,
@@ -157,6 +178,7 @@ Whether you need support in a seat, depth in stillness, or rhythm in movement, s
     studioName: "Hot Yoga Plus Daly City",
     studioWebsiteUrl: "https://hotyogaplus-dc.com/",
     studioScheduleUrl: "https://www.hotyogaplus-dc.com/bikram-hot-yoga-daly-city-class-schedule/",
+    websiteUrl: "https://hotyogaplus-dc.com/",
     platformHoursBooked: 320,
     city: "Daly City",
     serviceRadiusMiles: 10,
@@ -186,6 +208,8 @@ Whether you need support in a seat, depth in stillness, or rhythm in movement, s
     studioName: "Robin Jaffe Yoga",
     studioWebsiteUrl: "https://www.robinjaffe.love/",
     studioScheduleUrl: "https://www.robinjaffe.love/public-classes",
+    websiteUrl: "https://www.robinjaffe.love/",
+    linkedinUrl: "https://www.linkedin.com/in/robin-jaffe-014b8010/",
     platformHoursBooked: 294,
     city: "Redwood City",
     serviceRadiusMiles: 35,
@@ -229,6 +253,119 @@ Robin teaches in homes, studios, schools, Fortune 500 workplaces, and community 
         eventDate: makeSlot("event-robin-vennu-slot", "teacher-4", 1, 11).startsAt
       }
     ]
+  },
+  {
+    id: "teacher-5",
+    userId: "user-teacher-5",
+    slug: "denaya-dailey",
+    fullName: "Denaya Dailey",
+    avatarUrl: "https://yaprofileimages.blob.core.windows.net/profileimage/10349/8733152B-FD34-4F19-BAEA-830422E39A1E.jpg",
+    showPublicCalendar: false,
+    studioName: "College of San Mateo Yoga",
+    studioWebsiteUrl: "https://collegeofsanmateo.edu/yoga/",
+    studioScheduleUrl: "https://collegeofsanmateo.edu/yoga/",
+    websiteUrl: "https://collegeofsanmateo.edu/yoga/",
+    linkedinUrl: "https://www.linkedin.com/in/denaya-dailey-30b39b29/",
+    instagramUrl: "https://www.instagram.com/denayadailey/",
+    facebookUrl: "https://www.facebook.com/denayadoesyoga/",
+    platformHoursBooked: 226,
+    city: "San Mateo",
+    serviceRadiusMiles: 25,
+    training:
+      "RYT-500 yoga instructor, MFA in Dance from Mills College, BFA from UCLA, and lead teacher for the Yoga Alliance 200-Hour Teacher Training Program at College of San Mateo.",
+    experienceYears: 20,
+    bio: `Denaya Dailey is a San Mateo-based yoga, dance, Pilates, and group fitness educator who has been teaching movement since 2006.
+
+An Associate Professor in Kinesiology, Athletics and Dance at College of San Mateo, Denaya leads Vinyasa Flow classes with anatomical mindfulness and a playful spirit, encouraging students to challenge their edge while listening closely to what their bodies need.
+
+She helped create both the Group Fitness and Yoga Teacher Training certificates at CSM and is known for classes that leave students feeling stress-free, body-aware, and invigorated while helping them find their own voice through movement.`,
+    gender: "female",
+    certificationStatus: "certified",
+    published: true,
+    upcomingEvents: [
+      {
+        id: "event-denaya-vinyasa",
+        teacherId: "teacher-5",
+        title: "Vinyasa Flow Yoga at College of San Mateo",
+        hostName: "College of San Mateo",
+        eventUrl: "https://collegeofsanmateo.edu/yoga/faculty.asp"
+      },
+      {
+        id: "event-denaya-training",
+        teacherId: "teacher-5",
+        title: "200-Hour Yoga Teacher Training Program",
+        hostName: "College of San Mateo",
+        eventUrl: "https://collegeofsanmateo.edu/yoga/"
+      }
+    ]
+  },
+  {
+    id: "teacher-6",
+    userId: "user-teacher-6",
+    slug: "blu-high",
+    fullName: "Blu High",
+    studioName: "Peacebank Yoga Studio",
+    studioWebsiteUrl: "https://www.peacebankyoga.com/",
+    studioScheduleUrl: "https://peacebank-yoga.recess.tv/embed/checkout/explore?displayClass=list&hideMenu=true&splitLiveClassInSeparateTabs=false&class_type=LIVE&displayDays=5",
+    websiteUrl: "https://www.blubayu.com/yoga",
+    platformHoursBooked: 168,
+    city: "Redwood City",
+    serviceRadiusMiles: 25,
+    training:
+      "200-hour yoga teacher training at College of San Mateo in 2017, 300-hour training in India, with training in Vinyasa, Ashtanga, Hatha Yoga, Thai Massage, Reiki Level 2, and Ayurvedic Wellness Counseling.",
+    experienceYears: 9,
+    bio: `Blu High is a Peninsula-based yoga instructor teaching at Peacebank Yoga Studio in Redwood City and Yoga Source in Palo Alto.
+
+Blu's practice began at age 15 and grew into a breath-centered teaching style shaped by Vinyasa, Rocket-inspired sequencing, and long holds that help students feel steady progress over time. Classes sync breath with music and movement, using a steady four-count rhythm that makes the practice feel both meditative and energizing.
+
+Beyond weekly studio classes, Blu is involved with the College of San Mateo yoga community as a Yoga Teacher Training graduate and advisory-council member, bringing a grounded, holistic perspective informed by yoga, Thai massage, Reiki, and Ayurveda.`,
+    gender: "male",
+    certificationStatus: "certified",
+    published: true,
+    upcomingEvents: [
+      {
+        id: "event-blu-peacebank-evening",
+        teacherId: "teacher-6",
+        hostId: "host-peacebank-yoga-studio",
+        title: "4BEAT Vinyasa",
+        hostName: "Peacebank Yoga Studio",
+        eventUrl: "https://peacebank-yoga.recess.tv/embed/checkout/explore?displayClass=list&hideMenu=true&splitLiveClassInSeparateTabs=false&class_type=LIVE&displayDays=5",
+        eventDate: makeSlot("event-blu-peacebank-evening-slot", "teacher-6", 2, 17).startsAt
+      },
+      {
+        id: "event-blu-peacebank-morning",
+        teacherId: "teacher-6",
+        hostId: "host-peacebank-yoga-studio",
+        title: "4BEAT Vinyasa",
+        hostName: "Peacebank Yoga Studio",
+        eventUrl: "https://peacebank-yoga.recess.tv/embed/checkout/explore?displayClass=list&hideMenu=true&splitLiveClassInSeparateTabs=false&class_type=LIVE&displayDays=5",
+        eventDate: makeSlot("event-blu-peacebank-morning-slot", "teacher-6", 3, 9).startsAt
+      },
+      {
+        id: "event-blu-yogasource-heated",
+        teacherId: "teacher-6",
+        hostId: "host-yoga-source-palo-alto",
+        title: "Heated Vinyasa",
+        hostName: "Yoga Source Palo Alto",
+        eventUrl: "https://yogasource.com/schedule/",
+        eventDate: makeSlot("event-blu-yogasource-heated-slot", "teacher-6", 6, 7).startsAt
+      }
+    ]
+  },
+  {
+    id: "teacher-claim-1",
+    claimEmail: "shared.claim@yoga.local",
+    slug: "shared-claim-profile",
+    fullName: "Shared Claim Teacher",
+    platformHoursBooked: 0,
+    city: "San Francisco",
+    serviceRadiusMiles: 0,
+    training: "Claimable demo teacher profile for email-verification testing.",
+    experienceYears: 1,
+    bio: "This unpublished teacher profile is available for local claim-flow testing.",
+    gender: "other",
+    certificationStatus: "not_certified",
+    published: false
   }
 ];
 
@@ -255,7 +392,10 @@ export const demoTeacherBadges: TeacherBadge[] = [
   { teacherId: "teacher-4", badgeId: "badge-1", verified: true },
   { teacherId: "teacher-4", badgeId: "badge-2", verified: true },
   { teacherId: "teacher-4", badgeId: "badge-3", verified: true },
-  { teacherId: "teacher-4", badgeId: "badge-6", verified: true }
+  { teacherId: "teacher-4", badgeId: "badge-6", verified: true },
+  { teacherId: "teacher-5", badgeId: "badge-1", verified: true },
+  { teacherId: "teacher-5", badgeId: "badge-3", verified: true },
+  { teacherId: "teacher-6", badgeId: "badge-5", verified: true }
 ];
 
 export const demoYogaStyles: YogaStyle[] = [
@@ -288,7 +428,12 @@ export const demoTeacherStyles: TeacherStyle[] = [
   { teacherId: "teacher-4", styleId: "style-7" },
   { teacherId: "teacher-4", styleId: "style-4" },
   { teacherId: "teacher-4", styleId: "style-9" },
-  { teacherId: "teacher-4", styleId: "style-2" }
+  { teacherId: "teacher-4", styleId: "style-2" },
+  { teacherId: "teacher-5", styleId: "style-1" },
+  { teacherId: "teacher-5", styleId: "style-7" },
+  { teacherId: "teacher-5", styleId: "style-9" },
+  { teacherId: "teacher-6", styleId: "style-1" },
+  { teacherId: "teacher-6", styleId: "style-3" }
 ];
 
 export const demoOfferings: TeacherOffering[] = [
@@ -445,6 +590,94 @@ export const demoOfferings: TeacherOffering[] = [
     sessionLengthMin: 60,
     creditPrice: 16,
     active: true
+  },
+  {
+    id: "offering-15",
+    teacherId: "teacher-5",
+    category: "studio",
+    title: "Vinyasa Flow Yoga",
+    description: "A graceful, anatomically mindful Vinyasa Flow class that balances challenge, playfulness, and body awareness.",
+    deliveryMode: "in_person",
+    sessionLengthMin: 60,
+    creditPrice: 14,
+    active: true
+  },
+  {
+    id: "offering-16",
+    teacherId: "teacher-5",
+    category: "studio",
+    title: "200-Hour Yoga Teacher Training",
+    description: "Foundational teacher training covering techniques, methodology, anatomy, philosophy, ethics, and practicum.",
+    deliveryMode: "in_person",
+    sessionLengthMin: 180,
+    creditPrice: 30,
+    active: true
+  },
+  {
+    id: "offering-17",
+    teacherId: "teacher-5",
+    category: "private",
+    title: "Private yoga and Pilates coaching",
+    description: "Individualized sessions that blend yoga, Pilates, and mindful movement for strength, mobility, and confidence.",
+    deliveryMode: "in_person",
+    sessionLengthMin: 60,
+    creditPrice: 16,
+    active: true
+  },
+  {
+    id: "offering-18",
+    teacherId: "teacher-5",
+    category: "corporate-events",
+    title: "Group fitness and mindful movement",
+    description: "Group classes for schools, studios, and wellness programs combining yoga, Pilates, and movement education.",
+    deliveryMode: "in_person",
+    sessionLengthMin: 60,
+    creditPrice: 18,
+    active: true
+  },
+  {
+    id: "offering-19",
+    teacherId: "teacher-6",
+    category: "studio",
+    title: "4BEAT Vinyasa",
+    description: "Rocket-inspired Vinyasa that syncs a steady four-count breath with music and movement for an energizing, meditative flow.",
+    deliveryMode: "in_person",
+    sessionLengthMin: 60,
+    creditPrice: 14,
+    active: true
+  },
+  {
+    id: "offering-20",
+    teacherId: "teacher-6",
+    category: "studio",
+    title: "Heated Vinyasa",
+    description: "A strong all-levels heated flow focused on breath rhythm, longer holds, and steady progression through set sequences.",
+    deliveryMode: "in_person",
+    sessionLengthMin: 60,
+    creditPrice: 14,
+    active: true
+  },
+  {
+    id: "offering-21",
+    teacherId: "teacher-6",
+    category: "private",
+    title: "Private breath-led Vinyasa",
+    description: "One-to-one coaching centered on breath, mobility, and strength with a grounded Vinyasa and Hatha approach.",
+    deliveryMode: "in_person",
+    sessionLengthMin: 60,
+    creditPrice: 16,
+    active: true
+  },
+  {
+    id: "offering-22",
+    teacherId: "teacher-6",
+    category: "corporate-events",
+    title: "Community and studio pop-up flow",
+    description: "Breath-centered group classes for studio communities, special events, and wellness gatherings.",
+    deliveryMode: "in_person",
+    sessionLengthMin: 60,
+    creditPrice: 18,
+    active: true
   }
 ];
 
@@ -498,6 +731,46 @@ export const demoStories: TeacherStory[] = [
     mediaType: "image",
     sortOrder: 2,
     published: true
+  },
+  {
+    id: "story-6",
+    teacherId: "teacher-5",
+    title: "Anatomically mindful flow",
+    caption: "Denaya teaches Vinyasa Flow with a balance of precision, playfulness, and stress-relieving movement.",
+    mediaUrl: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=80",
+    mediaType: "image",
+    sortOrder: 1,
+    published: true
+  },
+  {
+    id: "story-7",
+    teacherId: "teacher-5",
+    title: "Movement education at CSM",
+    caption: "Her teaching spans yoga, Pilates, dance, and group fitness while helping students find their own voice through movement.",
+    mediaUrl: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=1200&q=80",
+    mediaType: "image",
+    sortOrder: 2,
+    published: true
+  },
+  {
+    id: "story-8",
+    teacherId: "teacher-6",
+    title: "4BEAT Vinyasa at Peacebank",
+    caption: "Blu's Peacebank classes pair music and movement with a steady four-count breath for a grounded, energetic flow.",
+    mediaUrl: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=80",
+    mediaType: "image",
+    sortOrder: 1,
+    published: true
+  },
+  {
+    id: "story-9",
+    teacherId: "teacher-6",
+    title: "Rocket-inspired progression",
+    caption: "Set sequences and longer holds help students track their growth while staying connected to breath over performance.",
+    mediaUrl: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=1200&q=80",
+    mediaType: "image",
+    sortOrder: 2,
+    published: true
   }
 ];
 
@@ -516,7 +789,14 @@ export const demoAvailability: AvailabilitySlot[] = [
   makeSlot("slot-12", "teacher-3", 7, 18),
   makeSlot("slot-13", "teacher-4", 1, 11),
   makeSlot("slot-14", "teacher-4", 3, 12, 0.75),
-  makeSlot("slot-15", "teacher-4", 4, 15)
+  makeSlot("slot-15", "teacher-4", 4, 15),
+  makeSlot("slot-16", "teacher-5", 2, 10),
+  makeSlot("slot-17", "teacher-5", 4, 14, 3),
+  makeSlot("slot-18", "teacher-5", 6, 17),
+  makeSlot("slot-19", "teacher-6", 2, 17),
+  makeSlot("slot-20", "teacher-6", 3, 9),
+  makeSlot("slot-21", "teacher-6", 6, 7),
+  makeSlot("slot-22", "teacher-6", 5, 13)
 ];
 
 export const demoCalendarSessions: TeacherCalendarSession[] = [
@@ -623,6 +903,97 @@ export const demoCalendarSessions: TeacherCalendarSession[] = [
     timezone: "America/Los_Angeles",
     sourceUrl: "https://vennu-studio.com/book-a-class",
     isBooked: false
+  },
+  {
+    id: "calendar-denaya-1",
+    teacherId: "teacher-5",
+    offeringId: "offering-15",
+    title: "Vinyasa Flow Yoga",
+    description: "A fluid, anatomically mindful Vinyasa practice that encourages students to test their edge while honoring what their bodies need.",
+    location: "College of San Mateo · San Mateo",
+    startsAt: makeSlot("calendar-denaya-1-slot", "teacher-5", 2, 10).startsAt,
+    endsAt: makeSlot("calendar-denaya-1-slot", "teacher-5", 2, 10).endsAt,
+    timezone: "America/Los_Angeles",
+    sourceUrl: "https://collegeofsanmateo.edu/yoga/faculty.asp",
+    isBooked: false
+  },
+  {
+    id: "calendar-denaya-2",
+    teacherId: "teacher-5",
+    offeringId: "offering-16",
+    title: "200-Hour Yoga Teacher Training",
+    description: "Comprehensive yoga teacher training at College of San Mateo covering practice, teaching methodology, anatomy, philosophy, and practicum.",
+    location: "College of San Mateo · San Mateo",
+    startsAt: makeSlot("calendar-denaya-2-slot", "teacher-5", 4, 14, 3).startsAt,
+    endsAt: makeSlot("calendar-denaya-2-slot", "teacher-5", 4, 14, 3).endsAt,
+    timezone: "America/Los_Angeles",
+    sourceUrl: "https://collegeofsanmateo.edu/yoga/",
+    isBooked: false
+  },
+  {
+    id: "calendar-denaya-3",
+    teacherId: "teacher-5",
+    offeringId: "offering-17",
+    title: "Private Yoga and Pilates Coaching",
+    description: "Customized mindful movement sessions that blend yoga and Pilates with clear anatomical cues and supportive coaching.",
+    location: "San Mateo / Peninsula",
+    startsAt: makeSlot("calendar-denaya-3-slot", "teacher-5", 6, 17).startsAt,
+    endsAt: makeSlot("calendar-denaya-3-slot", "teacher-5", 6, 17).endsAt,
+    timezone: "America/Los_Angeles",
+    sourceUrl: "https://directory.smccd.edu/directory_details.php?username=daileyd",
+    isBooked: false
+  },
+  {
+    id: "calendar-blu-1",
+    teacherId: "teacher-6",
+    offeringId: "offering-19",
+    title: "4BEAT Vinyasa",
+    description: "Breath-synced Vinyasa at Peacebank influenced by Rocket yoga, steady rhythm, and longer holds.",
+    location: "Peacebank Yoga Studio · Redwood City",
+    startsAt: makeSlot("calendar-blu-1-slot", "teacher-6", 2, 17).startsAt,
+    endsAt: makeSlot("calendar-blu-1-slot", "teacher-6", 2, 17).endsAt,
+    timezone: "America/Los_Angeles",
+    sourceUrl: "https://peacebank-yoga.recess.tv/embed/checkout/explore?displayClass=list&hideMenu=true&splitLiveClassInSeparateTabs=false&class_type=LIVE&displayDays=5",
+    isBooked: false
+  },
+  {
+    id: "calendar-blu-2",
+    teacherId: "teacher-6",
+    offeringId: "offering-19",
+    title: "4BEAT Vinyasa",
+    description: "A morning Peacebank flow that uses music and breath pacing to create a meditative, all-levels Vinyasa practice.",
+    location: "Peacebank Yoga Studio · Redwood City",
+    startsAt: makeSlot("calendar-blu-2-slot", "teacher-6", 3, 9).startsAt,
+    endsAt: makeSlot("calendar-blu-2-slot", "teacher-6", 3, 9).endsAt,
+    timezone: "America/Los_Angeles",
+    sourceUrl: "https://peacebank-yoga.recess.tv/embed/checkout/explore?displayClass=list&hideMenu=true&splitLiveClassInSeparateTabs=false&class_type=LIVE&displayDays=5",
+    isBooked: false
+  },
+  {
+    id: "calendar-blu-3",
+    teacherId: "teacher-6",
+    offeringId: "offering-20",
+    title: "Heated Vinyasa",
+    description: "Blu's Sunday Yoga Source class builds strength, flexibility, and balance through breath-led movement in a warm room.",
+    location: "Yoga Source Palo Alto · Palo Alto",
+    startsAt: makeSlot("calendar-blu-3-slot", "teacher-6", 6, 7).startsAt,
+    endsAt: makeSlot("calendar-blu-3-slot", "teacher-6", 6, 7).endsAt,
+    timezone: "America/Los_Angeles",
+    sourceUrl: "https://yogasource.com/schedule/",
+    isBooked: false
+  },
+  {
+    id: "calendar-blu-4",
+    teacherId: "teacher-6",
+    offeringId: "offering-21",
+    title: "Private Breath-Led Vinyasa",
+    description: "Private sessions that blend Vinyasa and Hatha principles with breath awareness and incremental progression.",
+    location: "Redwood City / Peninsula",
+    startsAt: makeSlot("calendar-blu-4-slot", "teacher-6", 5, 13).startsAt,
+    endsAt: makeSlot("calendar-blu-4-slot", "teacher-6", 5, 13).endsAt,
+    timezone: "America/Los_Angeles",
+    sourceUrl: "https://www.peacebankyoga.com/instructors",
+    isBooked: false
   }
 ];
 
@@ -699,7 +1070,13 @@ export const demoTeachingHours: TeachingHourCounter[] = [
   { teacherId: "teacher-4", category: "studio", totalHours: 186 },
   { teacherId: "teacher-4", category: "private", totalHours: 54 },
   { teacherId: "teacher-4", category: "corporate-events", totalHours: 42 },
-  { teacherId: "teacher-4", category: "kids", totalHours: 18 }
+  { teacherId: "teacher-4", category: "kids", totalHours: 18 },
+  { teacherId: "teacher-5", category: "studio", totalHours: 148 },
+  { teacherId: "teacher-5", category: "private", totalHours: 38 },
+  { teacherId: "teacher-5", category: "corporate-events", totalHours: 40 },
+  { teacherId: "teacher-6", category: "studio", totalHours: 124 },
+  { teacherId: "teacher-6", category: "private", totalHours: 22 },
+  { teacherId: "teacher-6", category: "corporate-events", totalHours: 14 }
 ];
 
 export const demoCommunityDiscussions: CommunityDiscussion[] = [

@@ -8,12 +8,13 @@ import { FeaturedLocalGigsCarousel } from "@/components/featured-local-gigs-caro
 import { FeaturedTeachersCarousel } from "@/components/featured-teachers-carousel";
 import { toggleEventHostFollowAction } from "@/lib/actions";
 import { getSession } from "@/lib/auth/session";
-import { listHomepageFeaturedEvents, listTeachers } from "@/lib/persistence";
+import { listHomepageFeaturedEvents, listHomepageLocalGigs, listTeachers } from "@/lib/persistence";
 
 export default async function HomePage() {
   const session = await getSession();
   const teachers = await listTeachers();
   const homepageEvents = await listHomepageFeaturedEvents(session?.userId);
+  const homepageJobs = await listHomepageLocalGigs();
   const connectPeers = session ? buildConnectPeers(teachers, { excludeUserId: session.userId }) : [];
 
   return (
@@ -52,7 +53,7 @@ export default async function HomePage() {
         toggleEventHostFollowAction={toggleEventHostFollowAction}
       />
 
-      <FeaturedLocalGigsCarousel isSignedIn={Boolean(session)} />
+      <FeaturedLocalGigsCarousel gigs={homepageJobs} isSignedIn={Boolean(session)} />
 
       <FeaturedTeachersCarousel teachers={teachers} />
 

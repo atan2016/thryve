@@ -1,17 +1,33 @@
+import { AdminDashboardAccessCard } from "@/components/admin-dashboard-access-card";
+import { AdminDashboardNav } from "@/components/admin-dashboard-nav";
 import { reviewTeacherCertificationSubmissionAction } from "@/lib/actions";
+import { getAdminDashboardContext } from "@/lib/admin-dashboard";
 import { MetricCard } from "@/components/metric-card";
 import { getAdminSnapshot } from "@/lib/store";
 import { listTeachersForAdmin } from "@/lib/persistence";
 
 export default async function AdminTeachersPage() {
+  const context = await getAdminDashboardContext();
+
+  if (context.status === "signed_out") {
+    return <AdminDashboardAccessCard state="signed_out" />;
+  }
+
+  if (context.status === "wrong_role") {
+    return <AdminDashboardAccessCard state="wrong_role" userName={context.user.name} />;
+  }
+
   const snapshot = getAdminSnapshot();
   const teachers = await listTeachersForAdmin();
 
   return (
     <div className="space-y-8">
-      <section>
-        <h1 className="text-3xl font-semibold">Admin: teachers</h1>
-        <p className="mt-2 text-stone-500">Approve teacher content, verify badges, and monitor published profiles.</p>
+      <section className="space-y-4">
+        <div>
+          <h1 className="text-3xl font-semibold">Admin: teachers</h1>
+          <p className="mt-2 text-stone-500">Approve teacher content, verify badges, and monitor published profiles.</p>
+        </div>
+        <AdminDashboardNav current="teachers" />
       </section>
 
       <section className="grid gap-4 md:grid-cols-3">

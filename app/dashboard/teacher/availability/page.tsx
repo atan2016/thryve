@@ -1,7 +1,13 @@
+import Link from "next/link";
 import { format } from "date-fns";
 
 import { TeacherDashboardAccessCard } from "@/components/teacher-dashboard-access-card";
-import { addCalendarSessionAction, deleteCalendarSessionAction, updateCalendarSessionAction } from "@/lib/actions";
+import {
+  addCalendarSessionAction,
+  deleteCalendarSessionAction,
+  updateCalendarSessionAction,
+  updatePublicCalendarVisibilityAction
+} from "@/lib/actions";
 import { formatDateTime } from "@/lib/format";
 import { getTeacherDashboardContext } from "@/lib/teacher-dashboard";
 
@@ -9,8 +15,14 @@ function formatDateTimeLocal(value: string) {
   return format(new Date(value), "yyyy-MM-dd'T'HH:mm");
 }
 
-export default async function TeacherAvailabilityDashboardPage() {
+type TeacherAvailabilityDashboardPageProps = {
+  searchParams: Promise<{ saved?: string }>;
+};
+
+export default async function TeacherAvailabilityDashboardPage({ searchParams }: TeacherAvailabilityDashboardPageProps) {
   const context = await getTeacherDashboardContext();
+  const params = await searchParams;
+  const saved = params.saved;
 
   if (context.status === "signed_out") {
     return <TeacherDashboardAccessCard state="signed_out" />;
@@ -27,6 +39,45 @@ export default async function TeacherAvailabilityDashboardPage() {
       <section className="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
         <h1 className="text-3xl font-semibold">Calendar sessions</h1>
         <p className="mt-2 text-stone-500">Add bookable class sessions. Students can book these directly from your public profile calendar.</p>
+        {saved === "calendar-shown" || saved === "calendar-hidden" ? (
+          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            {saved === "calendar-shown"
+              ? "Your public profile now shows live calendar sessions."
+              : "Your live calendar is now hidden from the public profile until you are ready to show it again."}
+          </div>
+        ) : null}
+        <div className="mt-6 rounded-[1.5rem] border border-stone-200 bg-stone-50 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold text-stone-900">Public calendar visibility</h2>
+              <p className="text-sm text-stone-600">
+                Hide the live calendar from your public profile while you fix session times below, then turn it back on when it is ready.
+              </p>
+              <p className="text-sm font-medium text-stone-700">
+                Currently {teacher.showPublicCalendar === false ? "hidden from public view" : "visible on your public profile"}.
+              </p>
+            </div>
+            <Link
+              className="inline-flex items-center justify-center rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 transition hover:bg-stone-100"
+              href={`/teachers/${teacher.slug}`}
+            >
+              Preview public profile
+            </Link>
+          </div>
+          <form action={updatePublicCalendarVisibilityAction} className="mt-4 flex flex-wrap gap-3">
+            <input name="showPublicCalendar" type="hidden" value={teacher.showPublicCalendar === false ? "true" : "false"} />
+            <button
+              className={`rounded-full px-5 py-3 text-sm font-medium ${
+                teacher.showPublicCalendar === false
+                  ? "bg-emerald-500 text-white"
+                  : "border border-stone-300 bg-white text-stone-800"
+              }`}
+              type="submit"
+            >
+              {teacher.showPublicCalendar === false ? "Show public calendar" : "Hide from public profile"}
+            </button>
+          </form>
+        </div>
         <form action={addCalendarSessionAction} className="mt-8 space-y-4">
           <label className="block">
             <span className="mb-2 block text-sm font-medium">Offering</span>

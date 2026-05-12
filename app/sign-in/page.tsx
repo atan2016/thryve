@@ -3,12 +3,22 @@ import Link from "next/link";
 import { signInAction } from "@/lib/actions";
 
 type SignInPageProps = {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string; email?: string }>;
 };
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
   const params = await searchParams;
   const nextPath = params.next ?? "";
+  const error = params.error;
+  const defaultEmail = params.email ?? "";
+  const errorMessage =
+    error === "invalid_credentials"
+      ? "Invalid email or password. Please try again."
+      : error === "email_not_verified"
+        ? "Please verify your email before signing in."
+      : error === "sign_in_failed"
+        ? "We couldn't sign you in. Please try again."
+        : null;
 
   return (
     <div className="mx-auto max-w-xl rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
@@ -18,11 +28,14 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         <p>Teacher demo: `teacher@yoga.local` / `password123`</p>
         <p className="mt-1">Student demo: `student@yoga.local` / `password123`</p>
       </div>
+      {errorMessage ? (
+        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{errorMessage}</div>
+      ) : null}
       <form action={signInAction} className="mt-8 space-y-4">
         <input name="next" type="hidden" value={nextPath} />
         <label className="block">
           <span className="mb-2 block text-sm font-medium">Email</span>
-          <input name="email" type="email" />
+          <input defaultValue={defaultEmail} name="email" type="email" />
         </label>
         <label className="block">
           <span className="mb-2 block text-sm font-medium">Password</span>

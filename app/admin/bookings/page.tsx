@@ -1,14 +1,30 @@
+import { AdminDashboardAccessCard } from "@/components/admin-dashboard-access-card";
+import { AdminDashboardNav } from "@/components/admin-dashboard-nav";
+import { getAdminDashboardContext } from "@/lib/admin-dashboard";
 import { formatCredits, formatDateTime } from "@/lib/format";
 import { getAdminSnapshot } from "@/lib/store";
 
-export default function AdminBookingsPage() {
+export default async function AdminBookingsPage() {
+  const context = await getAdminDashboardContext();
+
+  if (context.status === "signed_out") {
+    return <AdminDashboardAccessCard state="signed_out" />;
+  }
+
+  if (context.status === "wrong_role") {
+    return <AdminDashboardAccessCard state="wrong_role" userName={context.user.name} />;
+  }
+
   const snapshot = getAdminSnapshot();
 
   return (
     <div className="space-y-8">
-      <section>
-        <h1 className="text-3xl font-semibold">Admin: bookings</h1>
-        <p className="mt-2 text-stone-500">Review booking volume, credit spend, and booking status across the marketplace.</p>
+      <section className="space-y-4">
+        <div>
+          <h1 className="text-3xl font-semibold">Admin: bookings</h1>
+          <p className="mt-2 text-stone-500">Review booking volume, credit spend, and booking status across the marketplace.</p>
+        </div>
+        <AdminDashboardNav current="bookings" />
       </section>
 
       <section className="space-y-4">

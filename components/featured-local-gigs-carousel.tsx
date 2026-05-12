@@ -3,63 +3,7 @@
 import Link from "next/link";
 import { useRef } from "react";
 
-type Gig = {
-  id: string;
-  title: string;
-  category: string;
-  pay: string;
-  company: string;
-  location: string;
-  posted: string;
-};
-
-const GIGS: Gig[] = [
-  {
-    id: "1",
-    title: "Morning Hatha Yoga Instructor",
-    category: "Part-time",
-    pay: "$45-60/class",
-    company: "Zen Flow Studio",
-    location: "San Francisco, CA",
-    posted: "2 days ago",
-  },
-  {
-    id: "2",
-    title: "Corporate Wellness Program Lead",
-    category: "Contract",
-    pay: "$75/hour",
-    company: "TechCorp Wellness",
-    location: "Remote",
-    posted: "1 day ago",
-  },
-  {
-    id: "3",
-    title: "Weekend Yoga Retreat Facilitator",
-    category: "Gig",
-    pay: "$1,200/weekend",
-    company: "Mountain Peak Retreat",
-    location: "Boulder, CO",
-    posted: "3 days ago",
-  },
-  {
-    id: "4",
-    title: "Prenatal Yoga Specialist",
-    category: "Full-time",
-    pay: "$50,000-65,000/yr",
-    company: "Bloom Yoga Center",
-    location: "Austin, TX",
-    posted: "5 days ago",
-  },
-  {
-    id: "5",
-    title: "Studio Operations + Yin Instructor",
-    category: "Part-time",
-    pay: "$28/hour + commission",
-    company: "Stillpoint Wellness",
-    location: "Los Angeles, CA",
-    posted: "4 days ago",
-  },
-];
+import type { HomepageJobCard } from "@/lib/types";
 
 const categoryClassNames: Record<string, string> = {
   "Part-time": "bg-teal-50 text-teal-700 ring-1 ring-teal-100",
@@ -125,7 +69,7 @@ function IconBriefcase({ className }: { className?: string }) {
   );
 }
 
-export function FeaturedLocalGigsCarousel({ isSignedIn = false }: { isSignedIn?: boolean }) {
+export function FeaturedLocalGigsCarousel({ gigs, isSignedIn = false }: { gigs: HomepageJobCard[]; isSignedIn?: boolean }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   function scrollByDirection(dir: "left" | "right") {
@@ -177,7 +121,12 @@ export function FeaturedLocalGigsCarousel({ isSignedIn = false }: { isSignedIn?:
         ref={scrollerRef}
         className="-mx-1 flex gap-4 overflow-x-auto scroll-smooth px-1 pb-2 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {GIGS.map((gig) => (
+        {gigs.length === 0 ? (
+          <div className="w-full rounded-[1.55rem] border border-dashed border-stone-300 bg-stone-50 p-6 text-sm text-stone-500">
+            No jobs match the current admin content filters.
+          </div>
+        ) : null}
+        {gigs.map((gig) => (
           <article
             key={gig.id}
             className="flex w-[min(100%,18rem)] shrink-0 snap-start flex-col rounded-[1.55rem] border border-[#F3CFC6] bg-[#FFFDFC] p-4 shadow-[0_18px_36px_-28px_rgba(15,23,42,0.18)] sm:w-[17.5rem]"

@@ -1,14 +1,29 @@
+import { createHash, randomBytes } from "crypto";
+
 import { format, startOfDay } from "date-fns";
 import { Prisma, CertificationSubmissionStatus, DiscussionAuthorRole, Role, StoryMediaType } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { sendEmailChangeVerificationEmail } from "@/lib/email/verification";
+import { buildTeacherImportDraft, type TeacherImportSourceInput } from "@/lib/teacher-profile-import";
 import { demoCalendarSessions, demoEventHosts, demoTeachers, demoUserEventHostFollows, demoUserTeacherFollows } from "@/lib/mock-data";
-import { getTeacherSupplement } from "@/lib/store";
+import {
+  deleteUserForAdmin as deleteUserForAdminInStore,
+  getAdminContentFilters as getAdminContentFiltersFromStore,
+  getTeacherSupplement,
+  listUsersForAdmin as listUsersForAdminInStore,
+  setTeacherPublicCalendarVisibility,
+  updateAdminContentFilters as updateAdminContentFiltersInStore
+} from "@/lib/store";
 import type {
+  AdminContentFilters,
+  AdminManagedUser,
+  AdminUserUpdateResult,
   AppUser,
   CommunityDiscussion,
   EventHost,
   HomepageEventCard,
+  HomepageJobCard,
   Role as AppRole,
   ServiceCategory,
   TeacherCalendarSession,
@@ -24,6 +39,11 @@ const FOLLOWED_EVENT_LABEL = "From people you follow";
 const HOMEPAGE_EVENT_LIMIT = 5;
 const NO_FOLLOW_EVENT_LIMIT = 10;
 const TODAY_START = startOfDay(new Date());
+const ADMIN_CONTENT_SETTINGS_ID = "global";
+const DEFAULT_ADMIN_CONTENT_FILTERS: AdminContentFilters = {
+  hiddenEventKeywords: [],
+  hiddenJobKeywords: []
+};
 const CURATED_FALLBACK_EVENTS: HomepageEventCard[] = [
   {
     id: "curated-evergreen-escape",
@@ -97,13 +117,84 @@ const CURATED_FALLBACK_EVENTS: HomepageEventCard[] = [
     attendees: 12
   }
 ];
-const CATEGORY_IMAGE_FALLBACKS: Record<string, string> = {
-  Retreat: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop",
-  "Somatic Healing": "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200&q=80&auto=format&fit=crop",
-  Meditation: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop",
-  Breathwork: "https://images.unsplash.com/photo-1528319725582-ddc096101511?w=1200&q=80&auto=format&fit=crop",
-  Community: "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=1200&q=80&auto=format&fit=crop",
-  Workshop: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1200&q=80&auto=format&fit=crop"
+const HOMEPAGE_LOCAL_GIGS: HomepageJobCard[] = [
+  {
+    id: "1",
+    title: "Morning Hatha Yoga Instructor",
+    category: "Part-time",
+    pay: "$45-60/class",
+    company: "Zen Flow Studio",
+    location: "San Francisco, CA",
+    posted: "2 days ago"
+  },
+  {
+    id: "2",
+    title: "Corporate Wellness Program Lead",
+    category: "Contract",
+    pay: "$75/hour",
+    company: "TechCorp Wellness",
+    location: "Remote",
+    posted: "1 day ago"
+  },
+  {
+    id: "3",
+    title: "Weekend Yoga Retreat Facilitator",
+    category: "Gig",
+    pay: "$1,200/weekend",
+    company: "Mountain Peak Retreat",
+    location: "Boulder, CO",
+    posted: "3 days ago"
+  },
+  {
+    id: "4",
+    title: "Prenatal Yoga Specialist",
+    category: "Full-time",
+    pay: "$50,000-65,000/yr",
+    company: "Bloom Yoga Center",
+    location: "Austin, TX",
+    posted: "5 days ago"
+  },
+  {
+    id: "5",
+    title: "Studio Operations + Yin Instructor",
+    category: "Part-time",
+    pay: "$28/hour + commission",
+    company: "Stillpoint Wellness",
+    location: "Los Angeles, CA",
+    posted: "4 days ago"
+  }
+];
+const CATEGORY_IMAGE_FALLBACKS: Record<string, string[]> = {
+  Retreat: [
+    "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=1200&q=80&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1510797215324-95aa89f43c33?w=1200&q=80&auto=format&fit=crop"
+  ],
+  "Somatic Healing": [
+    "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200&q=80&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1200&q=80&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop"
+  ],
+  Meditation: [
+    "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1528319725582-ddc096101511?w=1200&q=80&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=1200&q=80&auto=format&fit=crop"
+  ],
+  Breathwork: [
+    "https://images.unsplash.com/photo-1528319725582-ddc096101511?w=1200&q=80&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1200&q=80&auto=format&fit=crop"
+  ],
+  Community: [
+    "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=1200&q=80&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1499209974431-9dddcece7f88?w=1200&q=80&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1200&q=80&auto=format&fit=crop"
+  ],
+  Workshop: [
+    "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1200&q=80&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1545389336-cf090694435e?w=1200&q=80&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop"
+  ]
 };
 
 const serviceCategoryLabels: Record<ServiceCategory, string> = {
@@ -142,20 +233,249 @@ function mapStoryMediaTypeToDb(mediaType: TeacherStory["mediaType"]) {
   return mediaType === "video" ? StoryMediaType.VIDEO : StoryMediaType.IMAGE;
 }
 
+const userSelect = {
+  id: true,
+  email: true,
+  password: true,
+  role: true,
+  name: true,
+  emailVerifiedAt: true
+};
+
+const adminUserSelect = {
+  id: true,
+  email: true,
+  password: true,
+  role: true,
+  name: true,
+  emailVerifiedAt: true,
+  teacher: {
+    select: {
+      id: true,
+      fullName: true,
+      slug: true
+    }
+  },
+  pendingEmailChanges: {
+    where: {
+      consumedAt: null,
+      cancelledAt: null
+    },
+    orderBy: {
+      createdAt: "desc" as const
+    },
+    take: 1,
+    select: {
+      nextEmail: true,
+      createdAt: true
+    }
+  }
+};
+
+const legacyUserSelect = {
+  id: true,
+  email: true,
+  password: true,
+  role: true,
+  name: true
+};
+
+const legacyAdminUserSelect = {
+  id: true,
+  email: true,
+  password: true,
+  role: true,
+  name: true,
+  teacher: {
+    select: {
+      id: true,
+      fullName: true,
+      slug: true
+    }
+  }
+};
+
+function isMissingUserEmailVerificationInfrastructure(error: unknown) {
+  return (
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2022" &&
+      (error.message.includes("User.emailVerifiedAt") || error.message.includes("emailVerifiedAt"))) ||
+    (error instanceof Prisma.PrismaClientValidationError &&
+      (error.message.includes("Unknown field `emailVerifiedAt`") || error.message.includes("Unknown argument `emailVerifiedAt`")))
+  );
+}
+
+function isMissingPendingUserEmailChangeInfrastructure(error: unknown) {
+  return (
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2021" || error.code === "P2022") &&
+      (error.message.includes("PendingUserEmailChange") ||
+        error.message.includes("pendingEmailChanges") ||
+        error.message.includes("User.pendingEmailChanges"))) ||
+    (error instanceof Prisma.PrismaClientValidationError &&
+      (error.message.includes("Unknown field `pendingEmailChanges`") ||
+        error.message.includes("Unknown field `PendingUserEmailChange`")))
+  );
+}
+
+function isMissingAdminContentSettingsInfrastructure(error: unknown) {
+  return (
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2021" || error.code === "P2022") &&
+      (error.message.includes("AdminContentSettings") ||
+        error.message.includes("hiddenEventKeywords") ||
+        error.message.includes("hiddenJobKeywords"))) ||
+    (error instanceof Prisma.PrismaClientValidationError &&
+      (error.message.includes("AdminContentSettings") ||
+        error.message.includes("hiddenEventKeywords") ||
+        error.message.includes("hiddenJobKeywords")))
+  );
+}
+
+async function withUserEmailVerificationFallback<T>(queries: Array<() => Promise<T>>) {
+  let lastCompatibilityError: unknown;
+
+  for (const query of queries) {
+    try {
+      return await query();
+    } catch (error) {
+      if (isMissingUserEmailVerificationInfrastructure(error)) {
+        lastCompatibilityError = error;
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw lastCompatibilityError;
+}
+
+async function getAdminUserRecordById(userId: string) {
+  try {
+    return await db.user.findUnique({
+      where: { id: userId },
+      select: adminUserSelect
+    });
+  } catch (error) {
+    if (!isMissingUserEmailVerificationInfrastructure(error) && !isMissingPendingUserEmailChangeInfrastructure(error)) {
+      throw error;
+    }
+
+    return await db.user.findUnique({
+      where: { id: userId },
+      select: legacyAdminUserSelect
+    });
+  }
+}
+
+async function listAdminUserRecords() {
+  try {
+    return await db.user.findMany({
+      select: adminUserSelect,
+      orderBy: [{ role: "asc" }, { name: "asc" }]
+    });
+  } catch (error) {
+    if (!isMissingUserEmailVerificationInfrastructure(error) && !isMissingPendingUserEmailChangeInfrastructure(error)) {
+      throw error;
+    }
+
+    return await db.user.findMany({
+      select: legacyAdminUserSelect,
+      orderBy: [{ role: "asc" }, { name: "asc" }]
+    });
+  }
+}
+
 function mapUser(user: {
   id: string;
   email: string;
   password: string;
   role: Role;
   name: string;
+  emailVerifiedAt?: Date | null;
 }): AppUser {
   return {
     id: user.id,
     email: user.email,
     password: user.password,
     role: mapRoleToApp(user.role),
-    name: user.name
+    name: user.name,
+    emailVerifiedAt: user.emailVerifiedAt?.toISOString()
   };
+}
+
+function mapAdminManagedUser(user: {
+  id: string;
+  email: string;
+  password: string;
+  role: Role;
+  name: string;
+  emailVerifiedAt?: Date | null;
+  teacher?: {
+    id: string;
+    fullName: string;
+    slug: string;
+  } | null;
+  pendingEmailChanges?: Array<{
+    nextEmail: string;
+    createdAt: Date;
+  }>;
+}): AdminManagedUser {
+  return {
+    id: user.id,
+    email: user.email,
+    password: user.password,
+    role: mapRoleToApp(user.role),
+    name: user.name,
+    emailVerifiedAt: user.emailVerifiedAt?.toISOString(),
+    linkedTeacherId: user.teacher?.id ?? undefined,
+    linkedTeacherName: user.teacher?.fullName ?? undefined,
+    linkedTeacherSlug: user.teacher?.slug ?? undefined,
+    pendingEmailChangeTo: user.pendingEmailChanges?.[0]?.nextEmail ?? undefined,
+    pendingEmailChangeRequestedAt: user.pendingEmailChanges?.[0]?.createdAt?.toISOString()
+  };
+}
+
+function buildClaimableEmail(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (normalizedEmail.endsWith("@yoga.local")) {
+    return normalizedEmail;
+  }
+
+  const [localPart] = normalizedEmail.split("@");
+  return localPart ? `${localPart}@yoga.local` : normalizedEmail;
+}
+
+function hashVerificationToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function getAppBaseUrl() {
+  return (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/+$/, "");
+}
+
+function normalizeKeywordList(keywords: string[]) {
+  return Array.from(
+    new Set(
+      keywords
+        .map((keyword) => keyword.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+}
+
+function matchesKeywordFilter(values: Array<string | undefined>, keywords: string[]) {
+  if (keywords.length === 0) {
+    return false;
+  }
+
+  const haystack = values
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return keywords.some((keyword) => haystack.includes(keyword));
 }
 
 function slugifyLabel(name: string) {
@@ -320,13 +640,27 @@ function mapTeachingHours(counter: {
 
 function hydratePersistedTeacher(teacher: {
   id: string;
-  userId: string;
+  userId: string | null;
+  claimEmail?: string | null;
   slug: string;
   fullName: string;
   avatarUrl: string | null;
+  showPublicCalendar?: boolean | null;
   studioName: string | null;
   studioWebsiteUrl: string | null;
   studioScheduleUrl: string | null;
+  websiteUrl?: string | null;
+  linkedinUrl?: string | null;
+  instagramUrl?: string | null;
+  facebookUrl?: string | null;
+  resumeUrl?: string | null;
+  resumeFileName?: string | null;
+  resumeMimeType?: string | null;
+  profileImportConsent?: boolean | null;
+  profileImportRequestedAt?: Date | null;
+  profileImportCompletedAt?: Date | null;
+  profileImportStatus?: string | null;
+  profileImportNotes?: string | null;
   platformHoursBooked: number | null;
   city: string;
   serviceRadiusMiles: number;
@@ -405,13 +739,26 @@ function hydratePersistedTeacher(teacher: {
 
   return {
     id: teacher.id,
-    userId: teacher.userId,
+    userId: teacher.userId ?? undefined,
+    claimEmail: teacher.claimEmail ?? undefined,
     slug: teacher.slug,
     fullName: teacher.fullName,
     avatarUrl: teacher.avatarUrl ?? undefined,
     studioName: teacher.studioName ?? undefined,
     studioWebsiteUrl: teacher.studioWebsiteUrl ?? undefined,
     studioScheduleUrl,
+    websiteUrl: teacher.websiteUrl ?? undefined,
+    linkedinUrl: teacher.linkedinUrl ?? undefined,
+    instagramUrl: teacher.instagramUrl ?? undefined,
+    facebookUrl: teacher.facebookUrl ?? undefined,
+    resumeUrl: teacher.resumeUrl ?? undefined,
+    resumeFileName: teacher.resumeFileName ?? undefined,
+    resumeMimeType: teacher.resumeMimeType ?? undefined,
+    profileImportConsent: teacher.profileImportConsent ?? false,
+    profileImportRequestedAt: teacher.profileImportRequestedAt?.toISOString(),
+    profileImportCompletedAt: teacher.profileImportCompletedAt?.toISOString(),
+    profileImportStatus: (teacher.profileImportStatus as Teacher["profileImportStatus"]) ?? undefined,
+    profileImportNotes: teacher.profileImportNotes ?? undefined,
     platformHoursBooked,
     city: teacher.city,
     serviceRadiusMiles: teacher.serviceRadiusMiles,
@@ -422,6 +769,7 @@ function hydratePersistedTeacher(teacher: {
     certificationStatus: teacher.certificationStatus as Teacher["certificationStatus"],
     published: teacher.published,
     ...supplement,
+    showPublicCalendar: supplement.showPublicCalendar ?? teacher.showPublicCalendar ?? true,
     teachingHours,
     certificationSubmissions: teacher.certificationSubmissions.map(mapCertificationSubmission),
     upcomingEvents: teacher.upcomingEvents.map(mapUpcomingEvent),
@@ -450,7 +798,7 @@ function hydrateFallbackTeacher(teacher: Teacher) {
   };
 }
 
-const teacherInclude = {
+const teacherRelationSelect = {
   teachingHours: {
     orderBy: { category: "asc" as const }
   },
@@ -471,17 +819,87 @@ const teacherInclude = {
       eventDate: true
     },
     orderBy: [{ eventDate: "asc" as const }, { createdAt: "asc" as const }]
-  },
+  }
+};
+
+const teacherBaseSelect = {
+  id: true,
+  userId: true,
+  claimEmail: true,
+  slug: true,
+  fullName: true,
+  avatarUrl: true,
+  showPublicCalendar: true,
+  studioName: true,
+  studioWebsiteUrl: true,
+  studioScheduleUrl: true,
+  websiteUrl: true,
+  linkedinUrl: true,
+  instagramUrl: true,
+  facebookUrl: true,
+  resumeUrl: true,
+  resumeFileName: true,
+  resumeMimeType: true,
+  profileImportConsent: true,
+  profileImportRequestedAt: true,
+  profileImportCompletedAt: true,
+  profileImportStatus: true,
+  profileImportNotes: true,
+  platformHoursBooked: true,
+  city: true,
+  serviceRadiusMiles: true,
+  training: true,
+  experienceYears: true,
+  bio: true,
+  gender: true,
+  certificationStatus: true,
+  published: true
+};
+
+const legacyTeacherBaseSelect = {
+  id: true,
+  userId: true,
+  slug: true,
+  fullName: true,
+  avatarUrl: true,
+  studioName: true,
+  studioWebsiteUrl: true,
+  studioScheduleUrl: true,
+  platformHoursBooked: true,
+  city: true,
+  serviceRadiusMiles: true,
+  training: true,
+  experienceYears: true,
+  bio: true,
+  gender: true,
+  certificationStatus: true,
+  published: true
+};
+
+const teacherSelect = {
+  ...teacherBaseSelect,
+  ...teacherRelationSelect,
   calendarSessions: {
     orderBy: { startsAt: "asc" as const }
   }
 };
 
-const teacherIncludeWithoutCalendar = {
-  teachingHours: teacherInclude.teachingHours,
-  certificationSubmissions: teacherInclude.certificationSubmissions,
-  stories: teacherInclude.stories,
-  upcomingEvents: teacherInclude.upcomingEvents
+const teacherSelectWithoutCalendar = {
+  ...teacherBaseSelect,
+  ...teacherRelationSelect
+};
+
+const legacyTeacherSelect = {
+  ...legacyTeacherBaseSelect,
+  ...teacherRelationSelect,
+  calendarSessions: {
+    orderBy: { startsAt: "asc" as const }
+  }
+};
+
+const legacyTeacherSelectWithoutCalendar = {
+  ...legacyTeacherBaseSelect,
+  ...teacherRelationSelect
 };
 
 function isMissingCalendarSessionTable(error: unknown) {
@@ -489,6 +907,49 @@ function isMissingCalendarSessionTable(error: unknown) {
     error instanceof Prisma.PrismaClientKnownRequestError &&
     error.code === "P2021" &&
     error.message.includes("TeacherCalendarSession")
+  );
+}
+
+function isMissingTeacherImportInfrastructure(error: unknown) {
+  const missingFieldMarkers = [
+    "Teacher.websiteUrl",
+    "Teacher.linkedinUrl",
+    "Teacher.instagramUrl",
+    "Teacher.facebookUrl",
+    "Teacher.resumeUrl",
+    "Teacher.resumeFileName",
+    "Teacher.resumeMimeType",
+    "Teacher.profileImportConsent",
+    "Teacher.profileImportRequestedAt",
+    "Teacher.profileImportCompletedAt",
+    "Teacher.profileImportStatus",
+    "Teacher.profileImportNotes",
+    "Teacher.showPublicCalendar",
+    "Teacher.claimEmail",
+    "websiteUrl",
+    "linkedinUrl",
+    "instagramUrl",
+    "facebookUrl",
+    "resumeUrl",
+    "resumeFileName",
+    "resumeMimeType",
+    "profileImportConsent",
+    "profileImportRequestedAt",
+    "profileImportCompletedAt",
+    "profileImportStatus",
+    "profileImportNotes",
+    "showPublicCalendar",
+    "claimEmail"
+  ];
+
+  return (
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2022" &&
+      missingFieldMarkers.some((marker) => error.message.includes(marker))) ||
+    (error instanceof Prisma.PrismaClientValidationError &&
+      missingFieldMarkers.some(
+        (marker) => error.message.includes(`Unknown field \`${marker}\``) || error.message.includes(`Unknown argument \`${marker}\``)
+      ))
   );
 }
 
@@ -514,18 +975,67 @@ function hasEventFollowClientSupport() {
   return Boolean(runtimeDb.eventHost && runtimeDb.userTeacherFollow && runtimeDb.userEventHostFollow);
 }
 
-async function withCalendarSessionFallback<T>(
-  query: () => Promise<T>,
-  fallbackQuery: () => Promise<T>
-) {
-  try {
-    return await query();
-  } catch (error) {
-    if (isMissingCalendarSessionTable(error)) {
-      return await fallbackQuery();
+function hasAdminContentSettingsClientSupport() {
+  const runtimeDb = db as unknown as Record<string, unknown>;
+  return Boolean(runtimeDb.adminContentSettings);
+}
+
+async function withTeacherCompatibilityFallback<T>(queries: Array<() => Promise<T>>) {
+  let lastCompatibilityError: unknown;
+
+  for (const query of queries) {
+    try {
+      return await query();
+    } catch (error) {
+      if (isMissingCalendarSessionTable(error) || isMissingTeacherImportInfrastructure(error)) {
+        lastCompatibilityError = error;
+        continue;
+      }
+
+      throw error;
     }
-    throw error;
   }
+
+  throw lastCompatibilityError;
+}
+
+async function insertLegacyTeacherProfile(userId: string, fullName: string) {
+  const id = `teacher-${Date.now()}`;
+  const slug = await getUniqueTeacherSlug(fullName);
+
+  await db.$executeRaw`
+    INSERT INTO "Teacher" (
+      "id",
+      "userId",
+      "slug",
+      "fullName",
+      "city",
+      "serviceRadiusMiles",
+      "training",
+      "experienceYears",
+      "bio",
+      "gender",
+      "certificationStatus",
+      "published",
+      "createdAt",
+      "updatedAt"
+    ) VALUES (
+      ${id},
+      ${userId},
+      ${slug},
+      ${fullName},
+      ${""},
+      ${0},
+      ${""},
+      ${0},
+      ${""},
+      ${"other"},
+      ${"not_certified"},
+      ${false},
+      ${new Date()},
+      ${new Date()}
+    )
+  `;
 }
 
 function listFallbackTeachers(existingTeacherIds: string[]) {
@@ -547,7 +1057,18 @@ function inferHomepageEventCategory(title: string, hostName?: string | null) {
   return "Workshop";
 }
 
+function hashLabel(value: string) {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+
+  return hash;
+}
+
 function buildHomepageEventImage(
+  eventKey: string,
   category: string,
   teacher: {
     avatarUrl: string | null;
@@ -555,13 +1076,17 @@ function buildHomepageEventImage(
   },
   host?: { imageUrl: string | null } | null
 ) {
-  return (
-    host?.imageUrl ??
-    teacher.stories[0]?.mediaUrl ??
-    teacher.avatarUrl ??
-    CATEGORY_IMAGE_FALLBACKS[category] ??
-    CATEGORY_IMAGE_FALLBACKS.Workshop
+  const storyImages = teacher.stories.map((story) => story.mediaUrl).filter(Boolean);
+  const categoryImages = CATEGORY_IMAGE_FALLBACKS[category] ?? CATEGORY_IMAGE_FALLBACKS.Workshop;
+  const candidates = Array.from(
+    new Set([host?.imageUrl, ...storyImages, teacher.avatarUrl, ...categoryImages].filter((value): value is string => Boolean(value)))
   );
+
+  if (candidates.length === 0) {
+    return CATEGORY_IMAGE_FALLBACKS.Workshop[0];
+  }
+
+  return candidates[hashLabel(eventKey) % candidates.length];
 }
 
 function buildHomepageEventLocation(teacher: { city: string; studioName: string | null }) {
@@ -618,7 +1143,7 @@ function mapPersonalizedEventCard(
     detail: `Led by ${event.teacher.fullName}`,
     href: event.eventUrl,
     external: /^https?:\/\//.test(event.eventUrl),
-    imageSrc: buildHomepageEventImage(category, event.teacher, event.host),
+    imageSrc: buildHomepageEventImage(`${event.id}:${event.title}:${hostName}`, category, event.teacher, event.host),
     imageAlt: `${event.title} event image`,
     category,
     featuredLabel: personalized ? FOLLOWED_EVENT_LABEL : undefined,
@@ -659,6 +1184,47 @@ function isUpcomingHomepageEvent(event: HomepageEventCard) {
   }
 
   return new Date(event.sortDate) >= TODAY_START;
+}
+
+function filterHomepageEventsByKeywords(events: HomepageEventCard[], keywords: string[]) {
+  if (keywords.length === 0) {
+    return events;
+  }
+
+  return events.filter(
+    (event) =>
+      !matchesKeywordFilter([event.title, event.host, event.location, event.detail, event.category], keywords)
+  );
+}
+
+function filterHomepageJobsByKeywords(jobs: HomepageJobCard[], keywords: string[]) {
+  if (keywords.length === 0) {
+    return jobs;
+  }
+
+  return jobs.filter(
+    (job) => !matchesKeywordFilter([job.title, job.category, job.pay, job.company, job.location, job.posted], keywords)
+  );
+}
+
+function includesCollegeOfSanMateo(value?: string | null) {
+  return value?.toLowerCase().includes("college of san mateo") ?? false;
+}
+
+function isHiddenHomepageUpcomingEvent(event: {
+  title: string;
+  hostName?: string | null;
+  eventUrl: string;
+  teacher: {
+    studioName?: string | null;
+  };
+}) {
+  return (
+    includesCollegeOfSanMateo(event.title) ||
+    includesCollegeOfSanMateo(event.hostName) ||
+    includesCollegeOfSanMateo(event.teacher.studioName) ||
+    event.eventUrl.toLowerCase().includes("collegeofsanmateo.edu")
+  );
 }
 
 function buildFallbackEventHost(name: string, websiteUrl?: string | null) {
@@ -820,14 +1386,16 @@ async function listPersistedHomepageEvents(options: {
 
     const followedTeacherIds = new Set(options.followedTeacherIds ?? []);
 
-    return events.map((event) =>
-      mapPersonalizedEventCard(
-        { ...event, hostId: null, host: null },
-        followedTeacherIds,
-        new Set<string>(),
-        Boolean(options.personalized)
-      )
-    );
+    return events
+      .filter((event) => !isHiddenHomepageUpcomingEvent(event))
+      .map((event) =>
+        mapPersonalizedEventCard(
+          { ...event, hostId: null, host: null },
+          followedTeacherIds,
+          new Set<string>(),
+          Boolean(options.personalized)
+        )
+      );
   }
 
   try {
@@ -897,9 +1465,11 @@ async function listPersistedHomepageEvents(options: {
     const followedTeacherIds = new Set(options.followedTeacherIds ?? []);
     const followedHostIds = new Set(options.followedHostIds ?? []);
 
-    return events.map((event) =>
-      mapPersonalizedEventCard(event, followedTeacherIds, followedHostIds, Boolean(options.personalized))
-    );
+    return events
+      .filter((event) => !isHiddenHomepageUpcomingEvent(event))
+      .map((event) =>
+        mapPersonalizedEventCard(event, followedTeacherIds, followedHostIds, Boolean(options.personalized))
+      );
   } catch (error) {
     if (isMissingEventFollowInfrastructure(error)) {
       return [];
@@ -1106,6 +1676,7 @@ export async function unfollowEventHostForUser(userId: string, hostId: string) {
 
 export async function listHomepageFeaturedEvents(userId?: string) {
   await syncEventHostsFromUpcomingEvents();
+  const contentFilters = await getAdminContentFilters();
 
   const followedTeacherIds = userId ? await listFollowedTeacherIds(userId) : [];
   const followedHostIds = userId ? await listFollowedEventHostIds(userId) : [];
@@ -1125,7 +1696,10 @@ export async function listHomepageFeaturedEvents(userId?: string) {
         limit: HOMEPAGE_EVENT_LIMIT
       });
 
-      return dedupeHomepageEvents([...personalizedEvents, ...genericEvents, ...CURATED_FALLBACK_EVENTS]).slice(0, HOMEPAGE_EVENT_LIMIT);
+      return filterHomepageEventsByKeywords(
+        dedupeHomepageEvents([...personalizedEvents, ...genericEvents, ...CURATED_FALLBACK_EVENTS]),
+        contentFilters.hiddenEventKeywords
+      ).slice(0, HOMEPAGE_EVENT_LIMIT);
     }
   }
 
@@ -1134,13 +1708,21 @@ export async function listHomepageFeaturedEvents(userId?: string) {
     limit: hasNoFollows ? NO_FOLLOW_EVENT_LIMIT : HOMEPAGE_EVENT_LIMIT
   });
 
-  const fallbackEvents = dedupeHomepageEvents([...genericEvents, ...CURATED_FALLBACK_EVENTS]).filter(isUpcomingHomepageEvent);
+  const fallbackEvents = filterHomepageEventsByKeywords(
+    dedupeHomepageEvents([...genericEvents, ...CURATED_FALLBACK_EVENTS]).filter(isUpcomingHomepageEvent),
+    contentFilters.hiddenEventKeywords
+  );
 
   if (hasNoFollows) {
     return sortHomepageEventsByDate(fallbackEvents).slice(0, NO_FOLLOW_EVENT_LIMIT);
   }
 
   return fallbackEvents.slice(0, HOMEPAGE_EVENT_LIMIT);
+}
+
+export async function listHomepageLocalGigs() {
+  const contentFilters = await getAdminContentFilters();
+  return filterHomepageJobsByKeywords(HOMEPAGE_LOCAL_GIGS, contentFilters.hiddenJobKeywords);
 }
 
 export async function incrementTeachingHoursInDb(teacherId: string, category: ServiceCategory, minutesAdded: number) {
@@ -1159,90 +1741,547 @@ export async function incrementTeachingHoursInDb(teacherId: string, category: Se
 }
 
 export async function getUserById(userId: string) {
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      email: true,
-      password: true,
-      role: true,
-      name: true
-    }
-  });
+  const user = await withUserEmailVerificationFallback([
+    () =>
+      db.user.findUnique({
+        where: { id: userId },
+        select: userSelect
+      }),
+    () =>
+      db.user.findUnique({
+        where: { id: userId },
+        select: legacyUserSelect
+      })
+  ]);
 
   return user ? mapUser(user) : null;
 }
 
 export async function getUserByEmail(email: string) {
-  const user = await db.user.findUnique({
-    where: { email: email.toLowerCase() },
-    select: {
-      id: true,
-      email: true,
-      password: true,
-      role: true,
-      name: true
-    }
-  });
+  const user = await withUserEmailVerificationFallback([
+    () =>
+      db.user.findUnique({
+        where: { email: email.toLowerCase() },
+        select: userSelect
+      }),
+    () =>
+      db.user.findUnique({
+        where: { email: email.toLowerCase() },
+        select: legacyUserSelect
+      })
+  ]);
 
   return user ? mapUser(user) : null;
 }
 
-export async function createUser(input: Pick<AppUser, "email" | "password" | "name" | "role">) {
-  const user = await db.user.create({
-    data: {
-      id: `user-${Date.now()}`,
-      email: input.email.toLowerCase(),
-      password: input.password,
-      role: mapRoleToDb(input.role),
-      name: input.name
-    },
-    select: {
-      id: true,
-      email: true,
-      password: true,
-      role: true,
-      name: true
-    }
-  });
+export async function createUser(input: Pick<AppUser, "email" | "password" | "name" | "role"> & { emailVerifiedAt?: string }) {
+  const createData = {
+    id: `user-${Date.now()}`,
+    email: input.email.toLowerCase(),
+    password: input.password,
+    role: mapRoleToDb(input.role),
+    name: input.name,
+    ...(input.emailVerifiedAt ? { emailVerifiedAt: new Date(input.emailVerifiedAt) } : {})
+  };
+
+  const user = await withUserEmailVerificationFallback([
+    () =>
+      db.user.create({
+        data: createData,
+        select: userSelect
+      }),
+    () =>
+      db.user.create({
+        data: {
+          id: createData.id,
+          email: createData.email,
+          password: createData.password,
+          role: createData.role,
+          name: createData.name
+        },
+        select: legacyUserSelect
+      })
+  ]);
 
   return mapUser(user);
 }
 
+export async function listUsersForAdmin() {
+  try {
+    return (await listAdminUserRecords()).map(mapAdminManagedUser);
+  } catch {
+    return listUsersForAdminInStore();
+  }
+}
+
+export async function getAdminContentFilters(): Promise<AdminContentFilters> {
+  if (!hasAdminContentSettingsClientSupport()) {
+    return getAdminContentFiltersFromStore();
+  }
+
+  try {
+    const settings = await db.adminContentSettings.findUnique({
+      where: { id: ADMIN_CONTENT_SETTINGS_ID },
+      select: {
+        hiddenEventKeywords: true,
+        hiddenJobKeywords: true
+      }
+    });
+
+    return settings
+      ? {
+          hiddenEventKeywords: normalizeKeywordList(settings.hiddenEventKeywords),
+          hiddenJobKeywords: normalizeKeywordList(settings.hiddenJobKeywords)
+        }
+      : DEFAULT_ADMIN_CONTENT_FILTERS;
+  } catch (error) {
+    if (!isMissingAdminContentSettingsInfrastructure(error)) {
+      throw error;
+    }
+
+    return getAdminContentFiltersFromStore();
+  }
+}
+
+export async function updateAdminContentFilters(input: AdminContentFilters) {
+  const normalizedInput = {
+    hiddenEventKeywords: normalizeKeywordList(input.hiddenEventKeywords),
+    hiddenJobKeywords: normalizeKeywordList(input.hiddenJobKeywords)
+  };
+
+  if (!hasAdminContentSettingsClientSupport()) {
+    return updateAdminContentFiltersInStore(normalizedInput);
+  }
+
+  try {
+    const settings = await db.adminContentSettings.upsert({
+      where: { id: ADMIN_CONTENT_SETTINGS_ID },
+      update: normalizedInput,
+      create: {
+        id: ADMIN_CONTENT_SETTINGS_ID,
+        ...normalizedInput
+      },
+      select: {
+        hiddenEventKeywords: true,
+        hiddenJobKeywords: true
+      }
+    });
+
+    return {
+      hiddenEventKeywords: normalizeKeywordList(settings.hiddenEventKeywords),
+      hiddenJobKeywords: normalizeKeywordList(settings.hiddenJobKeywords)
+    };
+  } catch (error) {
+    if (!isMissingAdminContentSettingsInfrastructure(error)) {
+      throw error;
+    }
+
+    return updateAdminContentFiltersInStore(normalizedInput);
+  }
+}
+
+export async function updateUserForAdmin(
+  userId: string,
+  input: Pick<AppUser, "name" | "email" | "role">
+) : Promise<AdminUserUpdateResult> {
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const trimmedName = input.name.trim();
+
+  const existingUser = await getAdminUserRecordById(userId);
+
+  if (!existingUser) {
+    throw new Error("User not found.");
+  }
+
+  const emailChanged = existingUser.email.toLowerCase() !== normalizedEmail;
+
+  const duplicate = await db.user.findFirst({
+    where: {
+      email: normalizedEmail,
+      NOT: { id: userId }
+    },
+    select: { id: true }
+  });
+
+  if (duplicate) {
+    throw new Error("That email is already in use.");
+  }
+
+  if (emailChanged) {
+    const conflictingPendingChange = await db.pendingUserEmailChange.findFirst({
+      where: {
+        normalizedNextEmail: normalizedEmail,
+        consumedAt: null,
+        cancelledAt: null,
+        expiresAt: { gt: new Date() },
+        NOT: { userId }
+      },
+      select: { id: true }
+    });
+
+    if (conflictingPendingChange) {
+      throw new Error("That email is already waiting for confirmation.");
+    }
+  }
+
+  const updatedUser = await (async () => {
+    try {
+      return await db.user.update({
+        where: { id: userId },
+        data: {
+          name: trimmedName,
+          role: mapRoleToDb(input.role)
+        },
+        select: adminUserSelect
+      });
+    } catch (error) {
+      if (!isMissingUserEmailVerificationInfrastructure(error) && !isMissingPendingUserEmailChangeInfrastructure(error)) {
+        throw error;
+      }
+
+      return await db.user.update({
+        where: { id: userId },
+        data: {
+          name: trimmedName,
+          role: mapRoleToDb(input.role)
+        },
+        select: legacyAdminUserSelect
+      });
+    }
+  })();
+
+  if (input.role === "teacher") {
+    await ensureTeacherProfile(userId, trimmedName);
+  } else if (existingUser.teacher?.id) {
+    try {
+      await db.teacher.update({
+        where: { id: existingUser.teacher.id },
+        data: {
+          userId: null,
+          claimEmail: buildClaimableEmail(existingUser.email)
+        },
+        select: { id: true }
+      });
+    } catch (error) {
+      if (!isMissingTeacherImportInfrastructure(error)) {
+        throw error;
+      }
+
+      await db.teacher.update({
+        where: { id: existingUser.teacher.id },
+        data: { userId: null },
+        select: { id: true }
+      });
+    }
+  }
+
+  if (!emailChanged) {
+    return {
+      user: mapAdminManagedUser(updatedUser),
+      emailChangeRequested: false
+    };
+  }
+
+  const pendingEmailChangeId = `pending-email-change-${Date.now()}-${randomBytes(4).toString("hex")}`;
+  const rawToken = randomBytes(32).toString("hex");
+  const tokenHash = hashVerificationToken(rawToken);
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+
+  await db.$transaction(async (tx) => {
+    await tx.pendingUserEmailChange.updateMany({
+      where: {
+        userId,
+        consumedAt: null,
+        cancelledAt: null
+      },
+      data: {
+        cancelledAt: new Date()
+      }
+    });
+
+    await tx.pendingUserEmailChange.create({
+      data: {
+        id: pendingEmailChangeId,
+        userId,
+        previousEmail: existingUser.email,
+        nextEmail: normalizedEmail,
+        normalizedNextEmail: normalizedEmail,
+        tokenHash,
+        expiresAt
+      }
+    });
+  });
+
+  const verificationUrl = `${getAppBaseUrl()}/auth/confirm-email-change/complete?token=${rawToken}`;
+
+  try {
+    await sendEmailChangeVerificationEmail({
+      email: normalizedEmail,
+      name: trimmedName,
+      verificationUrl
+    });
+  } catch (error) {
+    await db.pendingUserEmailChange.updateMany({
+      where: {
+        userId,
+        consumedAt: null,
+        cancelledAt: null,
+        normalizedNextEmail: normalizedEmail
+      },
+      data: {
+        cancelledAt: new Date()
+      }
+    });
+
+    throw error;
+  }
+
+  return {
+    user: {
+      ...mapAdminManagedUser(updatedUser),
+      pendingEmailChangeTo: normalizedEmail,
+      pendingEmailChangeRequestedAt: new Date().toISOString()
+    },
+    emailChangeRequested: true
+  };
+}
+
+export async function deleteUserForAdmin(userId: string) {
+  try {
+    const existingUser = await getAdminUserRecordById(userId);
+
+    if (!existingUser) {
+      throw new Error("User not found.");
+    }
+
+    await db.$transaction(async (tx) => {
+      if (existingUser.teacher?.id) {
+        try {
+          await tx.teacher.update({
+            where: { id: existingUser.teacher.id },
+            data: {
+              userId: null,
+              claimEmail: buildClaimableEmail(existingUser.email)
+            },
+            select: { id: true }
+          });
+        } catch (error) {
+          if (!isMissingTeacherImportInfrastructure(error)) {
+            throw error;
+          }
+
+          await tx.teacher.update({
+            where: { id: existingUser.teacher.id },
+            data: { userId: null },
+            select: { id: true }
+          });
+        }
+      }
+
+      await tx.pendingSignup.deleteMany({
+        where: {
+          normalizedEmail: existingUser.email.toLowerCase()
+        }
+      });
+
+      await tx.user.delete({
+        where: { id: userId }
+      });
+    });
+
+    return mapAdminManagedUser(existingUser);
+  } catch (error) {
+    if (error instanceof Error && error.message === "User not found.") {
+      throw error;
+    }
+
+    return deleteUserForAdminInStore(userId);
+  }
+}
+
+type ConsumePendingUserEmailChangeResult =
+  | { status: "invalid"; message: string }
+  | { status: "expired"; message: string }
+  | { status: "consumed"; message: string }
+  | { status: "blocked"; message: string }
+  | { status: "success"; email: string };
+
+export async function consumePendingUserEmailChange(token: string): Promise<ConsumePendingUserEmailChangeResult> {
+  const tokenHash = hashVerificationToken(token);
+  const pendingChange = await db.pendingUserEmailChange.findUnique({
+    where: { tokenHash },
+    select: {
+      id: true,
+      userId: true,
+      previousEmail: true,
+      nextEmail: true,
+      normalizedNextEmail: true,
+      expiresAt: true,
+      consumedAt: true,
+      cancelledAt: true,
+      user: {
+        select: {
+          id: true,
+          email: true
+        }
+      }
+    }
+  });
+
+  if (!pendingChange) {
+    return {
+      status: "invalid",
+      message: "This email change link is invalid."
+    };
+  }
+
+  if (pendingChange.consumedAt) {
+    return {
+      status: "consumed",
+      message: "This email change link has already been used."
+    };
+  }
+
+  if (pendingChange.cancelledAt) {
+    return {
+      status: "invalid",
+      message: "This email change request is no longer active."
+    };
+  }
+
+  if (pendingChange.expiresAt <= new Date()) {
+    await db.pendingUserEmailChange.update({
+      where: { id: pendingChange.id },
+      data: {
+        cancelledAt: new Date()
+      }
+    });
+
+    return {
+      status: "expired",
+      message: "This email change link has expired. Ask an admin to send a new confirmation email."
+    };
+  }
+
+  const duplicateUser = await db.user.findFirst({
+    where: {
+      email: pendingChange.normalizedNextEmail,
+      NOT: { id: pendingChange.userId }
+    },
+    select: { id: true }
+  });
+
+  if (duplicateUser) {
+    return {
+      status: "blocked",
+      message: "That email is already attached to another account."
+    };
+  }
+
+  await db.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: pendingChange.userId },
+      data: {
+        email: pendingChange.normalizedNextEmail,
+        emailVerifiedAt: new Date()
+      }
+    });
+
+    try {
+      await tx.teacher.updateMany({
+        where: {
+          userId: pendingChange.userId
+        },
+        data: {
+          claimEmail: pendingChange.normalizedNextEmail
+        }
+      });
+    } catch (error) {
+      if (!isMissingTeacherImportInfrastructure(error)) {
+        throw error;
+      }
+    }
+
+    await tx.pendingUserEmailChange.update({
+      where: { id: pendingChange.id },
+      data: {
+        consumedAt: new Date()
+      }
+    });
+
+    await tx.pendingUserEmailChange.updateMany({
+      where: {
+        userId: pendingChange.userId,
+        consumedAt: null,
+        cancelledAt: null,
+        NOT: { id: pendingChange.id }
+      },
+      data: {
+        cancelledAt: new Date()
+      }
+    });
+  });
+
+  return {
+    status: "success",
+    email: pendingChange.normalizedNextEmail
+  };
+}
+
 export async function ensureTeacherProfile(userId: string, fullName: string) {
-  const existingTeacher = await withCalendarSessionFallback(
+  const existingTeacher = await withTeacherCompatibilityFallback([
     () =>
       db.teacher.findUnique({
         where: { userId },
-        include: teacherInclude
+        select: teacherSelect
       }),
     () =>
       db.teacher.findUnique({
         where: { userId },
-        include: teacherIncludeWithoutCalendar
+        select: teacherSelectWithoutCalendar
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: legacyTeacherSelect
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: legacyTeacherSelectWithoutCalendar
       })
-  );
+  ]);
 
   if (existingTeacher) {
     return hydratePersistedTeacher(existingTeacher);
   }
 
-  await db.teacher.create({
-    data: {
-      id: `teacher-${Date.now()}`,
-      userId,
-      slug: await getUniqueTeacherSlug(fullName),
-      fullName,
-      city: "",
-      serviceRadiusMiles: 0,
-      training: "",
-      experienceYears: 0,
-      bio: "",
-      gender: "other",
-      certificationStatus: "not_certified",
-      published: false
+  try {
+    await db.teacher.create({
+      data: {
+        id: `teacher-${Date.now()}`,
+        userId,
+        slug: await getUniqueTeacherSlug(fullName),
+        fullName,
+        city: "",
+        serviceRadiusMiles: 0,
+        training: "",
+        experienceYears: 0,
+        bio: "",
+        gender: "other",
+        certificationStatus: "not_certified",
+        profileImportStatus: "not_started",
+        published: false
+      },
+      select: { id: true }
+    });
+  } catch (error) {
+    if (!isMissingTeacherImportInfrastructure(error)) {
+      throw error;
     }
-  });
+
+    await insertLegacyTeacherProfile(userId, fullName);
+  }
 
   const teacher = await getTeacherByUserId(userId);
   if (!teacher) {
@@ -1253,35 +2292,55 @@ export async function ensureTeacherProfile(userId: string, fullName: string) {
 }
 
 export async function getTeacherByUserId(userId: string) {
-  const teacher = await withCalendarSessionFallback(
+  const teacher = await withTeacherCompatibilityFallback([
     () =>
       db.teacher.findUnique({
         where: { userId },
-        include: teacherInclude
+        select: teacherSelect
       }),
     () =>
       db.teacher.findUnique({
         where: { userId },
-        include: teacherIncludeWithoutCalendar
+        select: teacherSelectWithoutCalendar
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: legacyTeacherSelect
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: legacyTeacherSelectWithoutCalendar
       })
-  );
+  ]);
 
   return teacher ? hydratePersistedTeacher(teacher) : null;
 }
 
 export async function getTeacherBySlug(slug: string) {
-  const teacher = await withCalendarSessionFallback(
+  const teacher = await withTeacherCompatibilityFallback([
     () =>
       db.teacher.findFirst({
         where: { slug, published: true },
-        include: teacherInclude
+        select: teacherSelect
       }),
     () =>
       db.teacher.findFirst({
         where: { slug, published: true },
-        include: teacherIncludeWithoutCalendar
+        select: teacherSelectWithoutCalendar
+      }),
+    () =>
+      db.teacher.findFirst({
+        where: { slug, published: true },
+        select: legacyTeacherSelect
+      }),
+    () =>
+      db.teacher.findFirst({
+        where: { slug, published: true },
+        select: legacyTeacherSelectWithoutCalendar
       })
-  );
+  ]);
 
   if (teacher) {
     return hydratePersistedTeacher(teacher);
@@ -1292,20 +2351,32 @@ export async function getTeacherBySlug(slug: string) {
 }
 
 export async function listTeachers() {
-  const teachers = await withCalendarSessionFallback(
+  const teachers = await withTeacherCompatibilityFallback([
     () =>
       db.teacher.findMany({
         where: { published: true },
-        include: teacherInclude,
+        select: teacherSelect,
         orderBy: { fullName: "asc" }
       }),
     () =>
       db.teacher.findMany({
         where: { published: true },
-        include: teacherIncludeWithoutCalendar,
+        select: teacherSelectWithoutCalendar,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        where: { published: true },
+        select: legacyTeacherSelect,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        where: { published: true },
+        select: legacyTeacherSelectWithoutCalendar,
         orderBy: { fullName: "asc" }
       })
-  );
+  ]);
 
   const persistedTeachers = teachers.map(hydratePersistedTeacher);
   return [...persistedTeachers, ...listFallbackTeachers(persistedTeachers.map((teacher) => teacher.id))]
@@ -1314,7 +2385,24 @@ export async function listTeachers() {
 
 export async function updateTeacherProfile(
   teacherId: string,
-  input: Pick<Teacher, "fullName" | "city" | "serviceRadiusMiles" | "training" | "experienceYears" | "bio" | "gender" | "certificationStatus" | "studioScheduleUrl"> & {
+  input: Pick<
+    Teacher,
+    | "fullName"
+    | "studioName"
+    | "city"
+    | "serviceRadiusMiles"
+    | "training"
+    | "experienceYears"
+    | "bio"
+    | "gender"
+    | "certificationStatus"
+    | "studioWebsiteUrl"
+    | "studioScheduleUrl"
+    | "websiteUrl"
+    | "linkedinUrl"
+    | "instagramUrl"
+    | "facebookUrl"
+  > & {
     avatarUrl?: string;
   }
 ) {
@@ -1327,27 +2415,66 @@ export async function updateTeacherProfile(
     throw new Error("Teacher not found.");
   }
 
-  await db.user.update({
-    where: { id: currentTeacher.userId },
-    data: { name: input.fullName }
-  });
+  if (currentTeacher.userId) {
+    await db.user.update({
+      where: { id: currentTeacher.userId },
+      data: { name: input.fullName }
+    });
+  }
 
-  await db.teacher.update({
-    where: { id: teacherId },
-    data: {
-      fullName: input.fullName,
-      city: input.city,
-      serviceRadiusMiles: input.serviceRadiusMiles,
-      training: input.training,
-      experienceYears: input.experienceYears,
-      bio: input.bio,
-      gender: input.gender,
-      certificationStatus: input.certificationStatus,
-      studioScheduleUrl: input.studioScheduleUrl?.trim() || null,
-      ...(input.avatarUrl ? { avatarUrl: input.avatarUrl } : {}),
-      published: true
+  try {
+    await db.teacher.update({
+      where: { id: teacherId },
+      data: {
+        fullName: input.fullName,
+        studioName: input.studioName?.trim() || null,
+        city: input.city,
+        serviceRadiusMiles: input.serviceRadiusMiles,
+        training: input.training,
+        experienceYears: input.experienceYears,
+        bio: input.bio,
+        gender: input.gender,
+        certificationStatus: input.certificationStatus,
+        studioWebsiteUrl: input.studioWebsiteUrl?.trim() || null,
+        studioScheduleUrl: input.studioScheduleUrl?.trim() || null,
+        websiteUrl: input.websiteUrl?.trim() || null,
+        linkedinUrl: input.linkedinUrl?.trim() || null,
+        instagramUrl: input.instagramUrl?.trim() || null,
+        facebookUrl: input.facebookUrl?.trim() || null,
+        ...(input.avatarUrl ? { avatarUrl: input.avatarUrl } : {}),
+        published: true
+      },
+      select: { id: true }
+    });
+  } catch (error) {
+    if (!isMissingTeacherImportInfrastructure(error)) {
+      throw error;
     }
-  });
+
+    await db.teacher.update({
+      where: { id: teacherId },
+      data: {
+        fullName: input.fullName,
+        studioName: input.studioName?.trim() || null,
+        city: input.city,
+        serviceRadiusMiles: input.serviceRadiusMiles,
+        training: input.training,
+        experienceYears: input.experienceYears,
+        bio: input.bio,
+        gender: input.gender,
+        certificationStatus: input.certificationStatus,
+        studioWebsiteUrl: input.studioWebsiteUrl?.trim() || null,
+        studioScheduleUrl: input.studioScheduleUrl?.trim() || null,
+        ...(input.avatarUrl ? { avatarUrl: input.avatarUrl } : {}),
+        published: true
+      },
+      select: { id: true }
+    });
+  }
+
+  if (!currentTeacher.userId) {
+    throw new Error("Teacher is not linked to a user yet.");
+  }
 
   const teacher = await getTeacherByUserId(currentTeacher.userId);
   if (!teacher) {
@@ -1355,6 +2482,141 @@ export async function updateTeacherProfile(
   }
 
   return teacher;
+}
+
+export async function updateTeacherPublicCalendarVisibility(teacherId: string, showPublicCalendar: boolean) {
+  const currentTeacher = await db.teacher.findUnique({
+    where: { id: teacherId },
+    select: { userId: true }
+  });
+
+  if (!currentTeacher) {
+    throw new Error("Teacher not found.");
+  }
+
+  try {
+    await db.teacher.update({
+      where: { id: teacherId },
+      data: { showPublicCalendar },
+      select: { id: true }
+    });
+  } catch (error) {
+    if (!isMissingTeacherImportInfrastructure(error)) {
+      throw error;
+    }
+
+    setTeacherPublicCalendarVisibility(teacherId, showPublicCalendar);
+  }
+
+  if (!currentTeacher.userId) {
+    throw new Error("Teacher is not linked to a user yet.");
+  }
+
+  const teacher = await getTeacherByUserId(currentTeacher.userId);
+  if (!teacher) {
+    throw new Error("Teacher not found after calendar visibility update.");
+  }
+
+  return teacher;
+}
+
+export async function submitTeacherImportOnboarding(teacherId: string, input: TeacherImportSourceInput) {
+  const teacher = await withTeacherCompatibilityFallback([
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
+        select: teacherSelect
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
+        select: teacherSelectWithoutCalendar
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
+        select: legacyTeacherSelect
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
+        select: legacyTeacherSelectWithoutCalendar
+      })
+  ]);
+
+  if (!teacher) {
+    throw new Error("Teacher not found.");
+  }
+
+  const hydratedTeacher = hydratePersistedTeacher(teacher);
+  const draft = await buildTeacherImportDraft(hydratedTeacher, input);
+  const requestedAt = new Date();
+  const completedAt = draft.status === "completed" || draft.status === "failed" ? new Date() : null;
+
+  try {
+    await db.teacher.update({
+      where: { id: teacherId },
+      data: {
+        ...draft.fields,
+        profileImportConsent: input.profileImportConsent,
+        profileImportRequestedAt: requestedAt,
+        profileImportCompletedAt: completedAt,
+        profileImportStatus: draft.status,
+        profileImportNotes: draft.notes
+      },
+      select: { id: true }
+    });
+  } catch (error) {
+    if (!isMissingTeacherImportInfrastructure(error)) {
+      throw error;
+    }
+
+    await db.teacher.update({
+      where: { id: teacherId },
+      data: {
+        ...(draft.fields.avatarUrl ? { avatarUrl: draft.fields.avatarUrl } : {}),
+        ...(draft.fields.bio ? { bio: draft.fields.bio } : {}),
+        ...(draft.fields.city ? { city: draft.fields.city } : {}),
+        ...(draft.fields.experienceYears ? { experienceYears: draft.fields.experienceYears } : {}),
+        ...(draft.fields.studioName ? { studioName: draft.fields.studioName } : {}),
+        ...(draft.fields.studioWebsiteUrl ? { studioWebsiteUrl: draft.fields.studioWebsiteUrl } : {}),
+        ...(draft.fields.studioScheduleUrl ? { studioScheduleUrl: draft.fields.studioScheduleUrl } : {}),
+        ...(draft.fields.training ? { training: draft.fields.training } : {})
+      },
+      select: { id: true }
+    });
+  }
+
+  return teacher.userId ? await getTeacherByUserId(teacher.userId) : null;
+}
+
+export async function skipTeacherImportOnboarding(teacherId: string) {
+  const teacher = await db.teacher.findUnique({
+    where: { id: teacherId },
+    select: { userId: true }
+  });
+
+  if (!teacher) {
+    throw new Error("Teacher not found.");
+  }
+
+  try {
+    await db.teacher.update({
+      where: { id: teacherId },
+      data: {
+        profileImportStatus: "skipped",
+        profileImportNotes: "Teacher skipped profile import onboarding.",
+        profileImportCompletedAt: new Date()
+      },
+      select: { id: true }
+    });
+  } catch (error) {
+    if (!isMissingTeacherImportInfrastructure(error)) {
+      throw error;
+    }
+  }
+
+  return teacher.userId ? await getTeacherByUserId(teacher.userId) : null;
 }
 
 export async function addTeacherUpcomingEvent(
@@ -1636,7 +2898,8 @@ export async function reviewTeacherCertificationSubmission(
       where: { id: updated.teacher.id },
       data: {
         certificationStatus: "certified"
-      }
+      },
+      select: { id: true }
     });
   }
 
@@ -1644,18 +2907,28 @@ export async function reviewTeacherCertificationSubmission(
 }
 
 export async function listTeachersForAdmin() {
-  const teachers = await withCalendarSessionFallback(
+  const teachers = await withTeacherCompatibilityFallback([
     () =>
       db.teacher.findMany({
-        include: teacherInclude,
+        select: teacherSelect,
         orderBy: { fullName: "asc" }
       }),
     () =>
       db.teacher.findMany({
-        include: teacherIncludeWithoutCalendar,
+        select: teacherSelectWithoutCalendar,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        select: legacyTeacherSelect,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        select: legacyTeacherSelectWithoutCalendar,
         orderBy: { fullName: "asc" }
       })
-  );
+  ]);
 
   return teachers.map(hydratePersistedTeacher);
 }

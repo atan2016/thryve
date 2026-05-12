@@ -69,14 +69,6 @@ function IconPromotion({ className }: { className?: string }) {
   );
 }
 
-function IconBell({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.109V8.25c0-1.69-1.23-3.184-2.928-3.502a48.108 48.108 0 00-3.286-.033c-.78.07-1.52.25-2.184.513m13.732 10.04a48.11 48.11 0 01-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-    </svg>
-  );
-}
-
 function IconBookmark({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" aria-hidden>
@@ -162,14 +154,6 @@ export function AppHeader({ user, canAccessTeacherDashboard }: AppHeaderProps) {
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {user ? (
             <>
-              <button
-                type="button"
-                className="relative rounded-full p-2 text-slate-800 transition hover:bg-white/80 hover:text-teal-700"
-                aria-label="Notifications (demo)"
-              >
-                <IconBell className="h-6 w-6" />
-                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-[#FCFCFC]" aria-hidden />
-              </button>
               <Link
                 href="/bookings"
                 className="rounded-full p-2 text-slate-800 transition hover:bg-white/80 hover:text-teal-700"
@@ -208,6 +192,16 @@ export function AppHeader({ user, canAccessTeacherDashboard }: AppHeaderProps) {
                     <Link href="/credits" className="block px-4 py-2.5 text-sm text-slate-800 hover:bg-stone-50" role="menuitem" onClick={() => setAccountOpen(false)}>
                       Credits
                     </Link>
+                    {user.role === "admin" ? (
+                      <Link
+                        href="/admin/users"
+                        className="block px-4 py-2.5 text-sm text-slate-800 hover:bg-stone-50"
+                        role="menuitem"
+                        onClick={() => setAccountOpen(false)}
+                      >
+                        Admin dashboard
+                      </Link>
+                    ) : null}
                     {canAccessTeacherDashboard ? (
                       <Link
                         href="/dashboard/teacher/profile"

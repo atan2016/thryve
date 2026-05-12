@@ -3,6 +3,7 @@ export type DeliveryMode = "online" | "in_person";
 export type BookingStatus = "pending" | "confirmed" | "completed" | "cancelled";
 export type PaymentStatus = "unpaid" | "paid" | "refunded";
 export type PayoutStatus = "pending" | "scheduled" | "paid" | "failed";
+export type TeacherProfileImportStatus = "not_started" | "sources_saved" | "completed" | "failed" | "skipped";
 export type ServiceCategory =
   | "studio"
   | "private"
@@ -16,17 +17,50 @@ export type AppUser = {
   password: string;
   role: Role;
   name: string;
+  emailVerifiedAt?: string;
+};
+
+export type AdminManagedUser = AppUser & {
+  linkedTeacherId?: string;
+  linkedTeacherName?: string;
+  linkedTeacherSlug?: string;
+  pendingEmailChangeTo?: string;
+  pendingEmailChangeRequestedAt?: string;
+};
+
+export type AdminUserUpdateResult = {
+  user: AdminManagedUser;
+  emailChangeRequested: boolean;
+};
+
+export type AdminContentFilters = {
+  hiddenEventKeywords: string[];
+  hiddenJobKeywords: string[];
 };
 
 export type Teacher = {
   id: string;
-  userId: string;
+  userId?: string;
+  claimEmail?: string;
   slug: string;
   fullName: string;
   avatarUrl?: string;
+  showPublicCalendar?: boolean;
   studioName?: string;
   studioWebsiteUrl?: string;
   studioScheduleUrl?: string;
+  websiteUrl?: string;
+  linkedinUrl?: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  resumeUrl?: string;
+  resumeFileName?: string;
+  resumeMimeType?: string;
+  profileImportConsent?: boolean;
+  profileImportRequestedAt?: string;
+  profileImportCompletedAt?: string;
+  profileImportStatus?: TeacherProfileImportStatus;
+  profileImportNotes?: string;
   platformHoursBooked?: number;
   city: string;
   serviceRadiusMiles: number;
@@ -142,6 +176,16 @@ export type HomepageEventCard = {
   isFollowedTeacher?: boolean;
 };
 
+export type HomepageJobCard = {
+  id: string;
+  title: string;
+  category: string;
+  pay: string;
+  company: string;
+  location: string;
+  posted: string;
+};
+
 export type TeacherCalendarSession = {
   id: string;
   teacherId: string;
@@ -177,6 +221,45 @@ export type AvailabilitySlot = {
   endsAt: string;
   timezone: string;
   isBooked: boolean;
+};
+
+export type PendingSignupStatus = "pending" | "verified" | "consumed" | "expired" | "cancelled";
+
+export type PendingSignup = {
+  id: string;
+  email: string;
+  normalizedEmail: string;
+  name: string;
+  passwordHash: string;
+  role: Role;
+  nextPath?: string;
+  teacherWebsiteUrl?: string;
+  teacherLinkedinUrl?: string;
+  teacherInstagramUrl?: string;
+  teacherFacebookUrl?: string;
+  teacherProfileImportConsent: boolean;
+  teacherResumeUrl?: string;
+  teacherResumeFileName?: string;
+  teacherResumeMimeType?: string;
+  teacherResumeText?: string;
+  selectedProfileKind?: "user" | "teacher";
+  selectedProfileId?: string;
+  status: PendingSignupStatus;
+  verifiedAt?: string;
+  consumedAt?: string;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ClaimableProfileOption = {
+  id: string;
+  kind: "user" | "teacher";
+  title: string;
+  subtitle: string;
+  email: string;
+  selectable: boolean;
+  reason?: string;
 };
 
 export type Booking = {
@@ -251,4 +334,12 @@ export type CommunityDiscussion = {
   tags: string[];
   createdAt: string;
   replyCount: number;
+};
+
+export type AdminContactInquiry = {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  createdAt: string;
 };

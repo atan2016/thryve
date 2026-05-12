@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 import { TeacherDashboardAccessCard } from "@/components/teacher-dashboard-access-card";
 import { TeacherProfileEditor } from "@/components/teacher-profile-editor";
@@ -38,14 +39,36 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
         <div className="mt-4 rounded-2xl bg-stone-50 px-4 py-3 text-sm text-stone-600">
           <p>Your public profile is shown at `/teachers/{teacher.slug}`.</p>
           {!teacher.published ? <p className="mt-1 text-amber-700">This profile is currently in preview mode until you save and publish it.</p> : null}
-          <a className="mt-2 inline-flex font-medium text-emerald-700" href={`/teachers/${teacher.slug}`}>
-            {teacher.published ? "View public profile" : "Preview public profile"}
-          </a>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Link
+              className="inline-flex items-center justify-center rounded-full bg-stone-900 px-5 py-3 font-medium text-white shadow-sm transition hover:bg-stone-800"
+              href={`/teachers/${teacher.slug}`}
+              style={{ color: "#ffffff" }}
+            >
+              {teacher.published ? "View public profile" : "Preview public profile"}
+            </Link>
+            <Link
+              className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-5 py-3 font-medium text-emerald-800 transition hover:bg-emerald-100"
+              href="/onboarding/teacher"
+            >
+              Import profile from website, socials, or resume
+            </Link>
+            <Link
+              className="inline-flex items-center justify-center rounded-full border border-stone-300 bg-white px-5 py-3 font-medium text-stone-800 transition hover:bg-stone-100"
+              href="/dashboard/teacher/availability"
+            >
+              Manage teaching calendar
+            </Link>
+          </div>
         </div>
         {saved ? (
           <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {saved === "profile"
               ? "Profile saved and displayed on your public page."
+              : saved === "imported"
+                ? "Profile import finished. Review the suggested details below before publishing."
+                : saved === "import-skipped"
+                  ? "Profile import skipped. You can return to it any time."
               : saved === "story-added"
                 ? "Story added."
                 : saved === "event-added"

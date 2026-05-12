@@ -3,33 +3,43 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-import { getCurrentUser, signIn, signUp, clearSession } from "@/lib/auth/session";
+import { consumePendingSignupVerification, createPendingSignupVerification } from "@/lib/auth/sign-up-verification";
+import { getCurrentUser, signIn, clearSession } from "@/lib/auth/session";
 import { bookCalendarSession, bookSession } from "@/lib/booking/book-session";
 import { purchaseCredits } from "@/lib/credits/purchase-credits";
-import { saveCertificationDocument, saveProfileImage, saveStoryMedia } from "@/lib/media/storage";
+import { saveCertificationDocument, savePendingSignupResume, saveProfileImage, saveStoryMedia, saveTeacherResume } from "@/lib/media/storage";
 import { schedulePayout } from "@/lib/payouts/payout-provider";
+import { extractResumeText, type TeacherImportSourceInput } from "@/lib/teacher-profile-import";
 import { verifyRecaptchaToken } from "@/lib/recaptcha";
 import {
   DEFAULT_CUSTOMER_ID,
+  addAdminContactInquiry,
   addAvailabilitySlot,
   addTeacherOffering,
   markPayoutPaid,
 } from "@/lib/store";
 import {
+  consumePendingUserEmailChange,
   addCommunityDiscussion,
   addTeacherCalendarSession,
   addTeacherCertificationSubmission,
   addTeacherStory,
   addTeacherUpcomingEvent,
   createContactInquiry,
+  deleteUserForAdmin,
   deleteTeacherCalendarSession,
   ensureTeacherProfile,
   followEventHostForUser,
   followTeacherForUser,
   reviewTeacherCertificationSubmission,
+  skipTeacherImportOnboarding,
+  submitTeacherImportOnboarding,
   unfollowEventHostForUser,
   unfollowTeacherForUser,
+  updateAdminContentFilters,
+  updateUserForAdmin,
   updateTeacherCalendarSession,
+  updateTeacherPublicCalendarVisibility,
   updateTeacherStory,
   updateTeacherProfile
 } from "@/lib/persistence";
@@ -69,12 +79,118 @@ async function requireSignedInUserWithNext(nextPath: string) {
   return user;
 }
 
+function buildAuthRedirect(pathname: "/sign-in" | "/sign-up", params: Record<string, string | undefined>) {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value && value.trim()) {
+      searchParams.set(key, value);
+    }
+  }
+
+  const query = searchParams.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
+function appendStatusToReturnTo(returnTo: string, statusKey: string, statusValue: string) {
+  const fallbackPath = returnTo.trim() || "/";
+  const [pathname, queryString = ""] = fallbackPath.split("?");
+  const searchParams = new URLSearchParams(queryString);
+  searchParams.set(statusKey, statusValue);
+  const query = searchParams.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
+function getTeacherImportSourceFields(formData: FormData) {
+  return {
+    websiteUrl: String(formData.get("websiteUrl") ?? "").trim() || undefined,
+    linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || undefined,
+    instagramUrl: String(formData.get("instagramUrl") ?? "").trim() || undefined,
+    facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || undefined,
+    profileImportConsent: String(formData.get("profileImportConsent") ?? "") === "on"
+  };
+}
+
+async function buildTeacherImportSourceInput(formData: FormData, teacherId: string): Promise<TeacherImportSourceInput> {
+  const sourceFields = getTeacherImportSourceFields(formData);
+  const resumeFile = formData.get("resumeFile");
+  let resume:
+    | {
+        url: string;
+        fileName: string;
+        mimeType: string;
+        text?: string;
+      }
+    | undefined;
+
+  if (resumeFile instanceof File && resumeFile.size > 0) {
+    const uploadedResume = await saveTeacherResume(resumeFile, teacherId);
+    const extractedText = await extractResumeText(resumeFile);
+    resume = {
+      ...uploadedResume,
+      text: extractedText || undefined
+    };
+  }
+
+  return {
+    ...sourceFields,
+    resume
+  };
+}
+
+async function buildPendingSignupTeacherImportSourceInput(
+  formData: FormData,
+  pendingSignupId: string
+): Promise<TeacherImportSourceInput> {
+  const sourceFields = getTeacherImportSourceFields(formData);
+  const resumeFile = formData.get("resumeFile");
+  let resume:
+    | {
+        url: string;
+        fileName: string;
+        mimeType: string;
+        text?: string;
+      }
+    | undefined;
+
+  if (resumeFile instanceof File && resumeFile.size > 0) {
+    const uploadedResume = await savePendingSignupResume(resumeFile, pendingSignupId);
+    const extractedText = await extractResumeText(resumeFile);
+    resume = {
+      ...uploadedResume,
+      text: extractedText || undefined
+    };
+  }
+
+  return {
+    ...sourceFields,
+    resume
+  };
+}
+
 export async function signInAction(formData: FormData) {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const nextPath = String(formData.get("next") ?? "").trim();
 
-  await signIn(email, password);
+  try {
+    await signIn(email, password);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to sign in.";
+    redirect(
+      buildAuthRedirect("/sign-in", {
+        next: nextPath || undefined,
+        error:
+          message === "Invalid email or password."
+            ? "invalid_credentials"
+            : message === "Please verify your email before signing in."
+              ? "email_not_verified"
+              : "sign_in_failed",
+        email
+      })
+    );
+  }
+
   redirect(nextPath || "/");
 }
 
@@ -84,14 +200,172 @@ export async function signUpAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const role = String(formData.get("role") ?? "customer") as "customer" | "teacher";
   const nextPath = String(formData.get("next") ?? "").trim();
+  const teacherImportSourceFields = getTeacherImportSourceFields(formData);
+  const pendingSignupUploadId = `pending-signup-upload-${Date.now()}`;
 
-  await signUp({ name, email, password, role });
-  redirect(nextPath || "/");
+  try {
+    await createPendingSignupVerification({
+      name,
+      email,
+      password,
+      role,
+      nextPath: nextPath || undefined,
+      teacherImport:
+        role === "teacher"
+          ? await buildPendingSignupTeacherImportSourceInput(formData, pendingSignupUploadId)
+          : undefined
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to create account.";
+    console.error("[signUpAction] failed to start signup", error);
+    redirect(
+      buildAuthRedirect("/sign-up", {
+        next: nextPath || undefined,
+        error: "sign_up_failed",
+        email,
+        name,
+        role,
+        websiteUrl: teacherImportSourceFields.websiteUrl,
+        linkedinUrl: teacherImportSourceFields.linkedinUrl,
+        instagramUrl: teacherImportSourceFields.instagramUrl,
+        facebookUrl: teacherImportSourceFields.facebookUrl,
+        profileImportConsent: teacherImportSourceFields.profileImportConsent ? "1" : undefined
+      })
+    );
+  }
+
+  redirect(
+    buildAuthRedirect("/sign-up", {
+      status: "verification_sent",
+      email,
+      name,
+      role,
+      next: nextPath || undefined
+    })
+  );
 }
 
 export async function signOutAction() {
   await clearSession();
   redirect("/");
+}
+
+export async function completePendingSignupVerificationAction(formData: FormData) {
+  const token = String(formData.get("token") ?? "");
+  const selectedProfileKind = String(formData.get("selectedProfileKind") ?? "") as "user" | "teacher" | "";
+  const selectedProfileId = String(formData.get("selectedProfileId") ?? "");
+
+  const result = await consumePendingSignupVerification(
+    token,
+    selectedProfileKind && selectedProfileId ? { kind: selectedProfileKind, id: selectedProfileId } : undefined
+  );
+
+  if (result.status === "success") {
+    redirect(result.redirectTo);
+  }
+
+  const query = new URLSearchParams();
+  query.set("token", token);
+  query.set("state", result.status);
+
+  if ("message" in result) {
+    query.set("message", result.message);
+  }
+
+  if (result.status === "blocked") {
+    query.set("email", result.email);
+  }
+
+  redirect(`/auth/verify-email?${query.toString()}`);
+}
+
+export async function updateUserAsAdminAction(formData: FormData) {
+  const admin = await requireCurrentAdmin();
+  const userId = String(formData.get("userId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const role = String(formData.get("role") ?? "customer") as "customer" | "teacher" | "admin";
+
+  if (admin.id === userId && role !== "admin") {
+    redirect("/admin/users?error=cannot_demote_self");
+  }
+
+  try {
+    const result = await updateUserForAdmin(userId, { name, email, role });
+    revalidatePath("/admin/users");
+    redirect(result.emailChangeRequested ? "/admin/users?saved=email_change_requested" : "/admin/users?saved=user");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to update user.";
+    const errorCode =
+      message === "That email is already in use."
+        ? "email_in_use"
+        : message === "That email is already waiting for confirmation."
+          ? "email_pending"
+          : "update_failed";
+    redirect(`/admin/users?error=${errorCode}`);
+  }
+}
+
+export async function deleteUserAsAdminAction(formData: FormData) {
+  const admin = await requireCurrentAdmin();
+  const userId = String(formData.get("userId") ?? "");
+
+  if (admin.id === userId) {
+    redirect("/admin/users?error=cannot_delete_self");
+  }
+
+  try {
+    await deleteUserForAdmin(userId);
+  } catch {
+    redirect("/admin/users?error=delete_failed");
+  }
+
+  revalidatePath("/admin/users");
+  redirect("/admin/users?removed=user");
+}
+
+export async function updateAdminContentFiltersAction(formData: FormData) {
+  await requireCurrentAdmin();
+
+  const eventKeywords = String(formData.get("eventKeywords") ?? "");
+  const jobKeywords = String(formData.get("jobKeywords") ?? "");
+
+  const parseKeywords = (value: string) =>
+    value
+      .split(/\r?\n|,/)
+      .map((keyword) => keyword.trim())
+      .filter(Boolean);
+
+  try {
+    await updateAdminContentFilters({
+      hiddenEventKeywords: parseKeywords(eventKeywords),
+      hiddenJobKeywords: parseKeywords(jobKeywords)
+    });
+  } catch {
+    redirect("/admin/content?error=update_failed");
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/content");
+  redirect("/admin/content?saved=filters");
+}
+
+export async function completePendingUserEmailChangeAction(formData: FormData) {
+  const token = String(formData.get("token") ?? "");
+  const result = await consumePendingUserEmailChange(token);
+
+  const query = new URLSearchParams();
+  query.set("state", result.status);
+
+  if ("message" in result) {
+    query.set("message", result.message);
+  }
+
+  if (result.status === "success") {
+    query.set("email", result.email);
+  }
+
+  redirect(`/auth/confirm-email-change?${query.toString()}`);
 }
 
 export async function purchaseCreditsAction(formData: FormData) {
@@ -190,6 +464,7 @@ export async function updateTeacherProfileAction(formData: FormData) {
 
   await updateTeacherProfile(teacher.id, {
     fullName: String(formData.get("fullName") ?? ""),
+    studioName: String(formData.get("studioName") ?? "").trim() || undefined,
     city: String(formData.get("city") ?? ""),
     serviceRadiusMiles: Number(formData.get("serviceRadiusMiles") ?? 0),
     training: String(formData.get("training") ?? ""),
@@ -197,13 +472,39 @@ export async function updateTeacherProfileAction(formData: FormData) {
     bio: String(formData.get("bio") ?? ""),
     gender: String(formData.get("gender") ?? "female") as "female" | "male" | "other",
     certificationStatus: teacher.certificationStatus,
+    studioWebsiteUrl: String(formData.get("studioWebsiteUrl") ?? "").trim() || undefined,
     studioScheduleUrl: String(formData.get("studioScheduleUrl") ?? "").trim() || undefined,
+    websiteUrl: String(formData.get("websiteUrl") ?? "").trim() || undefined,
+    linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || undefined,
+    instagramUrl: String(formData.get("instagramUrl") ?? "").trim() || undefined,
+    facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || undefined,
     avatarUrl: uploadedAvatarUrl
   });
 
   revalidatePath("/dashboard/teacher/profile");
   revalidatePath(`/teachers/${teacher.slug}`);
   redirect("/dashboard/teacher/profile?saved=profile");
+}
+
+export async function completeTeacherImportOnboardingAction(formData: FormData) {
+  const teacher = await requireCurrentTeacher();
+
+  await submitTeacherImportOnboarding(teacher.id, await buildTeacherImportSourceInput(formData, teacher.id));
+
+  revalidatePath("/onboarding/teacher");
+  revalidatePath("/dashboard/teacher/profile");
+  revalidatePath(`/teachers/${teacher.slug}`);
+  redirect("/dashboard/teacher/profile?saved=imported");
+}
+
+export async function skipTeacherImportOnboardingAction() {
+  const teacher = await requireCurrentTeacher();
+
+  await skipTeacherImportOnboarding(teacher.id);
+
+  revalidatePath("/onboarding/teacher");
+  revalidatePath("/dashboard/teacher/profile");
+  redirect("/dashboard/teacher/profile?saved=import-skipped");
 }
 
 export async function addAvailabilityAction(formData: FormData) {
@@ -258,6 +559,19 @@ export async function deleteCalendarSessionAction(formData: FormData) {
 
   revalidatePath("/dashboard/teacher/availability");
   revalidatePath(`/teachers/${teacher.slug}`);
+}
+
+export async function updatePublicCalendarVisibilityAction(formData: FormData) {
+  const teacher = await requireCurrentTeacher();
+  const showPublicCalendar = String(formData.get("showPublicCalendar") ?? "") === "true";
+
+  await updateTeacherPublicCalendarVisibility(teacher.id, showPublicCalendar);
+
+  revalidatePath("/dashboard/teacher/availability");
+  revalidatePath("/dashboard/teacher/profile");
+  revalidatePath(`/teachers/${teacher.slug}`);
+  revalidatePath(`/teachers/${teacher.slug}/book`);
+  redirect(`/dashboard/teacher/availability?saved=${showPublicCalendar ? "calendar-shown" : "calendar-hidden"}`);
 }
 
 export async function addOfferingAction(formData: FormData) {
@@ -436,9 +750,37 @@ export async function contactTeacherAction(formData: FormData) {
   redirect(`/teachers/${teacherSlug}?contact=sent`);
 }
 
+export async function contactAdminAction(formData: FormData) {
+  const returnTo = String(formData.get("returnTo") ?? "/").trim() || "/";
+  const recaptchaToken = String(formData.get("recaptchaToken") ?? "");
+
+  if (!recaptchaToken) {
+    redirect(appendStatusToReturnTo(returnTo, "support", "captcha"));
+  }
+
+  const verification = await verifyRecaptchaToken(recaptchaToken);
+
+  if (!verification.success) {
+    redirect(appendStatusToReturnTo(returnTo, "support", verification.reason === "missing_secret" ? "error" : "captcha"));
+  }
+
+  addAdminContactInquiry({
+    name: String(formData.get("name") ?? ""),
+    email: String(formData.get("email") ?? ""),
+    message: String(formData.get("message") ?? "")
+  });
+
+  redirect(appendStatusToReturnTo(returnTo, "support", "sent"));
+}
+
 export async function markPayoutPaidAction(formData: FormData) {
   const providedTeacherId = formData.get("teacherId");
   const teacherId = providedTeacherId ? String(providedTeacherId) : (await requireCurrentTeacher()).id;
+
+  if (providedTeacherId) {
+    await requireCurrentAdmin();
+  }
+
   const providerResult = await schedulePayout({
     teacherId,
     amountCredits: Number(formData.get("amountCredits") ?? 0),
