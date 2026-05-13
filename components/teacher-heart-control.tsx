@@ -41,6 +41,8 @@ function useTeacherHeartQueueTick(viewerUserId: string | null | undefined) {
   }, [viewerUserId]);
 }
 
+const SIGN_IN_TO_HEART_TITLE = "Please Sign In to heart the teacher";
+
 export function TeacherHeartCountLabel({
   viewerUserId,
   teacherId,
@@ -56,8 +58,12 @@ export function TeacherHeartCountLabel({
   const delta = pendingHeartCountDeltaForTeacher(viewerUserId, teacherId);
   const n = Math.max(0, serverHeartCount + delta);
   const noun = n === 1 ? "heart" : "hearts";
+  const unsigned = viewerUserId == null;
   return (
-    <span className={className ?? ""}>
+    <span
+      className={`${className ?? ""}${unsigned ? " cursor-help" : ""}`}
+      title={unsigned ? SIGN_IN_TO_HEART_TITLE : undefined}
+    >
       {n} {noun}
     </span>
   );
@@ -113,8 +119,12 @@ export function TeacherHeartControl({
   if (heartInteraction === "none") {
     if (variant === "profile") {
       const label = displayCount === 1 ? "heart" : "hearts";
+      const unsigned = viewerUserId == null;
       return (
-        <span className={`${profileButtonClassName ?? ""} inline-flex cursor-default items-center gap-2 opacity-90`}>
+        <span
+          className={`${profileButtonClassName ?? ""} inline-flex items-center gap-2 opacity-90 ${unsigned ? "cursor-help" : "cursor-default"}`}
+          title={unsigned ? SIGN_IN_TO_HEART_TITLE : undefined}
+        >
           <span aria-hidden>♡</span>
           {displayCount} {label}
         </span>
