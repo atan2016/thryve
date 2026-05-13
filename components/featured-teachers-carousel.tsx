@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useMemo, useRef } from "react";
 
-import { toggleTeacherHeartAction } from "@/lib/actions";
 import { TeacherAvatar } from "@/components/teacher-avatar";
+import { TeacherHeartControl, TeacherHeartCountLabel } from "@/components/teacher-heart-control";
 
 export type FeaturedTeacherCard = {
   id: string;
@@ -22,6 +22,7 @@ export type FeaturedTeacherCard = {
 
 type FeaturedTeachersCarouselProps = {
   teachers: FeaturedTeacherCard[];
+  viewerUserId: string | null;
 };
 
 function getTeacherSpecialty(teacher: FeaturedTeacherCard) {
@@ -52,25 +53,7 @@ function IconChevron({ direction }: { direction: "left" | "right" }) {
   );
 }
 
-function IconHeart({ filled }: { filled: boolean }) {
-  return (
-    <svg
-      aria-hidden
-      className={`h-4 w-4 shrink-0 ${filled ? "fill-[#EF6B7B] text-[#EF6B7B]" : "fill-none text-[#9CB1C4]"}`}
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={1.8}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M21.435 6.582a5.373 5.373 0 00-7.6 0L12 8.418l-1.836-1.836a5.374 5.374 0 10-7.6 7.6l1.836 1.835L12 21.616l7.6-7.6 1.835-1.834a5.373 5.373 0 000-7.6Z"
-      />
-    </svg>
-  );
-}
-
-export function FeaturedTeachersCarousel({ teachers }: FeaturedTeachersCarouselProps) {
+export function FeaturedTeachersCarousel({ teachers, viewerUserId }: FeaturedTeachersCarouselProps) {
   const featuredTeachers = useMemo(() => teachers.slice(0, 6), [teachers]);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
@@ -151,29 +134,43 @@ export function FeaturedTeachersCarousel({ teachers }: FeaturedTeachersCarouselP
             </div>
 
             <div className="mt-3 flex items-center justify-between gap-2 border-t border-[#EEF3F7] pt-3 text-[12px] font-medium text-[#5E758B]">
-              <span className="tabular-nums">{teacher.heartCount} hearts</span>
+              <TeacherHeartCountLabel
+                className="tabular-nums"
+                serverHeartCount={teacher.heartCount}
+                teacherId={teacher.id}
+                viewerUserId={viewerUserId}
+              />
               {teacher.heartInteraction === "toggle" ? (
-                <form action={toggleTeacherHeartAction}>
-                  <input name="teacherId" type="hidden" value={teacher.id} />
-                  <input name="teacherSlug" type="hidden" value={teacher.slug} />
-                  <input name="intent" type="hidden" value={teacher.viewerHasHearted ? "unheart" : "heart"} />
-                  <button
-                    aria-label={teacher.viewerHasHearted ? `Remove heart for ${teacher.fullName}` : `Heart ${teacher.fullName}`}
-                    className="rounded-full p-1.5 transition hover:bg-[#F6FAFC]"
-                    type="submit"
-                  >
-                    <IconHeart filled={teacher.viewerHasHearted} />
-                  </button>
-                </form>
+                <TeacherHeartControl
+                  heartInteraction="toggle"
+                  serverHeartCount={teacher.heartCount}
+                  serverViewerHasHearted={teacher.viewerHasHearted}
+                  teacherFullName={teacher.fullName}
+                  teacherId={teacher.id}
+                  teacherSlug={teacher.slug}
+                  variant="compact"
+                  viewerUserId={viewerUserId}
+                />
               ) : teacher.heartInteraction === "signin" ? (
-                <Link
-                  className="rounded-full px-2 py-1 text-[11px] font-semibold text-[#4AA6AB] hover:underline"
-                  href={`/sign-in?next=${encodeURIComponent("/")}`}
-                >
-                  Sign in
-                </Link>
+                <TeacherHeartControl
+                  heartInteraction="signin"
+                  serverHeartCount={teacher.heartCount}
+                  serverViewerHasHearted={false}
+                  teacherId={teacher.id}
+                  teacherSlug={teacher.slug}
+                  variant="compact"
+                  viewerUserId={null}
+                />
               ) : (
-                <span className="w-8 shrink-0" aria-hidden />
+                <TeacherHeartControl
+                  heartInteraction="none"
+                  serverHeartCount={teacher.heartCount}
+                  serverViewerHasHearted={teacher.viewerHasHearted}
+                  teacherId={teacher.id}
+                  teacherSlug={teacher.slug}
+                  variant="compact"
+                  viewerUserId={viewerUserId}
+                />
               )}
             </div>
 

@@ -9,7 +9,8 @@ import { MetricCard } from "@/components/metric-card";
 import { TeacherContactForm } from "@/components/teacher-contact-form";
 import { TeacherAvatar } from "@/components/teacher-avatar";
 import { TeacherProfileWellnessBackdrop } from "@/components/teacher-profile-wellness-backdrop";
-import { contactTeacherAction, toggleTeacherFollowAction, toggleTeacherHeartAction } from "@/lib/actions";
+import { TeacherHeartControl } from "@/components/teacher-heart-control";
+import { contactTeacherAction, toggleTeacherFollowAction } from "@/lib/actions";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
   countTeacherHearts,
@@ -316,20 +317,28 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
                   </form>
                 ) : null}
                 {canHeartTeacher ? (
-                  <form action={toggleTeacherHeartAction} className="inline-flex items-center gap-2">
-                    <input name="teacherId" type="hidden" value={teacher.id} />
-                    <input name="teacherSlug" type="hidden" value={teacher.slug} />
-                    <input name="intent" type="hidden" value={viewerHasHeartedTeacher ? "unheart" : "heart"} />
-                    <button className={`${tealOutlineBtn} inline-flex items-center gap-2`} type="submit">
-                      <span aria-hidden>{viewerHasHeartedTeacher ? "❤" : "♡"}</span>
-                      {teacherHeartCount} {teacherHeartCount === 1 ? "heart" : "hearts"}
-                    </button>
-                  </form>
+                  <TeacherHeartControl
+                    heartInteraction="toggle"
+                    profileButtonClassName={tealOutlineBtn}
+                    serverHeartCount={teacherHeartCount}
+                    serverViewerHasHearted={viewerHasHeartedTeacher}
+                    teacherFullName={teacher.fullName}
+                    teacherId={teacher.id}
+                    teacherSlug={teacher.slug}
+                    variant="profile"
+                    viewerUserId={user?.id ?? null}
+                  />
                 ) : (
-                  <span className={`${tealOutlineBtn} inline-flex cursor-default items-center gap-2 opacity-90`}>
-                    <span aria-hidden>♡</span>
-                    {teacherHeartCount} {teacherHeartCount === 1 ? "heart" : "hearts"}
-                  </span>
+                  <TeacherHeartControl
+                    heartInteraction="none"
+                    profileButtonClassName={tealOutlineBtn}
+                    serverHeartCount={teacherHeartCount}
+                    serverViewerHasHearted={false}
+                    teacherId={teacher.id}
+                    teacherSlug={teacher.slug}
+                    variant="profile"
+                    viewerUserId={user?.id ?? null}
+                  />
                 )}
                 <Link className="rounded-full px-5 py-3 text-sm font-medium text-[#0c4f4a]/80 underline-offset-4 hover:underline" href="/teachers">
                   Back to discovery

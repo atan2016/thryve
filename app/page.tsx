@@ -102,9 +102,9 @@ export default async function HomePage() {
 
       <FeaturedLocalGigsCarousel gigs={homepageJobs} isSignedIn={Boolean(session)} />
 
-      <FeaturedTeachersCarousel teachers={featuredTeachersForCarousel} />
+      <FeaturedTeachersCarousel teachers={featuredTeachersForCarousel} viewerUserId={session?.userId ?? null} />
 
-      {session ? <ConnectWithPeers key={session.userId} peers={connectPeers} /> : null}
+      {session ? <ConnectWithPeers key={session.userId} peers={connectPeers} viewerUserId={session.userId} /> : null}
     </div>
   );
 }

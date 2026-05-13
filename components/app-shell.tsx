@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 
 import { AppHeader } from "@/components/app-header";
 import { ContactUsModal } from "@/components/contact-us-modal";
+import { TeacherHeartOfflineSync } from "@/components/teacher-heart-offline-sync";
 import { getCurrentUser } from "@/lib/auth/session";
 import { contactAdminAction } from "@/lib/actions";
 import { getRecaptchaSiteKey } from "@/lib/recaptcha";
@@ -15,6 +16,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-[#FCFCFC] text-stone-900">
       <AppHeader user={headerUser} canAccessTeacherDashboard={canAccessTeacherDashboard} />
+      <TeacherHeartOfflineSync userId={user?.id ?? null} />
       <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
       <ContactUsModal action={contactAdminAction} siteKey={recaptchaSiteKey} user={headerUser} />
     </div>

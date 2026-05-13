@@ -12,6 +12,7 @@ import { schedulePayout } from "@/lib/payouts/payout-provider";
 import { extractResumeText, type TeacherImportSourceInput } from "@/lib/teacher-profile-import";
 import { verifyRecaptchaToken } from "@/lib/recaptcha";
 import { normalizeTeacherUpcomingEventType } from "@/lib/teacher-upcoming-event-types";
+import { parsePendingTeacherHeartPayload, type PendingTeacherHeartOp } from "@/lib/teacher-heart-offline-queue";
 import {
   DEFAULT_CUSTOMER_ID,
   addAdminContactInquiry,
@@ -751,6 +752,52 @@ export async function toggleTeacherHeartAction(formData: FormData) {
   if (teacherSlug) {
     revalidatePath(`/teachers/${teacherSlug}`);
   }
+}
+
+export async function syncPendingTeacherHeartsAction(formData: FormData): Promise<PendingTeacherHeartOp[]> {
+  const user = await requireSignedInUser();
+  const queueUserId = String(formData.get("queueUserId") ?? "");
+  if (queueUserId !== user.id) {
+    throw new Error("Heart sync does not match the signed-in account.");
+  }
+
+  const items = parsePendingTeacherHeartPayload(String(formData.get("payload") ?? "[]"));
+  if (items.length === 0) {
+    return [];
+  }
+
+  const failed: PendingTeacherHeartOp[] = [];
+  let anyOk = false;
+
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i]!;
+    try {
+      const allowed = await mayUserRecordHeartOnTeacher(user.id, item.teacherId);
+      if (!allowed) {
+        continue;
+      }
+      if (item.intent === "unheart") {
+        await unheartTeacherForUser(user.id, item.teacherId);
+      } else {
+        await heartTeacherForUser(user.id, item.teacherId);
+      }
+      anyOk = true;
+    } catch {
+      failed.push(...items.slice(i));
+      break;
+    }
+  }
+
+  if (anyOk) {
+    revalidatePath("/");
+    revalidatePath("/teachers");
+    const slugs = new Set(items.map((x) => x.teacherSlug).filter(Boolean));
+    for (const slug of slugs) {
+      revalidatePath(`/teachers/${slug}`);
+    }
+  }
+
+  return failed;
 }
 
 export async function toggleEventHostFollowAction(formData: FormData) {
