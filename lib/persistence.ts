@@ -11,7 +11,7 @@ import { Prisma, CertificationSubmissionStatus, DiscussionAuthorRole, Role, Stor
 import { db } from "@/lib/db";
 import { sendEmailChangeVerificationEmail } from "@/lib/email/verification";
 import { buildTeacherImportDraft, type TeacherImportSourceInput } from "@/lib/teacher-profile-import";
-import { demoCalendarSessions, demoEventHosts, demoTeachers, demoUserEventHostFollows, demoUserTeacherFollows } from "@/lib/mock-data";
+import { demoCalendarSessions, demoEventHosts, demoTeachers, demoUserEventHostFollows, demoUserTeacherFollows, demoUserTeacherHearts } from "@/lib/mock-data";
 import {
   deleteUserForAdmin as deleteUserForAdminInStore,
   getAdminContentFilters as getAdminContentFiltersFromStore,
@@ -1128,6 +1128,42 @@ function isMissingEventFollowInfrastructure(error: unknown) {
   );
 }
 
+function isMissingTeacherHeartInfrastructure(error: unknown) {
+  return (
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2021" &&
+      error.message.includes("UserTeacherHeart")) ||
+    (error instanceof Prisma.PrismaClientValidationError && error.message.includes("UserTeacherHeart"))
+  );
+}
+
+function hasTeacherHeartClientSupport() {
+  const runtimeDb = db as unknown as Record<string, unknown>;
+
+  return Boolean(runtimeDb.userTeacherHeart);
+}
+
+function isTeacherHeartProductionRuntime() {
+  return process.env.NODE_ENV === "production";
+}
+
+function warnTeacherHeartDemoFallback(reason: string, error?: unknown) {
+  const tail = isTeacherHeartProductionRuntime()
+    ? " In production, heart counts stay at 0 until Prisma includes UserTeacherHeart and the table exists."
+    : " Using in-memory demo store; hearts are not persisted across server restarts.";
+  if (error !== undefined) {
+    console.warn(`[UserTeacherHeart] ${reason}.${tail}`, error);
+  } else {
+    console.warn(`[UserTeacherHeart] ${reason}.${tail}`);
+  }
+}
+
+function throwTeacherHeartPersistenceUnavailable(context: string): never {
+  throw new Error(
+    `${context} Teacher hearts require the UserTeacherHeart table and a Prisma client generated from the current schema. Run \`npx prisma generate\`, redeploy, and ensure migration 20260515140000_user_teacher_heart is applied to this database.`
+  );
+}
+
 function isMissingTeacherUpcomingEventLocationColumns(error: unknown) {
   // Stale Prisma client vs schema: validation error when select references unknown fields.
   if (error instanceof Prisma.PrismaClientValidationError && error.message.includes("TeacherUpcomingEvent")) {
@@ -2041,6 +2077,221 @@ export async function unfollowTeacherForUser(userId: string, teacherId: string) 
   const fallbackIndex = demoUserTeacherFollows.findIndex((follow) => follow.userId === userId && follow.teacherId === teacherId);
   if (fallbackIndex >= 0) {
     demoUserTeacherFollows.splice(fallbackIndex, 1);
+  }
+}
+
+export async function mayUserRecordHeartOnTeacher(actorUserId: string, teacherId: string): Promise<boolean> {
+  try {
+    if (hasTeacherHeartClientSupport()) {
+      const teacher = await db.teacher.findUnique({ where: { id: teacherId }, select: { userId: true } });
+      if (!teacher) {
+        return false;
+      }
+      return teacher.userId !== actorUserId;
+    }
+  } catch (error) {
+    if (!isMissingTeacherHeartInfrastructure(error)) {
+      throw error;
+    }
+  }
+
+  const t = demoTeachers.find((x) => x.id === teacherId);
+  if (!t) {
+    return false;
+  }
+  return t.userId !== actorUserId;
+}
+
+export async function countTeacherHeartsForTeachers(teacherIds: string[]): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  for (const id of teacherIds) {
+    map.set(id, 0);
+  }
+  if (teacherIds.length === 0) {
+    return map;
+  }
+
+  if (!hasTeacherHeartClientSupport()) {
+    if (isTeacherHeartProductionRuntime()) {
+      warnTeacherHeartDemoFallback("Prisma client has no userTeacherHeart delegate (run prisma generate + redeploy)");
+      return map;
+    }
+    for (const h of demoUserTeacherHearts) {
+      if (teacherIds.includes(h.teacherId)) {
+        map.set(h.teacherId, (map.get(h.teacherId) ?? 0) + 1);
+      }
+    }
+    return map;
+  }
+
+  try {
+    const rows = await db.userTeacherHeart.groupBy({
+      by: ["teacherId"],
+      where: { teacherId: { in: teacherIds } },
+      _count: { _all: true }
+    });
+    for (const row of rows) {
+      map.set(row.teacherId, row._count._all);
+    }
+    return map;
+  } catch (error) {
+    if (!isMissingTeacherHeartInfrastructure(error)) {
+      throw error;
+    }
+    if (isTeacherHeartProductionRuntime()) {
+      warnTeacherHeartDemoFallback("UserTeacherHeart groupBy failed (table missing or DB error?)", error);
+      return map;
+    }
+    warnTeacherHeartDemoFallback("UserTeacherHeart groupBy failed; using demo counts", error);
+    for (const h of demoUserTeacherHearts) {
+      if (teacherIds.includes(h.teacherId)) {
+        map.set(h.teacherId, (map.get(h.teacherId) ?? 0) + 1);
+      }
+    }
+    return map;
+  }
+}
+
+export async function countTeacherHearts(teacherId: string): Promise<number> {
+  const counts = await countTeacherHeartsForTeachers([teacherId]);
+  return counts.get(teacherId) ?? 0;
+}
+
+export async function listTeacherIdsHeartedByUser(userId: string, teacherIds: string[]): Promise<Set<string>> {
+  if (teacherIds.length === 0) {
+    return new Set();
+  }
+
+  if (!hasTeacherHeartClientSupport()) {
+    if (isTeacherHeartProductionRuntime()) {
+      warnTeacherHeartDemoFallback("Prisma client has no userTeacherHeart delegate (run prisma generate + redeploy)");
+      return new Set();
+    }
+    return new Set(
+      demoUserTeacherHearts.filter((h) => h.userId === userId && teacherIds.includes(h.teacherId)).map((h) => h.teacherId)
+    );
+  }
+
+  try {
+    const rows = await db.userTeacherHeart.findMany({
+      where: { userId, teacherId: { in: teacherIds } },
+      select: { teacherId: true }
+    });
+    return new Set(rows.map((r) => r.teacherId));
+  } catch (error) {
+    if (!isMissingTeacherHeartInfrastructure(error)) {
+      throw error;
+    }
+    if (isTeacherHeartProductionRuntime()) {
+      warnTeacherHeartDemoFallback("UserTeacherHeart findMany failed (table missing or DB error?)", error);
+      return new Set();
+    }
+    warnTeacherHeartDemoFallback("UserTeacherHeart findMany failed; using demo hearts", error);
+    return new Set(
+      demoUserTeacherHearts.filter((h) => h.userId === userId && teacherIds.includes(h.teacherId)).map((h) => h.teacherId)
+    );
+  }
+}
+
+export async function isTeacherHeartedByUser(userId: string, teacherId: string): Promise<boolean> {
+  const set = await listTeacherIdsHeartedByUser(userId, [teacherId]);
+  return set.has(teacherId);
+}
+
+export async function heartTeacherForUser(userId: string, teacherId: string) {
+  const allowed = await mayUserRecordHeartOnTeacher(userId, teacherId);
+  if (!allowed) {
+    return;
+  }
+
+  if (!hasTeacherHeartClientSupport()) {
+    if (isTeacherHeartProductionRuntime()) {
+      throwTeacherHeartPersistenceUnavailable("Cannot save heart.");
+    }
+    warnTeacherHeartDemoFallback("Prisma client has no userTeacherHeart delegate");
+    if (!demoUserTeacherHearts.some((h) => h.userId === userId && h.teacherId === teacherId)) {
+      demoUserTeacherHearts.push({
+        id: `heart-teacher-${userId}-${teacherId}`,
+        userId,
+        teacherId,
+        createdAt: new Date().toISOString()
+      });
+    }
+    return;
+  }
+
+  try {
+    await db.userTeacherHeart.upsert({
+      where: {
+        userId_teacherId: {
+          userId,
+          teacherId
+        }
+      },
+      update: {},
+      create: {
+        id: `heart-teacher-${userId}-${teacherId}`,
+        userId,
+        teacherId
+      }
+    });
+  } catch (error) {
+    if (!isMissingTeacherHeartInfrastructure(error)) {
+      throw error;
+    }
+    if (isTeacherHeartProductionRuntime()) {
+      console.error("[UserTeacherHeart] upsert failed in production (table or client mismatch).", error);
+      throw new Error(
+        `Cannot save heart: ${error instanceof Error ? error.message : String(error)}. Ensure the UserTeacherHeart migration is applied and the deployed app ran prisma generate.`
+      );
+    }
+    warnTeacherHeartDemoFallback("UserTeacherHeart upsert failed; using demo store", error);
+    if (!demoUserTeacherHearts.some((h) => h.userId === userId && h.teacherId === teacherId)) {
+      demoUserTeacherHearts.push({
+        id: `heart-teacher-${userId}-${teacherId}`,
+        userId,
+        teacherId,
+        createdAt: new Date().toISOString()
+      });
+    }
+  }
+}
+
+export async function unheartTeacherForUser(userId: string, teacherId: string) {
+  if (!hasTeacherHeartClientSupport()) {
+    if (isTeacherHeartProductionRuntime()) {
+      throwTeacherHeartPersistenceUnavailable("Cannot remove heart.");
+    }
+    const fallbackIndex = demoUserTeacherHearts.findIndex((h) => h.userId === userId && h.teacherId === teacherId);
+    if (fallbackIndex >= 0) {
+      demoUserTeacherHearts.splice(fallbackIndex, 1);
+    }
+    return;
+  }
+
+  try {
+    await db.userTeacherHeart.deleteMany({
+      where: {
+        userId,
+        teacherId
+      }
+    });
+  } catch (error) {
+    if (!isMissingTeacherHeartInfrastructure(error)) {
+      throw error;
+    }
+    if (isTeacherHeartProductionRuntime()) {
+      console.error("[UserTeacherHeart] deleteMany failed in production.", error);
+      throw new Error(
+        `Cannot remove heart: ${error instanceof Error ? error.message : String(error)}. Ensure the UserTeacherHeart migration is applied and the deployed app ran prisma generate.`
+      );
+    }
+    warnTeacherHeartDemoFallback("UserTeacherHeart deleteMany failed; using demo store", error);
+  }
+
+  const fallbackIndex = demoUserTeacherHearts.findIndex((h) => h.userId === userId && h.teacherId === teacherId);
+  if (fallbackIndex >= 0) {
+    demoUserTeacherHearts.splice(fallbackIndex, 1);
   }
 }
 
