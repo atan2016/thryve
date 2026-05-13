@@ -8,6 +8,7 @@ import { FeaturedLocalGigsCarousel } from "@/components/featured-local-gigs-caro
 import { FeaturedTeachersCarousel } from "@/components/featured-teachers-carousel";
 import { toggleEventHostFollowAction } from "@/lib/actions";
 import { getSession } from "@/lib/auth/session";
+import { isProdBuild } from "@/lib/is-production";
 import {
   countTeacherHeartsForTeachers,
   listHomepageFeaturedEvents,
@@ -20,7 +21,7 @@ export default async function HomePage() {
   const session = await getSession();
   const teachers = await listTeachers();
   const homepageEvents = await listHomepageFeaturedEvents(session?.userId);
-  const homepageJobs = await listHomepageLocalGigs();
+  const homepageJobs = isProdBuild ? [] : await listHomepageLocalGigs();
 
   const carouselSlice = teachers.slice(0, 6);
   const carouselIds = carouselSlice.map((t) => t.id);
@@ -84,13 +85,15 @@ export default async function HomePage() {
           >
             Explore
           </Link>
-          <Link
-            className="pointer-events-auto inline-flex min-w-[128px] items-center justify-center rounded-full bg-[#A6B2A3] px-5 py-2.5 text-[15px] font-semibold tracking-[-0.01em] shadow-[0_12px_24px_-16px_rgba(97,111,96,0.65)] transition hover:bg-[#98a594]"
-            href="/community"
-            style={{ color: "#EEF6EE" }}
-          >
-            Watch Video
-          </Link>
+          {isProdBuild ? null : (
+            <Link
+              className="pointer-events-auto inline-flex min-w-[128px] items-center justify-center rounded-full bg-[#A6B2A3] px-5 py-2.5 text-[15px] font-semibold tracking-[-0.01em] shadow-[0_12px_24px_-16px_rgba(97,111,96,0.65)] transition hover:bg-[#98a594]"
+              href="/community"
+              style={{ color: "#EEF6EE" }}
+            >
+              Watch Video
+            </Link>
+          )}
         </div>
       </section>
 
@@ -100,7 +103,7 @@ export default async function HomePage() {
         toggleEventHostFollowAction={toggleEventHostFollowAction}
       />
 
-      <FeaturedLocalGigsCarousel gigs={homepageJobs} isSignedIn={Boolean(session)} />
+      {isProdBuild ? null : <FeaturedLocalGigsCarousel gigs={homepageJobs} isSignedIn={Boolean(session)} />}
 
       <FeaturedTeachersCarousel teachers={featuredTeachersForCarousel} viewerUserId={session?.userId ?? null} />
 

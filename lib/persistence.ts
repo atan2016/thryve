@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "crypto";
 
 import { endOfMonth, format, isBefore, isWithinInterval, startOfDay, startOfMonth } from "date-fns";
 
+import { getCachedHomepageExternalJobs } from "@/lib/jobs/external-job-search";
 import { formatEventCalendarDayUtc } from "@/lib/format";
 import { resolveTeacherUpcomingEventImageUrl } from "@/lib/teacher-upcoming-event-image";
 import { normalizeTeacherUpcomingEventType } from "@/lib/teacher-upcoming-event-types";
@@ -1508,7 +1509,11 @@ function filterHomepageJobsByKeywords(jobs: HomepageJobCard[], keywords: string[
   }
 
   return jobs.filter(
-    (job) => !matchesKeywordFilter([job.title, job.category, job.pay, job.company, job.location, job.posted], keywords)
+    (job) =>
+      !matchesKeywordFilter(
+        [job.title, job.category, job.pay, job.company, job.location, job.posted, job.applyUrl ?? ""],
+        keywords
+      )
   );
 }
 
@@ -2419,7 +2424,23 @@ export async function listHomepageFeaturedEvents(userId?: string) {
 
 export async function listHomepageLocalGigs() {
   const contentFilters = await getAdminContentFilters();
-  return filterHomepageJobsByKeywords(HOMEPAGE_LOCAL_GIGS, contentFilters.hiddenJobKeywords);
+  const hidden = contentFilters.hiddenJobKeywords;
+
+  const hasAdzunaCreds = Boolean(process.env.ADZUNA_APP_ID?.trim() && process.env.ADZUNA_APP_KEY?.trim());
+  let jobs: HomepageJobCard[] = HOMEPAGE_LOCAL_GIGS;
+
+  if (hasAdzunaCreds) {
+    try {
+      const external = await getCachedHomepageExternalJobs();
+      if (external.length > 0) {
+        jobs = external;
+      }
+    } catch (err) {
+      console.error("[listHomepageLocalGigs] external job search failed; using static sample jobs", err);
+    }
+  }
+
+  return filterHomepageJobsByKeywords(jobs, hidden);
 }
 
 export async function incrementTeachingHoursInDb(teacherId: string, category: ServiceCategory, minutesAdded: number) {

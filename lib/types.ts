@@ -199,6 +199,8 @@ export type HomepageJobCard = {
   company: string;
   location: string;
   posted: string;
+  /** When set, “Apply” opens this external listing URL instead of Thryve sign-in. */
+  applyUrl?: string;
 };
 
 export type TeacherCalendarSession = {

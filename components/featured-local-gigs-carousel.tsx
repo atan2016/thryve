@@ -90,6 +90,9 @@ export function FeaturedLocalGigsCarousel({ gigs, isSignedIn = false }: { gigs: 
             <h2 id="featured-gigs-heading" className="text-2xl font-semibold tracking-tight text-slate-900">
               New Jobs of the Week
             </h2>
+            {gigs.some((g) => Boolean(g.applyUrl)) ? (
+              <p className="mt-1 text-xs text-stone-500">Wellness-focused listings via Adzuna; opens the original job post.</p>
+            ) : null}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3 sm:pt-0.5">
@@ -161,12 +164,23 @@ export function FeaturedLocalGigsCarousel({ gigs, isSignedIn = false }: { gigs: 
               </li>
             </ul>
 
-            <Link
-              href={isSignedIn ? "/teachers" : "/sign-in?next=%2Fteachers"}
-              className="mt-5 block w-full rounded-full bg-gradient-to-r from-[#EE8D72] to-[#E6866A] py-2.5 text-center text-sm font-semibold text-white shadow-[0_8px_20px_-12px_rgba(229,134,106,0.95)] transition hover:from-[#e78063] hover:to-[#dc775a]"
-            >
-              Apply Now
-            </Link>
+            {gig.applyUrl ? (
+              <a
+                href={gig.applyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 block w-full rounded-full bg-gradient-to-r from-[#EE8D72] to-[#E6866A] py-2.5 text-center text-sm font-semibold text-white shadow-[0_8px_20px_-12px_rgba(229,134,106,0.95)] transition hover:from-[#e78063] hover:to-[#dc775a]"
+              >
+                Apply Now
+              </a>
+            ) : (
+              <Link
+                href={isSignedIn ? "/teachers" : "/sign-in?next=%2Fteachers"}
+                className="mt-5 block w-full rounded-full bg-gradient-to-r from-[#EE8D72] to-[#E6866A] py-2.5 text-center text-sm font-semibold text-white shadow-[0_8px_20px_-12px_rgba(229,134,106,0.95)] transition hover:from-[#e78063] hover:to-[#dc775a]"
+              >
+                Apply Now
+              </Link>
+            )}
           </article>
         ))}
       </div>

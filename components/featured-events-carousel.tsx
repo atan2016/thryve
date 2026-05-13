@@ -6,6 +6,7 @@ import { useRef } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { HomepageEventCard } from "@/lib/types";
+import { isProdBuild } from "@/lib/is-production";
 import { isTeacherUpcomingEventImageApiUrl } from "@/lib/teacher-upcoming-event-image";
 
 const categoryClassNames: Record<string, string> = {
@@ -122,9 +123,11 @@ export function FeaturedEventsCarousel({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3 sm:pt-0.5">
-          <Link className="text-sm font-semibold text-[#57AAA5] hover:text-[#459792]" href="/community">
-            View all events
-          </Link>
+          {isProdBuild ? null : (
+            <Link className="text-sm font-semibold text-[#57AAA5] hover:text-[#459792]" href="/community">
+              View all events
+            </Link>
+          )}
           <div className="flex gap-2">
             <button
               type="button"

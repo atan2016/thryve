@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
 import { signOutAction } from "@/lib/actions";
+import { isProdBuild } from "@/lib/is-production";
 import type { Role } from "@/lib/types";
 
 type AppHeaderProps = {
@@ -100,6 +101,11 @@ const NAV_ITEMS: NavItemConfig[] = [
   { href: "/credits", label: "Promotion", icon: IconPromotion, match: (p) => p.startsWith("/credits") },
 ];
 
+function navItemsForBuild(): NavItemConfig[] {
+  if (!isProdBuild) return NAV_ITEMS;
+  return NAV_ITEMS.filter((item) => item.label !== "Community" && item.label !== "Promotion" && item.label !== "Jobs");
+}
+
 export function AppHeader({ user, canAccessTeacherDashboard }: AppHeaderProps) {
   const pathname = usePathname();
   const [accountOpen, setAccountOpen] = useState(false);
@@ -134,7 +140,7 @@ export function AppHeader({ user, canAccessTeacherDashboard }: AppHeaderProps) {
           className="flex min-w-0 flex-1 items-center justify-center gap-1 overflow-x-auto py-1 sm:gap-2 md:gap-4"
           aria-label="Primary"
         >
-          {NAV_ITEMS.map(({ href, label, icon: Icon, match }) => {
+          {navItemsForBuild().map(({ href, label, icon: Icon, match }) => {
             const active = match(pathname);
             return (
               <Link
