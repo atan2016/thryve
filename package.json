@@ -13,7 +13,8 @@
     "db:migrate": "node scripts/prisma-with-env.cjs migrate deploy",
     "db:migrate:dev": "node scripts/prisma-with-env.cjs migrate dev",
     "db:push": "node scripts/prisma-with-env.cjs db push",
-    "db:seed": "node scripts/prisma-with-env.cjs db seed"
+    "db:seed": "node scripts/prisma-with-env.cjs db seed",
+    "db:restore:k-j-robin": "node scripts/restore-kj-robin-teachers.cjs"
   },
   "dependencies": {
     "@prisma/client": "6.16.0",
