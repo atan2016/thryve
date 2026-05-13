@@ -166,6 +166,9 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
         </div>
         <div className="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
           <h2 className="text-2xl font-semibold">Current upcoming events</h2>
+          <p className="mt-2 text-sm text-stone-500">
+            Events with a scheduled date before today are hidden here and on your public profile. Ongoing schedules (no date) stay listed.
+          </p>
           <div className="mt-6 space-y-4">
             {teacher.upcomingEvents?.length ? (
               teacher.upcomingEvents.map((event) => (

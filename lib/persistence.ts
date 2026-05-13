@@ -1,6 +1,8 @@
 import { createHash, randomBytes } from "crypto";
 
 import { format, startOfDay } from "date-fns";
+
+import { isUpcomingTeacherEventDateEligible } from "@/lib/teacher-upcoming-events";
 import { Prisma, CertificationSubmissionStatus, DiscussionAuthorRole, Role, StoryMediaType } from "@prisma/client";
 
 import { db } from "@/lib/db";
@@ -38,7 +40,10 @@ const ASHLEY_CALENDLY_URL = "https://calendly.com/ashleyt-_z90/1-hour-meeting";
 const FOLLOWED_EVENT_LABEL = "From people you follow";
 const HOMEPAGE_EVENT_LIMIT = 5;
 const NO_FOLLOW_EVENT_LIMIT = 10;
-const TODAY_START = startOfDay(new Date());
+function getTodayStart() {
+  return startOfDay(new Date());
+}
+
 const ADMIN_CONTENT_SETTINGS_ID = "global";
 const DEFAULT_ADMIN_CONTENT_FILTERS: AdminContentFilters = {
   hiddenEventKeywords: [],
@@ -772,7 +777,9 @@ function hydratePersistedTeacher(teacher: {
     showPublicCalendar: supplement.showPublicCalendar ?? teacher.showPublicCalendar ?? true,
     teachingHours,
     certificationSubmissions: teacher.certificationSubmissions.map(mapCertificationSubmission),
-    upcomingEvents: teacher.upcomingEvents.map(mapUpcomingEvent),
+    upcomingEvents: teacher.upcomingEvents
+      .filter((event) => isUpcomingTeacherEventDateEligible(event.eventDate))
+      .map(mapUpcomingEvent),
     calendarSessions: teacher.calendarSessions?.map(mapCalendarSession) ?? fallbackCalendarSessions,
     stories: teacher.stories.map(mapTeacherStory)
   };
@@ -791,7 +798,7 @@ function hydrateFallbackTeacher(teacher: Teacher) {
     ...supplement,
     platformHoursBooked,
     certificationSubmissions: teacher.certificationSubmissions ?? [],
-    upcomingEvents: teacher.upcomingEvents ?? [],
+    upcomingEvents: (teacher.upcomingEvents ?? []).filter((event) => isUpcomingTeacherEventDateEligible(event.eventDate)),
     calendarSessions: demoCalendarSessions
       .filter((session) => session.teacherId === teacher.id)
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
@@ -1183,7 +1190,7 @@ function isUpcomingHomepageEvent(event: HomepageEventCard) {
     return true;
   }
 
-  return new Date(event.sortDate) >= TODAY_START;
+  return new Date(event.sortDate) >= getTodayStart();
 }
 
 function filterHomepageEventsByKeywords(events: HomepageEventCard[], keywords: string[]) {
@@ -1349,7 +1356,7 @@ async function listPersistedHomepageEvents(options: {
       where: {
         teacher: { is: { published: true } },
         AND: [
-          { OR: [{ eventDate: null }, { eventDate: { gte: TODAY_START } }] },
+          { OR: [{ eventDate: null }, { eventDate: { gte: getTodayStart() } }] },
           ...(options.personalized ? [{ OR: filters }] : [])
         ]
       },
@@ -1417,7 +1424,7 @@ async function listPersistedHomepageEvents(options: {
       where: {
         teacher: { is: { published: true } },
         AND: [
-          { OR: [{ eventDate: null }, { eventDate: { gte: TODAY_START } }] },
+          { OR: [{ eventDate: null }, { eventDate: { gte: getTodayStart() } }] },
           ...(options.personalized ? [{ OR: filters }] : [])
         ]
       },
