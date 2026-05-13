@@ -90,6 +90,13 @@ export type UserTeacherFollow = {
   createdAt: string;
 };
 
+export type UserTeacherHeart = {
+  id: string;
+  userId: string;
+  teacherId: string;
+  createdAt: string;
+};
+
 export type UserEventHostFollow = {
   id: string;
   userId: string;

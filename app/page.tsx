@@ -8,14 +8,61 @@ import { FeaturedLocalGigsCarousel } from "@/components/featured-local-gigs-caro
 import { FeaturedTeachersCarousel } from "@/components/featured-teachers-carousel";
 import { toggleEventHostFollowAction } from "@/lib/actions";
 import { getSession } from "@/lib/auth/session";
-import { listHomepageFeaturedEvents, listHomepageLocalGigs, listTeachers } from "@/lib/persistence";
+import {
+  countTeacherHeartsForTeachers,
+  listHomepageFeaturedEvents,
+  listHomepageLocalGigs,
+  listTeacherIdsHeartedByUser,
+  listTeachers
+} from "@/lib/persistence";
 
 export default async function HomePage() {
   const session = await getSession();
   const teachers = await listTeachers();
   const homepageEvents = await listHomepageFeaturedEvents(session?.userId);
   const homepageJobs = await listHomepageLocalGigs();
-  const connectPeers = session ? buildConnectPeers(teachers, { excludeUserId: session.userId }) : [];
+
+  const carouselSlice = teachers.slice(0, 6);
+  const carouselIds = carouselSlice.map((t) => t.id);
+  const carouselHeartCounts = await countTeacherHeartsForTeachers(carouselIds);
+  const carouselHeartedByViewer = session
+    ? await listTeacherIdsHeartedByUser(session.userId, carouselIds)
+    : new Set<string>();
+  const featuredTeachersForCarousel = carouselSlice.map((t) => ({
+    id: t.id,
+    slug: t.slug,
+    fullName: t.fullName,
+    avatarUrl: t.avatarUrl,
+    city: t.city,
+    styles: t.styles,
+    platformHoursBooked: t.platformHoursBooked,
+    heartCount: carouselHeartCounts.get(t.id) ?? 0,
+    viewerHasHearted: session ? carouselHeartedByViewer.has(t.id) : false,
+    heartInteraction: (session && t.userId !== session.userId ? "toggle" : session ? "none" : "signin") as
+      | "toggle"
+      | "signin"
+      | "none"
+  }));
+
+  const connectPeersRaw = session ? buildConnectPeers(teachers, { excludeUserId: session.userId }) : [];
+  const peerTeacherIds = connectPeersRaw.map((p) => p.teacherId).filter((id): id is string => Boolean(id));
+  const peerHeartCounts = await countTeacherHeartsForTeachers(peerTeacherIds);
+  const peerHeartedByViewer = session
+    ? await listTeacherIdsHeartedByUser(session.userId, peerTeacherIds)
+    : new Set<string>();
+  const teacherById = new Map(teachers.map((t) => [t.id, t]));
+  const connectPeers = connectPeersRaw.map((p) => {
+    const owner = p.teacherId ? teacherById.get(p.teacherId) : undefined;
+    const heartInteraction = (
+      !p.teacherId || p.isDemo ? "none" : !session ? "signin" : !owner ? "none" : owner.userId === session.userId ? "none" : "toggle"
+    ) as "toggle" | "signin" | "none";
+    return {
+      ...p,
+      heartCount: p.teacherId && !p.isDemo ? peerHeartCounts.get(p.teacherId) ?? 0 : 0,
+      viewerHasHearted: Boolean(session && p.teacherId && !p.isDemo && peerHeartedByViewer.has(p.teacherId)),
+      heartInteraction
+    };
+  });
 
   return (
     <div className="space-y-10">
@@ -55,7 +102,7 @@ export default async function HomePage() {
 
       <FeaturedLocalGigsCarousel gigs={homepageJobs} isSignedIn={Boolean(session)} />
 
-      <FeaturedTeachersCarousel teachers={teachers} />
+      <FeaturedTeachersCarousel teachers={featuredTeachersForCarousel} />
 
       {session ? <ConnectWithPeers key={session.userId} peers={connectPeers} /> : null}
     </div>

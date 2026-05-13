@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useMemo, useRef } from "react";
 
+import { toggleTeacherHeartAction } from "@/lib/actions";
 import { TeacherAvatar } from "@/components/teacher-avatar";
 
-type FeaturedTeacher = {
+export type FeaturedTeacherCard = {
   id: string;
   slug: string;
   fullName: string;
@@ -13,13 +14,17 @@ type FeaturedTeacher = {
   city: string;
   styles: string[];
   platformHoursBooked?: number;
+  heartCount: number;
+  viewerHasHearted: boolean;
+  /** toggle: signed-in and not own profile; signin: anonymous; none: own profile */
+  heartInteraction: "toggle" | "signin" | "none";
 };
 
 type FeaturedTeachersCarouselProps = {
-  teachers: FeaturedTeacher[];
+  teachers: FeaturedTeacherCard[];
 };
 
-function getTeacherSpecialty(teacher: FeaturedTeacher) {
+function getTeacherSpecialty(teacher: FeaturedTeacherCard) {
   return teacher.styles.slice(0, 2).join(" · ") || "Yoga · Meditation";
 }
 
@@ -43,6 +48,24 @@ function IconChevron({ direction }: { direction: "left" | "right" }) {
       ) : (
         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
       )}
+    </svg>
+  );
+}
+
+function IconHeart({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      aria-hidden
+      className={`h-4 w-4 shrink-0 ${filled ? "fill-[#EF6B7B] text-[#EF6B7B]" : "fill-none text-[#9CB1C4]"}`}
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.8}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21.435 6.582a5.373 5.373 0 00-7.6 0L12 8.418l-1.836-1.836a5.374 5.374 0 10-7.6 7.6l1.836 1.835L12 21.616l7.6-7.6 1.835-1.834a5.373 5.373 0 000-7.6Z"
+      />
     </svg>
   );
 }
@@ -109,31 +132,58 @@ export function FeaturedTeachersCarousel({ teachers }: FeaturedTeachersCarouselP
         className="-mx-1 flex gap-4 overflow-x-auto px-1 pb-2 scroll-smooth snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {featuredTeachers.map((teacher) => (
-            <article
-              key={teacher.id}
-              className="flex w-[min(100%,11.75rem)] shrink-0 snap-start flex-col rounded-[1.35rem] border border-[#E7EEF5] bg-white px-4 py-4 shadow-[0_18px_36px_-30px_rgba(29,59,92,0.28)] sm:w-[11.5rem]"
-            >
-              <div className="flex flex-col items-center text-center">
-                <TeacherAvatar
-                  className="h-[74px] w-[74px] rounded-full ring-2 ring-[#F6F7F8]"
-                  height={74}
-                  name={teacher.fullName}
-                  sizes="74px"
-                  src={teacher.avatarUrl}
-                  width={74}
-                />
-                <h3 className="mt-3 text-[0.98rem] font-semibold leading-tight text-[#21415F]">{teacher.fullName}</h3>
-                <p className="mt-1 text-xs font-medium text-[#6C849A]">{getTeacherSpecialty(teacher)}</p>
-                <p className="mt-1 text-xs text-[#7E93A7]">{teacher.city}, CA</p>
-              </div>
+          <article
+            key={teacher.id}
+            className="flex w-[min(100%,11.75rem)] shrink-0 snap-start flex-col rounded-[1.35rem] border border-[#E7EEF5] bg-white px-4 py-4 shadow-[0_18px_36px_-30px_rgba(29,59,92,0.28)] sm:w-[11.5rem]"
+          >
+            <div className="flex flex-col items-center text-center">
+              <TeacherAvatar
+                className="h-[74px] w-[74px] rounded-full ring-2 ring-[#F6F7F8]"
+                height={74}
+                name={teacher.fullName}
+                sizes="74px"
+                src={teacher.avatarUrl}
+                width={74}
+              />
+              <h3 className="mt-3 text-[0.98rem] font-semibold leading-tight text-[#21415F]">{teacher.fullName}</h3>
+              <p className="mt-1 text-xs font-medium text-[#6C849A]">{getTeacherSpecialty(teacher)}</p>
+              <p className="mt-1 text-xs text-[#7E93A7]">{teacher.city}, CA</p>
+            </div>
 
-              <Link
-                className="mt-4 inline-flex items-center justify-center rounded-full border border-[#7ED4D0] bg-white px-4 py-2.5 text-sm font-semibold text-[#4AA6AB] transition hover:bg-[#F3FBFB]"
-                href={`/teachers/${teacher.slug}`}
-              >
-                View Profile
-              </Link>
-            </article>
+            <div className="mt-3 flex items-center justify-between gap-2 border-t border-[#EEF3F7] pt-3 text-[12px] font-medium text-[#5E758B]">
+              <span className="tabular-nums">{teacher.heartCount} hearts</span>
+              {teacher.heartInteraction === "toggle" ? (
+                <form action={toggleTeacherHeartAction}>
+                  <input name="teacherId" type="hidden" value={teacher.id} />
+                  <input name="teacherSlug" type="hidden" value={teacher.slug} />
+                  <input name="intent" type="hidden" value={teacher.viewerHasHearted ? "unheart" : "heart"} />
+                  <button
+                    aria-label={teacher.viewerHasHearted ? `Remove heart for ${teacher.fullName}` : `Heart ${teacher.fullName}`}
+                    className="rounded-full p-1.5 transition hover:bg-[#F6FAFC]"
+                    type="submit"
+                  >
+                    <IconHeart filled={teacher.viewerHasHearted} />
+                  </button>
+                </form>
+              ) : teacher.heartInteraction === "signin" ? (
+                <Link
+                  className="rounded-full px-2 py-1 text-[11px] font-semibold text-[#4AA6AB] hover:underline"
+                  href={`/sign-in?next=${encodeURIComponent("/")}`}
+                >
+                  Sign in
+                </Link>
+              ) : (
+                <span className="w-8 shrink-0" aria-hidden />
+              )}
+            </div>
+
+            <Link
+              className="mt-3 inline-flex items-center justify-center rounded-full border border-[#7ED4D0] bg-white px-4 py-2.5 text-sm font-semibold text-[#4AA6AB] transition hover:bg-[#F3FBFB]"
+              href={`/teachers/${teacher.slug}`}
+            >
+              View Profile
+            </Link>
+          </article>
         ))}
       </div>
     </section>

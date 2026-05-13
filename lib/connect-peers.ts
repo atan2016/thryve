@@ -4,6 +4,11 @@ export type ConnectPeerCard = {
   avatarUrl?: string;
   specialty: string;
   isDemo?: boolean;
+  /** Present for real teachers from the directory (not demo filler). */
+  teacherId?: string;
+  heartCount?: number;
+  viewerHasHearted?: boolean;
+  heartInteraction?: "toggle" | "signin" | "none";
 };
 
 const DEMO_PEERS: ConnectPeerCard[] = [
@@ -23,7 +28,7 @@ export type BuildConnectPeersOptions = {
 
 /** Up to six peer cards from published teachers; optional exclusions; padded with demo peers. */
 export function buildConnectPeers(
-  teachers: Array<{ slug: string; userId?: string; fullName: string; avatarUrl?: string; styles: string[] }>,
+  teachers: Array<{ id: string; slug: string; userId?: string; fullName: string; avatarUrl?: string; styles: string[] }>,
   options?: BuildConnectPeersOptions,
 ): ConnectPeerCard[] {
   const excludeSlug = options?.excludeSlug;
@@ -38,6 +43,7 @@ export function buildConnectPeers(
     .slice(0, 6)
     .map((t) => ({
       slug: t.slug,
+      teacherId: t.id,
       fullName: t.fullName,
       avatarUrl: t.avatarUrl,
       specialty: t.styles[0] ?? "Yoga",

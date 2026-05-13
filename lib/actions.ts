@@ -32,11 +32,14 @@ import {
   ensureTeacherProfile,
   followEventHostForUser,
   followTeacherForUser,
+  heartTeacherForUser,
+  mayUserRecordHeartOnTeacher,
   reviewTeacherCertificationSubmission,
   skipTeacherImportOnboarding,
   submitTeacherImportOnboarding,
   unfollowEventHostForUser,
   unfollowTeacherForUser,
+  unheartTeacherForUser,
   updateAdminContentFilters,
   updateUserForAdmin,
   updateTeacherCalendarSession,
@@ -717,6 +720,34 @@ export async function toggleTeacherFollowAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/teachers");
 
+  if (teacherSlug) {
+    revalidatePath(`/teachers/${teacherSlug}`);
+  }
+}
+
+export async function toggleTeacherHeartAction(formData: FormData) {
+  const user = await requireSignedInUser();
+  const teacherId = String(formData.get("teacherId") ?? "");
+  const teacherSlug = String(formData.get("teacherSlug") ?? "");
+  const intent = String(formData.get("intent") ?? "heart");
+
+  if (!teacherId) {
+    throw new Error("Teacher heart is missing a teacher id.");
+  }
+
+  const allowed = await mayUserRecordHeartOnTeacher(user.id, teacherId);
+  if (!allowed) {
+    throw new Error("You cannot heart this profile.");
+  }
+
+  if (intent === "unheart") {
+    await unheartTeacherForUser(user.id, teacherId);
+  } else {
+    await heartTeacherForUser(user.id, teacherId);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/teachers");
   if (teacherSlug) {
     revalidatePath(`/teachers/${teacherSlug}`);
   }

@@ -9,9 +9,16 @@ import { MetricCard } from "@/components/metric-card";
 import { TeacherContactForm } from "@/components/teacher-contact-form";
 import { TeacherAvatar } from "@/components/teacher-avatar";
 import { TeacherProfileWellnessBackdrop } from "@/components/teacher-profile-wellness-backdrop";
-import { contactTeacherAction, toggleTeacherFollowAction } from "@/lib/actions";
+import { contactTeacherAction, toggleTeacherFollowAction, toggleTeacherHeartAction } from "@/lib/actions";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getTeacherBySlug, getTeacherByUserId, isTeacherFollowedByUser } from "@/lib/persistence";
+import {
+  countTeacherHearts,
+  getTeacherBySlug,
+  getTeacherByUserId,
+  isTeacherFollowedByUser,
+  isTeacherHeartedByUser,
+  mayUserRecordHeartOnTeacher
+} from "@/lib/persistence";
 import { getRecaptchaSiteKey } from "@/lib/recaptcha";
 import { isTeacherUpcomingEventImageApiUrl } from "@/lib/teacher-upcoming-event-image";
 import type { TeacherUpcomingEvent } from "@/lib/types";
@@ -147,6 +154,10 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
   const isOwnerPreview = user?.id === teacher.userId && !teacher.published;
   const canFollowTeacher = Boolean(user && user.id !== teacher.userId);
   const isFollowedByViewer = user && user.id !== teacher.userId ? await isTeacherFollowedByUser(user.id, teacher.id) : false;
+  const canHeartTeacher = user ? await mayUserRecordHeartOnTeacher(user.id, teacher.id) : false;
+  const teacherHeartCount = await countTeacherHearts(teacher.id);
+  const viewerHasHeartedTeacher =
+    user && canHeartTeacher ? await isTeacherHeartedByUser(user.id, teacher.id) : false;
   const teacherBookHref = user ? `/teachers/${teacher.slug}/book` : getSignInHref(`/teachers/${teacher.slug}/book`);
 
   const totalHoursBooked: number =
@@ -304,6 +315,22 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
                     </button>
                   </form>
                 ) : null}
+                {canHeartTeacher ? (
+                  <form action={toggleTeacherHeartAction} className="inline-flex items-center gap-2">
+                    <input name="teacherId" type="hidden" value={teacher.id} />
+                    <input name="teacherSlug" type="hidden" value={teacher.slug} />
+                    <input name="intent" type="hidden" value={viewerHasHeartedTeacher ? "unheart" : "heart"} />
+                    <button className={`${tealOutlineBtn} inline-flex items-center gap-2`} type="submit">
+                      <span aria-hidden>{viewerHasHeartedTeacher ? "❤" : "♡"}</span>
+                      {teacherHeartCount} {teacherHeartCount === 1 ? "heart" : "hearts"}
+                    </button>
+                  </form>
+                ) : (
+                  <span className={`${tealOutlineBtn} inline-flex cursor-default items-center gap-2 opacity-90`}>
+                    <span aria-hidden>♡</span>
+                    {teacherHeartCount} {teacherHeartCount === 1 ? "heart" : "hearts"}
+                  </span>
+                )}
                 <Link className="rounded-full px-5 py-3 text-sm font-medium text-[#0c4f4a]/80 underline-offset-4 hover:underline" href="/teachers">
                   Back to discovery
                 </Link>

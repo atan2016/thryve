@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { toggleTeacherHeartAction } from "@/lib/actions";
 import { TeacherAvatar } from "@/components/teacher-avatar";
 import type { ConnectPeerCard } from "@/lib/connect-peers";
 
@@ -22,6 +23,24 @@ function IconUserPlus({ className }: { className?: string }) {
         <path strokeLinecap="round" d="M12 5v14M5 12h14" />
       </svg>
     </span>
+  );
+}
+
+function IconHeart({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      aria-hidden
+      className={`h-4 w-4 shrink-0 ${filled ? "fill-rose-500 text-rose-500" : "fill-none text-stone-400"}`}
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.8}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21.435 6.582a5.373 5.373 0 00-7.6 0L12 8.418l-1.836-1.836a5.374 5.374 0 10-7.6 7.6l1.836 1.835L12 21.616l7.6-7.6 1.835-1.834a5.373 5.373 0 000-7.6Z"
+      />
+    </svg>
   );
 }
 
@@ -71,6 +90,9 @@ export function ConnectWithPeers({ peers }: ConnectWithPeersProps) {
         {peers.map((peer) => {
           const isConnected = connected.has(peer.slug);
           const profileHref = peer.isDemo ? undefined : `/teachers/${peer.slug}`;
+          const heartCount = peer.heartCount ?? 0;
+          const heartInteraction = peer.heartInteraction ?? "none";
+          const viewerHasHearted = peer.viewerHasHearted ?? false;
 
           return (
             <article
@@ -89,6 +111,31 @@ export function ConnectWithPeers({ peers }: ConnectWithPeersProps) {
                 </>
               )}
               <p className="mt-1 text-sm text-stone-500">{peer.specialty}</p>
+              {peer.teacherId && !peer.isDemo ? (
+                <div className="mt-3 flex w-full items-center justify-between gap-2 text-xs text-stone-600">
+                  <span className="tabular-nums">{heartCount} hearts</span>
+                  {heartInteraction === "toggle" && peer.teacherId ? (
+                    <form action={toggleTeacherHeartAction}>
+                      <input name="teacherId" type="hidden" value={peer.teacherId} />
+                      <input name="teacherSlug" type="hidden" value={peer.slug} />
+                      <input name="intent" type="hidden" value={viewerHasHearted ? "unheart" : "heart"} />
+                      <button
+                        aria-label={viewerHasHearted ? `Remove heart for ${peer.fullName}` : `Heart ${peer.fullName}`}
+                        className="rounded-full p-1.5 transition hover:bg-stone-100"
+                        type="submit"
+                      >
+                        <IconHeart filled={viewerHasHearted} />
+                      </button>
+                    </form>
+                  ) : heartInteraction === "signin" ? (
+                    <Link className="font-semibold text-emerald-700 hover:underline" href={`/sign-in?next=${encodeURIComponent("/")}`}>
+                      Sign in
+                    </Link>
+                  ) : (
+                    <span className="w-6 shrink-0" aria-hidden />
+                  )}
+                </div>
+              ) : null}
               {isConnected ? (
                 <button
                   type="button"

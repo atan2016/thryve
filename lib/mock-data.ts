@@ -11,6 +11,7 @@ import type {
   EventHost,
   UserEventHostFollow,
   UserTeacherFollow,
+  UserTeacherHeart,
   Teacher,
   TeacherBadge,
   TeacherEarningsLedger,
@@ -112,6 +113,9 @@ export const demoUserTeacherFollows: UserTeacherFollow[] = [
     createdAt: today.toISOString()
   }
 ];
+
+/** In-memory teacher hearts when DB table or Prisma client lacks `UserTeacherHeart`. */
+export const demoUserTeacherHearts: UserTeacherHeart[] = [];
 
 export const demoUserEventHostFollows: UserEventHostFollow[] = [
   {
