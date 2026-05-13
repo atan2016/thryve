@@ -17,8 +17,7 @@ const demoUsers = [
   { id: "user-teacher-4", email: "robinjaffe@yoga.local", password: "password123", role: Role.TEACHER, name: "Robin Jaffe", emailVerifiedAt: new Date() },
   { id: "user-teacher-5", email: "denayadailey@gmail.com", password: "password123", role: Role.TEACHER, name: "Denaya Dailey", emailVerifiedAt: new Date() },
   { id: "user-teacher-6", email: "blu.high@yoga.local", password: "password123", role: Role.TEACHER, name: "Blu High", emailVerifiedAt: new Date() },
-  { id: "user-admin-1", email: "admin@yoga.local", password: "password123", role: Role.ADMIN, name: "Jordan Admin", emailVerifiedAt: new Date() },
-  { id: "user-teacher-claim-1", email: "shared.claim@yoga.local", password: "password123", role: Role.TEACHER, name: "Shared Claim User" }
+  { id: "user-admin-1", email: "admin@yoga.local", password: "password123", role: Role.ADMIN, name: "Jordan Admin", emailVerifiedAt: new Date() }
 ];
 
 const demoEventHosts = [
@@ -230,23 +229,6 @@ Beyond weekly studio classes, Blu is involved with the College of San Mateo yoga
     gender: "male",
     certificationStatus: "certified",
     published: true
-  },
-  {
-    id: "teacher-claim-1",
-    userId: null,
-    claimEmail: "shared.claim@yoga.local",
-    slug: "shared-claim-profile",
-    fullName: "Shared Claim Teacher",
-    avatarUrl: null,
-    platformHoursBooked: 0,
-    city: "San Francisco",
-    serviceRadiusMiles: 0,
-    training: "Claimable demo teacher profile for email-verification testing.",
-    experienceYears: 1,
-    bio: "This unpublished teacher profile is available for local claim-flow testing.",
-    gender: "other",
-    certificationStatus: "not_certified",
-    published: false
   }
 ];
 
