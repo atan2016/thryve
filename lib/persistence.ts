@@ -144,11 +144,19 @@ const CATEGORY_IMAGE_FALLBACKS: Record<string, string[]> = {
   ]
 };
 
-/** Card artwork for CSM 200-hour YTT listings (blob URLs are not valid img src; use raw). */
-const CSM_YTT_GRADUATION_HOMEPAGE_IMAGE =
-  "https://raw.githubusercontent.com/atan2016/thryve/main/public/assets/images/csm-ytt-graduation-card.png";
+/**
+ * Card artwork for CSM YTT (same file as on GitHub main under `public/assets/images/`).
+ * Same-origin URL avoids broken `/api/.../image` when DB bytes are missing in production.
+ */
+const CSM_YTT_GRADUATION_HOMEPAGE_IMAGE = "/assets/images/csm-ytt-graduation-card.png";
 
-function shouldUseCsmYttGraduationHomepageImage(eventKey: string) {
+/** Graduation / CSM YTT–branded titles: prefer static card even if a stale DB image row points at the API route. */
+function shouldForceCsmYttGraduationHomepageImage(eventKey: string) {
+  const k = eventKey.toLowerCase();
+  return k.includes("csm") && k.includes("ytt");
+}
+
+function shouldUseCsmYttGraduationWhenNoCustomImage(eventKey: string) {
   const k = eventKey.toLowerCase();
   return (
     k.includes("200-hour") &&
@@ -1274,12 +1282,16 @@ function buildHomepageEventImage(
   host?: { imageUrl: string | null } | null,
   eventImageUrl?: string | null
 ) {
+  if (shouldForceCsmYttGraduationHomepageImage(eventKey)) {
+    return CSM_YTT_GRADUATION_HOMEPAGE_IMAGE;
+  }
+
   const eventImage = eventImageUrl?.trim();
   if (eventImage) {
     return eventImage;
   }
 
-  if (shouldUseCsmYttGraduationHomepageImage(eventKey)) {
+  if (shouldUseCsmYttGraduationWhenNoCustomImage(eventKey)) {
     return CSM_YTT_GRADUATION_HOMEPAGE_IMAGE;
   }
 
