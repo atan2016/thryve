@@ -139,10 +139,23 @@ const CATEGORY_IMAGE_FALLBACKS: Record<string, string[]> = {
   ],
   Workshop: [
     "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1200&q=80&auto=format&fit=crop",
-    "/assets/images/csm-ytt-graduation-card.png",
+    "https://images.unsplash.com/photo-1545389336-cf090694435e?w=1200&q=80&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop"
   ]
 };
+
+/** Card artwork for CSM 200-hour YTT listings (blob URLs are not valid img src; use raw). */
+const CSM_YTT_GRADUATION_HOMEPAGE_IMAGE =
+  "https://raw.githubusercontent.com/atan2016/thryve/main/public/assets/images/csm-ytt-graduation-card.png";
+
+function shouldUseCsmYttGraduationHomepageImage(eventKey: string) {
+  const k = eventKey.toLowerCase();
+  return (
+    k.includes("200-hour") &&
+    (k.includes("teacher training") || k.includes("ytt")) &&
+    k.includes("college of san mateo")
+  );
+}
 
 const serviceCategoryLabels: Record<ServiceCategory, string> = {
   studio: "Studio",
@@ -1264,6 +1277,10 @@ function buildHomepageEventImage(
   const eventImage = eventImageUrl?.trim();
   if (eventImage) {
     return eventImage;
+  }
+
+  if (shouldUseCsmYttGraduationHomepageImage(eventKey)) {
+    return CSM_YTT_GRADUATION_HOMEPAGE_IMAGE;
   }
 
   const storyImages = teacher.stories.map((story) => story.mediaUrl).filter(Boolean);
