@@ -1,5 +1,3 @@
-import { PDFParse } from "pdf-parse";
-
 import type { Teacher, TeacherProfileImportStatus } from "@/lib/types";
 
 const IMPORT_HEADERS = {
@@ -307,6 +305,9 @@ function buildResumeSignals(text: string): ImportSignals {
 export async function extractResumeText(file: File) {
   if (file.type === "application/pdf") {
     try {
+      // pdf-parse bundles pdfjs-dist, which touches browser globals like DOMMatrix at
+      // module load. Dynamic import keeps it out of the SSR graph until a PDF is parsed.
+      const { PDFParse } = await import("pdf-parse");
       const buffer = Buffer.from(await file.arrayBuffer());
       const parser = new PDFParse({ data: buffer });
       const parsed = await parser.getText();
