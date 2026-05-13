@@ -331,6 +331,7 @@ const demoUpcomingEvents = [
     teacherId: "teacher-1",
     hostId: "host-j8-hot-pilates-yoga",
     title: "Hot Pilates Flow",
+    eventType: "Workshop",
     hostName: "J8 Hot Pilates & Yoga",
     address: "300 Broadway, San Francisco, CA",
     eventTime: "6:30 PM",
@@ -342,6 +343,7 @@ const demoUpcomingEvents = [
     teacherId: "teacher-3",
     hostId: "host-hot-yoga-plus-daly-city",
     title: "Weekly teaching schedule",
+    eventType: "Workshop",
     hostName: "Hot Yoga Plus Daly City",
     eventUrl: "https://www.hotyogaplus-dc.com/bikram-hot-yoga-daly-city-class-schedule/",
     eventDate: null
@@ -351,6 +353,7 @@ const demoUpcomingEvents = [
     teacherId: "teacher-4",
     hostId: "host-good-living-health",
     title: "Embodied Yoga, Pilates and Meditation",
+    eventType: "Workshop",
     hostName: "Good Living Health",
     eventUrl: "https://www.robinjaffe.love/_files/ugd/79180e_5c5798a1722d4638b9e44c0e1094d254.pdf",
     eventDate: makeDate(3, 12, 45).startsAt
@@ -360,6 +363,7 @@ const demoUpcomingEvents = [
     teacherId: "teacher-4",
     hostId: "host-sunporch-yoga",
     title: "Candlelight Yin Yoga",
+    eventType: "Somatic Healing",
     hostName: "SunPorch Yoga",
     eventUrl: "https://fitlocalfit.com/Services/Sunporch-Yoga",
     eventDate: makeDate(3, 18, 60).startsAt
@@ -369,6 +373,7 @@ const demoUpcomingEvents = [
     teacherId: "teacher-4",
     hostId: "host-vennu-yoga",
     title: "Trio3: Gentle Yoga Pilates and Meditation",
+    eventType: "Workshop",
     hostName: "Vennu Yoga",
     eventUrl: "https://vennu-studio.com/book-a-class",
     eventDate: makeDate(1, 11, 60).startsAt
@@ -378,6 +383,7 @@ const demoUpcomingEvents = [
     teacherId: "teacher-5",
     hostId: null,
     title: "Vinyasa Flow Yoga at College of San Mateo",
+    eventType: "Workshop",
     hostName: "College of San Mateo",
     eventUrl: "https://collegeofsanmateo.edu/yoga/faculty.asp",
     eventDate: makeDate(2, 10, 60).startsAt
@@ -387,6 +393,7 @@ const demoUpcomingEvents = [
     teacherId: "teacher-5",
     hostId: null,
     title: "200-Hour Yoga Teacher Training Program",
+    eventType: "Workshop",
     hostName: "College of San Mateo",
     eventUrl: "https://collegeofsanmateo.edu/yoga/",
     eventDate: makeDate(4, 14, 180).startsAt
@@ -396,6 +403,7 @@ const demoUpcomingEvents = [
     teacherId: "teacher-6",
     hostId: "host-peacebank-yoga-studio",
     title: "4BEAT Vinyasa",
+    eventType: "Workshop",
     hostName: "Peacebank Yoga Studio",
     eventUrl: "https://peacebank-yoga.recess.tv/embed/checkout/explore?displayClass=list&hideMenu=true&splitLiveClassInSeparateTabs=false&class_type=LIVE&displayDays=5",
     eventDate: makeDate(2, 17, 60).startsAt
@@ -405,6 +413,7 @@ const demoUpcomingEvents = [
     teacherId: "teacher-6",
     hostId: "host-peacebank-yoga-studio",
     title: "4BEAT Vinyasa",
+    eventType: "Workshop",
     hostName: "Peacebank Yoga Studio",
     eventUrl: "https://peacebank-yoga.recess.tv/embed/checkout/explore?displayClass=list&hideMenu=true&splitLiveClassInSeparateTabs=false&class_type=LIVE&displayDays=5",
     eventDate: makeDate(3, 9, 60).startsAt
@@ -414,6 +423,7 @@ const demoUpcomingEvents = [
     teacherId: "teacher-6",
     hostId: "host-yoga-source-palo-alto",
     title: "Heated Vinyasa",
+    eventType: "Workshop",
     hostName: "Yoga Source Palo Alto",
     eventUrl: "https://yogasource.com/schedule/",
     eventDate: makeDate(6, 7, 60).startsAt

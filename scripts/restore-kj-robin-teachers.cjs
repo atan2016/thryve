@@ -166,6 +166,7 @@ const upcomingEvents = [
     teacherId: "teacher-3",
     hostId: "host-hot-yoga-plus-daly-city",
     title: "Weekly teaching schedule",
+    eventType: "Workshop",
     hostName: "Hot Yoga Plus Daly City",
     eventUrl: "https://www.hotyogaplus-dc.com/bikram-hot-yoga-daly-city-class-schedule/",
     eventDate: null
@@ -175,6 +176,7 @@ const upcomingEvents = [
     teacherId: "teacher-4",
     hostId: "host-good-living-health",
     title: "Embodied Yoga, Pilates and Meditation",
+    eventType: "Workshop",
     hostName: "Good Living Health",
     eventUrl: "https://www.robinjaffe.love/_files/ugd/79180e_5c5798a1722d4638b9e44c0e1094d254.pdf",
     eventDate: makeDate(3, 12, 45).startsAt
@@ -184,6 +186,7 @@ const upcomingEvents = [
     teacherId: "teacher-4",
     hostId: "host-sunporch-yoga",
     title: "Candlelight Yin Yoga",
+    eventType: "Somatic Healing",
     hostName: "SunPorch Yoga",
     eventUrl: "https://fitlocalfit.com/Services/Sunporch-Yoga",
     eventDate: makeDate(3, 18, 60).startsAt
@@ -193,6 +196,7 @@ const upcomingEvents = [
     teacherId: "teacher-4",
     hostId: "host-vennu-yoga",
     title: "Trio3: Gentle Yoga Pilates and Meditation",
+    eventType: "Workshop",
     hostName: "Vennu Yoga",
     eventUrl: "https://vennu-studio.com/book-a-class",
     eventDate: makeDate(1, 11, 60).startsAt

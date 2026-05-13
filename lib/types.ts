@@ -149,9 +149,12 @@ export type TeacherUpcomingEvent = {
   teacherId: string;
   hostId?: string;
   title: string;
+  /** Listing category (matches homepage event chips). */
+  eventType: string;
   hostName?: string;
   address?: string;
   eventTime?: string;
+  /** Resolved display URL: legacy path/HTTPS, or `/api/teacher-upcoming-events/[id]/image` when stored in DB. */
   imageUrl?: string;
   eventUrl?: string;
   eventDate?: string;

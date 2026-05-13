@@ -1,6 +1,8 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 
+import { getEventImageMaxBytes } from "@/lib/teacher-upcoming-event-image";
+
 const PROFILE_UPLOAD_DIRECTORY = path.join(process.cwd(), "public", "uploads", "profile-photos");
 const EVENT_IMAGE_UPLOAD_DIRECTORY = path.join(process.cwd(), "public", "uploads", "event-images");
 const STORY_UPLOAD_DIRECTORY = path.join(process.cwd(), "public", "uploads", "story-media");
@@ -54,6 +56,33 @@ export async function saveProfileImage(file: File, teacherId: string) {
   return `/uploads/profile-photos/${fileName}`;
 }
 
+export type EventImagePayload = {
+  bytes: Buffer;
+  mimeType: string;
+};
+
+/**
+ * Reads and validates an uploaded event image for persistence in the database
+ * (`TeacherUpcomingEvent.eventImage`). Max size is `EVENT_IMAGE_MAX_BYTES` or 5MB default.
+ */
+export async function readEventImageForDatabase(file: File): Promise<EventImagePayload> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Event image must be an image file.");
+  }
+
+  const maxBytes = getEventImageMaxBytes();
+  if (file.size > maxBytes) {
+    const mb = (maxBytes / (1024 * 1024)).toFixed(1);
+    throw new Error(`Event image must be smaller than ${mb}MB (limit from EVENT_IMAGE_MAX_BYTES).`);
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const mimeType = file.type?.trim() || "application/octet-stream";
+
+  return { bytes: buffer, mimeType };
+}
+
+/** @deprecated Prefer `readEventImageForDatabase` — disk uploads do not persist on serverless hosts. */
 export async function saveEventImage(file: File, teacherId: string) {
   if (!file.type.startsWith("image/")) {
     throw new Error("Event image must be an image file.");

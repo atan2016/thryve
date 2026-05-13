@@ -7,10 +7,11 @@ import { consumePendingSignupVerification, createPendingSignupVerification } fro
 import { getCurrentUser, signIn, clearSession } from "@/lib/auth/session";
 import { bookCalendarSession, bookSession } from "@/lib/booking/book-session";
 import { purchaseCredits } from "@/lib/credits/purchase-credits";
-import { saveCertificationDocument, saveEventImage, savePendingSignupResume, saveProfileImage, saveStoryMedia, saveTeacherResume } from "@/lib/media/storage";
+import { readEventImageForDatabase, saveCertificationDocument, savePendingSignupResume, saveProfileImage, saveStoryMedia, saveTeacherResume } from "@/lib/media/storage";
 import { schedulePayout } from "@/lib/payouts/payout-provider";
 import { extractResumeText, type TeacherImportSourceInput } from "@/lib/teacher-profile-import";
 import { verifyRecaptchaToken } from "@/lib/recaptcha";
+import { normalizeTeacherUpcomingEventType } from "@/lib/teacher-upcoming-event-types";
 import {
   DEFAULT_CUSTOMER_ID,
   addAdminContactInquiry,
@@ -670,11 +671,11 @@ export async function addUpcomingEventAction(formData: FormData) {
     redirect("/dashboard/teacher/profile?error=event_needs_address_and_time");
   }
 
-  let imageUrl: string | undefined;
-  const eventImage = formData.get("eventImage");
-  if (eventImage instanceof File && eventImage.size > 0) {
+  let eventImage: { bytes: Buffer; mimeType: string } | undefined;
+  const eventImageField = formData.get("eventImage");
+  if (eventImageField instanceof File && eventImageField.size > 0) {
     try {
-      imageUrl = await saveEventImage(eventImage, teacher.id);
+      eventImage = await readEventImageForDatabase(eventImageField);
     } catch {
       redirect("/dashboard/teacher/profile?error=invalid_event_image");
     }
@@ -687,7 +688,8 @@ export async function addUpcomingEventAction(formData: FormData) {
     eventTime: eventTime || undefined,
     eventUrl: normalizedUrl,
     eventDate: String(formData.get("eventDate") ?? "").trim() || undefined,
-    imageUrl
+    eventType: normalizeTeacherUpcomingEventType(String(formData.get("eventType") ?? "")),
+    eventImage
   });
 
   revalidatePath("/");

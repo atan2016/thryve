@@ -11,6 +11,8 @@ import {
   updateTeacherProfileAction
 } from "@/lib/actions";
 import { getTeacherDashboardContext } from "@/lib/teacher-dashboard";
+import { getEventImageMaxSizeLabel, isTeacherUpcomingEventImageApiUrl } from "@/lib/teacher-upcoming-event-image";
+import { TEACHER_UPCOMING_EVENT_TYPE_OPTIONS } from "@/lib/teacher-upcoming-event-types";
 
 type TeacherProfileDashboardPageProps = {
   searchParams: Promise<{ saved?: string; error?: string }>;
@@ -31,6 +33,7 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
   }
 
   const { teacher } = context;
+  const eventImageMaxLabel = getEventImageMaxSizeLabel();
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
@@ -74,7 +77,7 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
         ) : null}
         {error === "invalid_event_image" ? (
           <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-            That event image could not be saved. Use a JPG, PNG, GIF, or WebP under 5MB.
+            That event image could not be saved. Use a JPG, PNG, GIF, or WebP under {eventImageMaxLabel}.
           </div>
         ) : null}
         {saved ? (
@@ -167,6 +170,24 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
               <input name="title" placeholder="Sunrise Flow, Weekend Retreat, Hot Pilates..." required />
             </label>
             <label className="block">
+              <span className="mb-2 block text-sm font-medium">Event type</span>
+              <select
+                className="w-full max-w-md rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 shadow-sm"
+                name="eventType"
+                defaultValue="Workshop"
+                required
+              >
+                {TEACHER_UPCOMING_EVENT_TYPE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-stone-500">
+                Choose the category that best describes this listing. It appears as the chip on the homepage and on your public profile.
+              </span>
+            </label>
+            <label className="block">
               <span className="mb-2 block text-sm font-medium">Venue or event host (optional)</span>
               <input
                 autoComplete="organization"
@@ -196,7 +217,7 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
             <label className="block">
               <span className="mb-2 block text-sm font-medium">Event image (optional)</span>
               <input accept="image/*" name="eventImage" type="file" />
-              <span className="mt-1 block text-xs text-stone-500">Shown on your public profile and homepage cards when available. Max 5MB.</span>
+              <span className="mt-1 block text-xs text-stone-500">Shown on your public profile and homepage cards when available. Max {eventImageMaxLabel}.</span>
             </label>
             <button className="rounded-full bg-stone-900 px-5 py-3 text-white" type="submit">
               Add upcoming event
@@ -214,10 +235,18 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
                 <div className="rounded-3xl border border-stone-200 bg-stone-50 p-4" key={event.id}>
                   {event.imageUrl ? (
                     <div className="relative mb-3 aspect-[5/3] w-full max-w-xs overflow-hidden rounded-2xl bg-stone-200">
-                      <Image alt={`${event.title} event image`} className="object-cover" fill sizes="240px" src={event.imageUrl} />
+                      <Image
+                        alt={`${event.title} event image`}
+                        className="object-cover"
+                        fill
+                        sizes="240px"
+                        src={event.imageUrl}
+                        unoptimized={isTeacherUpcomingEventImageApiUrl(event.imageUrl)}
+                      />
                     </div>
                   ) : null}
                   <p className="font-medium">{event.title}</p>
+                  <p className="mt-1 text-xs font-medium uppercase tracking-wide text-teal-700">{event.eventType}</p>
                   {event.hostName ? <p className="mt-1 text-sm text-stone-500">{event.hostName}</p> : null}
                   {event.address ? <p className="mt-1 text-sm text-stone-600">{event.address}</p> : null}
                   {event.eventTime ? <p className="mt-1 text-sm text-stone-600">{event.eventTime}</p> : null}

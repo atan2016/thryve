@@ -6,6 +6,7 @@ import { useRef } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { HomepageEventCard } from "@/lib/types";
+import { isTeacherUpcomingEventImageApiUrl } from "@/lib/teacher-upcoming-event-image";
 
 const categoryClassNames: Record<string, string> = {
   Retreat: "bg-teal-50 text-teal-700 ring-1 ring-teal-100",
@@ -161,6 +162,7 @@ export function FeaturedEventsCarousel({
                 fill
                 className="object-cover"
                 sizes="(max-width: 640px) 90vw, 280px"
+                unoptimized={isTeacherUpcomingEventImageApiUrl(event.imageSrc)}
               />
               {event.featuredLabel ? (
                 <span className="absolute left-3 top-3 inline-flex rounded-full bg-[#4DB3AA] px-3 py-1 text-[11px] font-semibold text-white shadow-sm">

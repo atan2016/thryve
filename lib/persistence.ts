@@ -3,6 +3,8 @@ import { createHash, randomBytes } from "crypto";
 import { endOfMonth, format, isBefore, isWithinInterval, startOfDay, startOfMonth } from "date-fns";
 
 import { formatEventCalendarDayUtc } from "@/lib/format";
+import { resolveTeacherUpcomingEventImageUrl } from "@/lib/teacher-upcoming-event-image";
+import { normalizeTeacherUpcomingEventType } from "@/lib/teacher-upcoming-event-types";
 import { isUpcomingTeacherEventDateEligible } from "@/lib/teacher-upcoming-events";
 import { Prisma, CertificationSubmissionStatus, DiscussionAuthorRole, Role, StoryMediaType } from "@prisma/client";
 
@@ -137,7 +139,7 @@ const CATEGORY_IMAGE_FALLBACKS: Record<string, string[]> = {
   ],
   Workshop: [
     "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1200&q=80&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1545389336-cf090694435e?w=1200&q=80&auto=format&fit=crop",
+    "/assets/images/csm-ytt-graduation-card.png",
     "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop"
   ]
 };
@@ -477,22 +479,31 @@ function mapUpcomingEvent(event: {
   teacherId: string;
   hostId?: string | null;
   title: string;
+  eventType?: string | null;
   hostName: string | null;
   address?: string | null;
   eventTime?: string | null;
   imageUrl?: string | null;
+  eventImageMimeType?: string | null;
   eventUrl: string | null;
   eventDate: Date | null;
 }): TeacherUpcomingEvent {
+  const imageUrl = resolveTeacherUpcomingEventImageUrl({
+    id: event.id,
+    imageUrl: event.imageUrl,
+    eventImageMimeType: event.eventImageMimeType
+  });
+
   return {
     id: event.id,
     teacherId: event.teacherId,
     hostId: event.hostId ?? undefined,
     title: event.title,
+    eventType: normalizeTeacherUpcomingEventType(event.eventType),
     hostName: event.hostName ?? undefined,
     address: event.address ?? undefined,
     eventTime: event.eventTime ?? undefined,
-    imageUrl: event.imageUrl?.trim() ? event.imageUrl.trim() : undefined,
+    imageUrl,
     eventUrl: event.eventUrl?.trim() ? event.eventUrl.trim() : undefined,
     eventDate: event.eventDate?.toISOString()
   };
@@ -643,6 +654,7 @@ function hydratePersistedTeacher(teacher: {
     id: string;
     teacherId: string;
     title: string;
+    eventType?: string | null;
     hostName: string | null;
     address?: string | null;
     eventTime?: string | null;
@@ -770,10 +782,12 @@ const teacherRelationSelect = {
       id: true,
       teacherId: true,
       title: true,
+      eventType: true,
       hostName: true,
       address: true,
       eventTime: true,
       imageUrl: true,
+      eventImageMimeType: true,
       eventUrl: true,
       eventDate: true
     },
@@ -878,6 +892,7 @@ const teacherRelationSelectWithoutUpcomingEventLocation = {
       id: true,
       teacherId: true,
       title: true,
+      eventType: true,
       hostName: true,
       eventUrl: true,
       eventDate: true
@@ -911,6 +926,119 @@ const legacyTeacherSelectWithoutCalendarAndUpcomingLocation = {
   ...legacyTeacherBaseSelect,
   ...teacherRelationSelectWithoutUpcomingEventLocation
 };
+
+/**
+ * Older generated Prisma clients (before `eventType` / DB image columns on `TeacherUpcomingEvent`)
+ * reject those fields in `select`. Mirror the normal teacher selects but omit them until
+ * `prisma generate` matches `schema.prisma`.
+ */
+const teacherRelationSelectStalePrismaClient = {
+  ...teacherRelationSelect,
+  upcomingEvents: {
+    ...teacherRelationSelect.upcomingEvents,
+    select: {
+      id: true,
+      teacherId: true,
+      title: true,
+      hostName: true,
+      address: true,
+      eventTime: true,
+      imageUrl: true,
+      eventUrl: true,
+      eventDate: true
+    }
+  }
+};
+
+const teacherRelationSelectWithoutUpcomingEventLocationStalePrismaClient = {
+  ...teacherRelationSelectWithoutUpcomingEventLocation,
+  upcomingEvents: {
+    ...teacherRelationSelectWithoutUpcomingEventLocation.upcomingEvents,
+    select: {
+      id: true,
+      teacherId: true,
+      title: true,
+      hostName: true,
+      eventUrl: true,
+      eventDate: true
+    }
+  }
+};
+
+const teacherSelectStalePrismaClient = {
+  ...teacherBaseSelect,
+  ...teacherRelationSelectStalePrismaClient,
+  calendarSessions: {
+    orderBy: { startsAt: "asc" as const }
+  }
+};
+
+const teacherSelectWithoutCalendarStalePrismaClient = {
+  ...teacherBaseSelect,
+  ...teacherRelationSelectStalePrismaClient
+};
+
+const teacherSelectWithoutUpcomingLocationStalePrismaClient = {
+  ...teacherBaseSelect,
+  ...teacherRelationSelectWithoutUpcomingEventLocationStalePrismaClient,
+  calendarSessions: {
+    orderBy: { startsAt: "asc" as const }
+  }
+};
+
+const teacherSelectWithoutCalendarAndUpcomingLocationStalePrismaClient = {
+  ...teacherBaseSelect,
+  ...teacherRelationSelectWithoutUpcomingEventLocationStalePrismaClient
+};
+
+const legacyTeacherSelectStalePrismaClient = {
+  ...legacyTeacherBaseSelect,
+  ...teacherRelationSelectStalePrismaClient,
+  calendarSessions: {
+    orderBy: { startsAt: "asc" as const }
+  }
+};
+
+const legacyTeacherSelectWithoutUpcomingLocationStalePrismaClient = {
+  ...legacyTeacherBaseSelect,
+  ...teacherRelationSelectWithoutUpcomingEventLocationStalePrismaClient,
+  calendarSessions: {
+    orderBy: { startsAt: "asc" as const }
+  }
+};
+
+const legacyTeacherSelectWithoutCalendarStalePrismaClient = {
+  ...legacyTeacherBaseSelect,
+  ...teacherRelationSelectStalePrismaClient
+};
+
+const legacyTeacherSelectWithoutCalendarAndUpcomingLocationStalePrismaClient = {
+  ...legacyTeacherBaseSelect,
+  ...teacherRelationSelectWithoutUpcomingEventLocationStalePrismaClient
+};
+
+function isStalePrismaTeacherUpcomingEventTypeField(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientValidationError &&
+    error.message.includes("TeacherUpcomingEvent") &&
+    (error.message.includes("Unknown field `eventType`") || error.message.includes("Unknown argument `eventType`"))
+  );
+}
+
+function isStalePrismaTeacherUpcomingEventImageMimeField(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientValidationError &&
+    error.message.includes("TeacherUpcomingEvent") &&
+    (error.message.includes("Unknown field `eventImageMimeType`") ||
+      error.message.includes("Unknown argument `eventImageMimeType`") ||
+      error.message.includes("Unknown field `eventImage`") ||
+      error.message.includes("Unknown argument `eventImage`"))
+  );
+}
+
+function isStalePrismaTeacherUpcomingEventSchemaField(error: unknown) {
+  return isStalePrismaTeacherUpcomingEventTypeField(error) || isStalePrismaTeacherUpcomingEventImageMimeField(error);
+}
 
 function isMissingCalendarSessionTable(error: unknown) {
   return (
@@ -990,7 +1118,13 @@ function isMissingTeacherUpcomingEventLocationColumns(error: unknown) {
       message.includes("Unknown argument `address`") ||
       message.includes("Unknown argument `eventTime`") ||
       message.includes("Unknown field `imageUrl`") ||
-      message.includes("Unknown argument `imageUrl`")
+      message.includes("Unknown argument `imageUrl`") ||
+      message.includes("Unknown field `eventImage`") ||
+      message.includes("Unknown argument `eventImage`") ||
+      message.includes("Unknown field `eventImageMimeType`") ||
+      message.includes("Unknown argument `eventImageMimeType`") ||
+      message.includes("Unknown field `eventType`") ||
+      message.includes("Unknown argument `eventType`")
     );
   }
 
@@ -1005,6 +1139,9 @@ function isMissingTeacherUpcomingEventLocationColumns(error: unknown) {
       message.includes("address") ||
       message.includes("eventTime") ||
       message.includes("imageUrl") ||
+      message.includes("eventImage") ||
+      message.includes("eventImageMimeType") ||
+      message.includes("eventType") ||
       message.includes("hostId")
     );
   }
@@ -1158,10 +1295,12 @@ function mapPersonalizedEventCard(
     teacherId: string;
     hostId: string | null;
     title: string;
+    eventType?: string | null;
     hostName: string | null;
     address?: string | null;
     eventTime?: string | null;
     imageUrl?: string | null;
+    eventImageMimeType?: string | null;
     eventUrl: string | null;
     eventDate: Date | null;
     createdAt: Date;
@@ -1192,7 +1331,10 @@ function mapPersonalizedEventCard(
     event.host?.name?.trim() ||
     event.teacher.studioName?.trim() ||
     event.teacher.fullName.trim();
-  const category = inferHomepageEventCategory(event.title, hostName);
+  const category =
+    event.eventType != null && String(event.eventType).trim() !== ""
+      ? normalizeTeacherUpcomingEventType(event.eventType)
+      : inferHomepageEventCategory(event.title, hostName);
   const linkUrl = event.eventUrl?.trim();
   const href = linkUrl && /^https?:\/\//i.test(linkUrl) ? linkUrl : `/teachers/${event.teacher.slug}`;
   const external = Boolean(linkUrl && /^https?:\/\//i.test(linkUrl));
@@ -1224,7 +1366,11 @@ function mapPersonalizedEventCard(
       category,
       event.teacher,
       event.host,
-      event.imageUrl
+      resolveTeacherUpcomingEventImageUrl({
+        id: event.id,
+        imageUrl: event.imageUrl,
+        eventImageMimeType: event.eventImageMimeType
+      })
     ),
     imageAlt: `${event.title} event image`,
     category,
@@ -1452,10 +1598,12 @@ async function listPersistedHomepageEvents(options: {
       id: true,
       teacherId: true,
       title: true,
+      eventType: true,
       hostName: true,
       address: true,
       eventTime: true,
       imageUrl: true,
+      eventImageMimeType: true,
       eventUrl: true,
       eventDate: true,
       createdAt: true,
@@ -1484,7 +1632,36 @@ async function listPersistedHomepageEvents(options: {
       id: true,
       teacherId: true,
       title: true,
+      eventType: true,
       hostName: true,
+      imageUrl: true,
+      eventImageMimeType: true,
+      eventUrl: true,
+      eventDate: true,
+      createdAt: true,
+      teacher: selectWithLocation.teacher
+    };
+
+    const selectWithLocationStalePrismaClient = {
+      id: true,
+      teacherId: true,
+      title: true,
+      hostName: true,
+      address: true,
+      eventTime: true,
+      imageUrl: true,
+      eventUrl: true,
+      eventDate: true,
+      createdAt: true,
+      teacher: selectWithLocation.teacher
+    };
+
+    const selectWithoutLocationStalePrismaClient = {
+      id: true,
+      teacherId: true,
+      title: true,
+      hostName: true,
+      imageUrl: true,
       eventUrl: true,
       eventDate: true,
       createdAt: true,
@@ -1500,16 +1677,36 @@ async function listPersistedHomepageEvents(options: {
         select: selectWithLocation
       });
     } catch (error) {
-      if (!isMissingTeacherUpcomingEventLocationColumns(error)) {
+      if (isStalePrismaTeacherUpcomingEventSchemaField(error)) {
+        events = await db.teacherUpcomingEvent.findMany({
+          where,
+          orderBy,
+          take,
+          select: selectWithLocationStalePrismaClient
+        });
+      } else if (isMissingTeacherUpcomingEventLocationColumns(error)) {
+        try {
+          events = await db.teacherUpcomingEvent.findMany({
+            where,
+            orderBy,
+            take,
+            select: selectWithoutLocation
+          });
+        } catch (error2) {
+          if (isStalePrismaTeacherUpcomingEventSchemaField(error2)) {
+            events = await db.teacherUpcomingEvent.findMany({
+              where,
+              orderBy,
+              take,
+              select: selectWithoutLocationStalePrismaClient
+            });
+          } else {
+            throw error2;
+          }
+        }
+      } else {
         throw error;
       }
-
-      events = await db.teacherUpcomingEvent.findMany({
-        where,
-        orderBy,
-        take,
-        select: selectWithoutLocation
-      });
     }
 
     const followedTeacherIds = new Set(options.followedTeacherIds ?? []);
@@ -1580,10 +1777,12 @@ async function listPersistedHomepageEvents(options: {
       teacherId: true,
       hostId: true,
       title: true,
+      eventType: true,
       hostName: true,
       address: true,
       eventTime: true,
       imageUrl: true,
+      eventImageMimeType: true,
       eventUrl: true,
       eventDate: true,
       createdAt: true,
@@ -1596,7 +1795,40 @@ async function listPersistedHomepageEvents(options: {
       teacherId: true,
       hostId: true,
       title: true,
+      eventType: true,
       hostName: true,
+      imageUrl: true,
+      eventImageMimeType: true,
+      eventUrl: true,
+      eventDate: true,
+      createdAt: true,
+      teacher: { select: teacherCardSelect },
+      host: { select: hostCardSelect }
+    };
+
+    const selectWithLocationAndHostStalePrismaClient = {
+      id: true,
+      teacherId: true,
+      hostId: true,
+      title: true,
+      hostName: true,
+      address: true,
+      eventTime: true,
+      imageUrl: true,
+      eventUrl: true,
+      eventDate: true,
+      createdAt: true,
+      teacher: { select: teacherCardSelect },
+      host: { select: hostCardSelect }
+    };
+
+    const selectWithoutLocationAndHostStalePrismaClient = {
+      id: true,
+      teacherId: true,
+      hostId: true,
+      title: true,
+      hostName: true,
+      imageUrl: true,
       eventUrl: true,
       eventDate: true,
       createdAt: true,
@@ -1613,16 +1845,36 @@ async function listPersistedHomepageEvents(options: {
         select: selectWithLocationAndHost
       });
     } catch (innerError) {
-      if (!isMissingTeacherUpcomingEventLocationColumns(innerError)) {
+      if (isStalePrismaTeacherUpcomingEventSchemaField(innerError)) {
+        events = await db.teacherUpcomingEvent.findMany({
+          where,
+          orderBy,
+          take,
+          select: selectWithLocationAndHostStalePrismaClient
+        });
+      } else if (isMissingTeacherUpcomingEventLocationColumns(innerError)) {
+        try {
+          events = await db.teacherUpcomingEvent.findMany({
+            where,
+            orderBy,
+            take,
+            select: selectWithoutLocationAndHost
+          });
+        } catch (innerError2) {
+          if (isStalePrismaTeacherUpcomingEventSchemaField(innerError2)) {
+            events = await db.teacherUpcomingEvent.findMany({
+              where,
+              orderBy,
+              take,
+              select: selectWithoutLocationAndHostStalePrismaClient
+            });
+          } else {
+            throw innerError2;
+          }
+        }
+      } else {
         throw innerError;
       }
-
-      events = await db.teacherUpcomingEvent.findMany({
-        where,
-        orderBy,
-        take,
-        select: selectWithoutLocationAndHost
-      });
     }
 
     const followedTeacherIds = new Set(options.followedTeacherIds ?? []);
@@ -2434,6 +2686,46 @@ export async function ensureTeacherProfile(userId: string, fullName: string) {
       db.teacher.findUnique({
         where: { userId },
         select: legacyTeacherSelectWithoutCalendarAndUpcomingLocation
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: teacherSelectStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: teacherSelectWithoutUpcomingLocationStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: teacherSelectWithoutCalendarStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: teacherSelectWithoutCalendarAndUpcomingLocationStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: legacyTeacherSelectStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: legacyTeacherSelectWithoutUpcomingLocationStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: legacyTeacherSelectWithoutCalendarStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: legacyTeacherSelectWithoutCalendarAndUpcomingLocationStalePrismaClient
       })
   ]);
 
@@ -2517,6 +2809,46 @@ export async function getTeacherByUserId(userId: string) {
       db.teacher.findUnique({
         where: { userId },
         select: legacyTeacherSelectWithoutCalendarAndUpcomingLocation
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: teacherSelectStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: teacherSelectWithoutUpcomingLocationStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: teacherSelectWithoutCalendarStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: teacherSelectWithoutCalendarAndUpcomingLocationStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: legacyTeacherSelectStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: legacyTeacherSelectWithoutUpcomingLocationStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: legacyTeacherSelectWithoutCalendarStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: legacyTeacherSelectWithoutCalendarAndUpcomingLocationStalePrismaClient
       })
   ]);
 
@@ -2564,6 +2896,46 @@ export async function getTeacherBySlug(slug: string) {
       db.teacher.findFirst({
         where: { slug, published: true },
         select: legacyTeacherSelectWithoutCalendarAndUpcomingLocation
+      }),
+    () =>
+      db.teacher.findFirst({
+        where: { slug, published: true },
+        select: teacherSelectStalePrismaClient
+      }),
+    () =>
+      db.teacher.findFirst({
+        where: { slug, published: true },
+        select: teacherSelectWithoutUpcomingLocationStalePrismaClient
+      }),
+    () =>
+      db.teacher.findFirst({
+        where: { slug, published: true },
+        select: teacherSelectWithoutCalendarStalePrismaClient
+      }),
+    () =>
+      db.teacher.findFirst({
+        where: { slug, published: true },
+        select: teacherSelectWithoutCalendarAndUpcomingLocationStalePrismaClient
+      }),
+    () =>
+      db.teacher.findFirst({
+        where: { slug, published: true },
+        select: legacyTeacherSelectStalePrismaClient
+      }),
+    () =>
+      db.teacher.findFirst({
+        where: { slug, published: true },
+        select: legacyTeacherSelectWithoutUpcomingLocationStalePrismaClient
+      }),
+    () =>
+      db.teacher.findFirst({
+        where: { slug, published: true },
+        select: legacyTeacherSelectWithoutCalendarStalePrismaClient
+      }),
+    () =>
+      db.teacher.findFirst({
+        where: { slug, published: true },
+        select: legacyTeacherSelectWithoutCalendarAndUpcomingLocationStalePrismaClient
       })
   ]);
 
@@ -2623,6 +2995,54 @@ export async function listTeachers() {
       db.teacher.findMany({
         where: { published: true },
         select: legacyTeacherSelectWithoutCalendarAndUpcomingLocation,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        where: { published: true },
+        select: teacherSelectStalePrismaClient,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        where: { published: true },
+        select: teacherSelectWithoutUpcomingLocationStalePrismaClient,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        where: { published: true },
+        select: teacherSelectWithoutCalendarStalePrismaClient,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        where: { published: true },
+        select: teacherSelectWithoutCalendarAndUpcomingLocationStalePrismaClient,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        where: { published: true },
+        select: legacyTeacherSelectStalePrismaClient,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        where: { published: true },
+        select: legacyTeacherSelectWithoutUpcomingLocationStalePrismaClient,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        where: { published: true },
+        select: legacyTeacherSelectWithoutCalendarStalePrismaClient,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        where: { published: true },
+        select: legacyTeacherSelectWithoutCalendarAndUpcomingLocationStalePrismaClient,
         orderBy: { fullName: "asc" }
       })
   ]);
@@ -2810,6 +3230,46 @@ export async function submitTeacherImportOnboarding(teacherId: string, input: Te
       db.teacher.findUnique({
         where: { id: teacherId },
         select: legacyTeacherSelectWithoutCalendarAndUpcomingLocation
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
+        select: teacherSelectStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
+        select: teacherSelectWithoutUpcomingLocationStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
+        select: teacherSelectWithoutCalendarStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
+        select: teacherSelectWithoutCalendarAndUpcomingLocationStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
+        select: legacyTeacherSelectStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
+        select: legacyTeacherSelectWithoutUpcomingLocationStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
+        select: legacyTeacherSelectWithoutCalendarStalePrismaClient
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
+        select: legacyTeacherSelectWithoutCalendarAndUpcomingLocationStalePrismaClient
       })
   ]);
 
@@ -2890,9 +3350,12 @@ export async function skipTeacherImportOnboarding(teacherId: string) {
 
 export async function addTeacherUpcomingEvent(
   teacherId: string,
-  event: Pick<TeacherUpcomingEvent, "title" | "hostName" | "eventDate" | "address" | "eventTime"> & {
+  event: Pick<TeacherUpcomingEvent, "title" | "hostName" | "eventDate" | "address" | "eventTime" | "eventType"> & {
     eventUrl?: string;
+    /** Legacy string URL/path (e.g. old disk uploads). Prefer `eventImage`. */
     imageUrl?: string;
+    /** When set, image bytes are stored on `TeacherUpcomingEvent` and served from `/api/teacher-upcoming-events/[id]/image`. */
+    eventImage?: { bytes: Buffer; mimeType: string };
   }
 ) {
   const teacher = await db.teacher.findUnique({
@@ -2929,53 +3392,77 @@ export async function addTeacherUpcomingEvent(
   const eventDateValue = event.eventDate ? new Date(event.eventDate) : null;
   const hostId = host?.id ?? null;
   const imageUrlForDb = event.imageUrl?.trim() || null;
+  const fileImage = event.eventImage?.bytes?.length ? event.eventImage : null;
+  const normalizedEventType = normalizeTeacherUpcomingEventType(event.eventType);
 
-  const newEventId = () => `event-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const eventId = `event-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
-  type Variant = { host: boolean; location: boolean; image: boolean };
+  type Variant = { host: boolean; location: boolean; dbImage: boolean; legacyImageUrl: boolean };
   const variants: Variant[] = [];
+
+  const imageModes: Array<{ db: boolean; url: boolean }> = [];
+  if (fileImage) {
+    imageModes.push({ db: true, url: false }, { db: false, url: false });
+  } else if (imageUrlForDb) {
+    imageModes.push({ db: false, url: true }, { db: false, url: false });
+  } else {
+    imageModes.push({ db: false, url: false });
+  }
+
   for (const hostFlag of [true, false]) {
     for (const locationFlag of [true, false]) {
-      for (const imageFlag of [true, false]) {
-        if (imageFlag && !imageUrlForDb) continue;
-        variants.push({ host: hostFlag, location: locationFlag, image: imageFlag });
+      for (const mode of imageModes) {
+        variants.push({
+          host: hostFlag,
+          location: locationFlag,
+          dbImage: mode.db,
+          legacyImageUrl: mode.url
+        });
       }
     }
   }
 
   variants.sort((a, b) => {
-    const score = (v: Variant) => Number(v.host) + Number(v.location) + Number(v.image);
+    const score = (v: Variant) =>
+      Number(v.host) + Number(v.location) + Number(v.dbImage) + Number(v.legacyImageUrl);
     const diff = score(b) - score(a);
     if (diff !== 0) return diff;
     if (a.host !== b.host) return Number(b.host) - Number(a.host);
     if (a.location !== b.location) return Number(b.location) - Number(a.location);
-    return Number(b.image) - Number(a.image);
+    if (a.dbImage !== b.dbImage) return Number(b.dbImage) - Number(a.dbImage);
+    return Number(a.legacyImageUrl) - Number(b.legacyImageUrl);
   });
 
   let lastError: unknown;
   for (const variant of variants) {
-    try {
-      return await db.teacherUpcomingEvent.create({
-        data: {
-          id: newEventId(),
-          teacherId: teacher.id,
-          ...(variant.host ? { hostId } : {}),
-          title,
-          hostName,
-          ...(variant.location ? { address, eventTime } : {}),
-          ...(variant.image && imageUrlForDb ? { imageUrl: imageUrlForDb } : {}),
-          eventUrl: eventUrlValue,
-          eventDate: eventDateValue
+    for (const withEventTypeField of [true, false]) {
+      try {
+        return await db.teacherUpcomingEvent.create({
+          data: {
+            id: eventId,
+            teacherId: teacher.id,
+            ...(variant.host ? { hostId } : {}),
+            title,
+            hostName,
+            ...(variant.location ? { address, eventTime } : {}),
+            ...(variant.dbImage && fileImage
+              ? { eventImage: fileImage.bytes, eventImageMimeType: fileImage.mimeType }
+              : {}),
+            ...(variant.legacyImageUrl && imageUrlForDb ? { imageUrl: imageUrlForDb } : {}),
+            eventUrl: eventUrlValue,
+            eventDate: eventDateValue,
+            ...(withEventTypeField ? { eventType: normalizedEventType } : {})
+          }
+        });
+      } catch (error) {
+        lastError = error;
+        const missingColumn =
+          error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2022";
+        if (error instanceof Prisma.PrismaClientValidationError || missingColumn) {
+          continue;
         }
-      });
-    } catch (error) {
-      lastError = error;
-      const missingColumn =
-        error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2022";
-      if (error instanceof Prisma.PrismaClientValidationError || missingColumn) {
-        continue;
+        throw error;
       }
-      throw error;
     }
   }
 
@@ -3255,6 +3742,46 @@ export async function listTeachersForAdmin() {
     () =>
       db.teacher.findMany({
         select: legacyTeacherSelectWithoutCalendarAndUpcomingLocation,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        select: teacherSelectStalePrismaClient,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        select: teacherSelectWithoutUpcomingLocationStalePrismaClient,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        select: teacherSelectWithoutCalendarStalePrismaClient,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        select: teacherSelectWithoutCalendarAndUpcomingLocationStalePrismaClient,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        select: legacyTeacherSelectStalePrismaClient,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        select: legacyTeacherSelectWithoutUpcomingLocationStalePrismaClient,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        select: legacyTeacherSelectWithoutCalendarStalePrismaClient,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        select: legacyTeacherSelectWithoutCalendarAndUpcomingLocationStalePrismaClient,
         orderBy: { fullName: "asc" }
       })
   ]);

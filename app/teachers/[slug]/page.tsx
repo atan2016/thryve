@@ -13,6 +13,7 @@ import { contactTeacherAction, toggleTeacherFollowAction } from "@/lib/actions";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getTeacherBySlug, getTeacherByUserId, isTeacherFollowedByUser } from "@/lib/persistence";
 import { getRecaptchaSiteKey } from "@/lib/recaptcha";
+import { isTeacherUpcomingEventImageApiUrl } from "@/lib/teacher-upcoming-event-image";
 import type { TeacherUpcomingEvent } from "@/lib/types";
 
 type TeacherProfileProps = {
@@ -405,6 +406,7 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
                                   fill
                                   sizes="112px"
                                   src={event.imageUrl}
+                                  unoptimized={isTeacherUpcomingEventImageApiUrl(event.imageUrl)}
                                 />
                               </div>
                             ) : null}
@@ -416,6 +418,9 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
                               </div>
                             ) : null}
                             <div>
+                              {event.eventType ? (
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-teal-800">{event.eventType}</p>
+                              ) : null}
                               <p className="font-semibold text-[#0c3d3a]">{event.title}</p>
                               {event.hostName ? <p className="text-sm text-stone-600">{event.hostName}</p> : null}
                               {event.address ? <p className="text-sm text-stone-600">{event.address}</p> : null}

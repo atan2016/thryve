@@ -5,6 +5,7 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { differenceInMinutes } from "date-fns";
 
 import { formatEventCalendarDayUtc } from "@/lib/format";
+import { isTeacherUpcomingEventImageApiUrl } from "@/lib/teacher-upcoming-event-image";
 
 import { HoursBookedLabel } from "@/components/hours-booked-label";
 import { MetricCard } from "@/components/metric-card";
@@ -46,6 +47,7 @@ type TeacherProfileEditorProps = {
     upcomingEvents?: Array<{
       id: string;
       title: string;
+      eventType?: string;
       hostName?: string;
       address?: string;
       eventTime?: string;
@@ -394,6 +396,9 @@ export function TeacherProfileEditor({ action, teacher }: TeacherProfileEditorPr
                     {teacher.upcomingEvents.map((event) => (
                       <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4" key={event.id}>
                         <p className="text-sm font-medium text-emerald-700">Upcoming event</p>
+                        {event.eventType ? (
+                          <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-teal-800">{event.eventType}</p>
+                        ) : null}
                         {event.imageUrl ? (
                           <div className="relative mt-2 aspect-[5/3] w-full overflow-hidden rounded-xl bg-stone-200">
                             <Image
@@ -402,6 +407,7 @@ export function TeacherProfileEditor({ action, teacher }: TeacherProfileEditorPr
                               fill
                               sizes="(max-width: 768px) 100vw, 320px"
                               src={event.imageUrl}
+                              unoptimized={isTeacherUpcomingEventImageApiUrl(event.imageUrl)}
                             />
                           </div>
                         ) : null}

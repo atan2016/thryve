@@ -193,6 +193,7 @@ Whether you need support in a seat, depth in stillness, or rhythm in movement, s
         teacherId: "teacher-3",
         hostId: "host-hot-yoga-plus-daly-city",
         title: "Weekly teaching schedule",
+        eventType: "Workshop",
         hostName: "Hot Yoga Plus Daly City",
         eventUrl: "https://www.hotyogaplus-dc.com/bikram-hot-yoga-daly-city-class-schedule/"
       }
@@ -229,6 +230,7 @@ Robin teaches in homes, studios, schools, Fortune 500 workplaces, and community 
         teacherId: "teacher-4",
         hostId: "host-good-living-health",
         title: "Embodied Yoga, Pilates and Meditation",
+        eventType: "Workshop",
         hostName: "Good Living Health",
         eventUrl: "https://www.robinjaffe.love/_files/ugd/79180e_5c5798a1722d4638b9e44c0e1094d254.pdf",
         eventDate: makeSlot("event-robin-good-living-slot", "teacher-4", 3, 12, 0.75).startsAt
@@ -238,6 +240,7 @@ Robin teaches in homes, studios, schools, Fortune 500 workplaces, and community 
         teacherId: "teacher-4",
         hostId: "host-sunporch-yoga",
         title: "Candlelight Yin Yoga",
+        eventType: "Somatic Healing",
         hostName: "SunPorch Yoga",
         eventUrl: "https://fitlocalfit.com/Services/Sunporch-Yoga",
         eventDate: makeSlot("event-robin-sunporch-slot", "teacher-4", 3, 18).startsAt
@@ -247,6 +250,7 @@ Robin teaches in homes, studios, schools, Fortune 500 workplaces, and community 
         teacherId: "teacher-4",
         hostId: "host-vennu-yoga",
         title: "Trio3: Gentle Yoga Pilates and Meditation",
+        eventType: "Workshop",
         hostName: "Vennu Yoga",
         eventUrl: "https://vennu-studio.com/book-a-class",
         eventDate: makeSlot("event-robin-vennu-slot", "teacher-4", 1, 11).startsAt
@@ -286,6 +290,7 @@ She helped create both the Group Fitness and Yoga Teacher Training certificates 
         id: "event-denaya-vinyasa",
         teacherId: "teacher-5",
         title: "Vinyasa Flow Yoga at College of San Mateo",
+        eventType: "Workshop",
         hostName: "College of San Mateo",
         eventUrl: "https://collegeofsanmateo.edu/yoga/faculty.asp"
       },
@@ -293,6 +298,7 @@ She helped create both the Group Fitness and Yoga Teacher Training certificates 
         id: "event-denaya-training",
         teacherId: "teacher-5",
         title: "200-Hour Yoga Teacher Training Program",
+        eventType: "Workshop",
         hostName: "College of San Mateo",
         eventUrl: "https://collegeofsanmateo.edu/yoga/"
       }
@@ -327,6 +333,7 @@ Beyond weekly studio classes, Blu is involved with the College of San Mateo yoga
         teacherId: "teacher-6",
         hostId: "host-peacebank-yoga-studio",
         title: "4BEAT Vinyasa",
+        eventType: "Workshop",
         hostName: "Peacebank Yoga Studio",
         eventUrl: "https://peacebank-yoga.recess.tv/embed/checkout/explore?displayClass=list&hideMenu=true&splitLiveClassInSeparateTabs=false&class_type=LIVE&displayDays=5",
         eventDate: makeSlot("event-blu-peacebank-evening-slot", "teacher-6", 2, 17).startsAt
@@ -336,6 +343,7 @@ Beyond weekly studio classes, Blu is involved with the College of San Mateo yoga
         teacherId: "teacher-6",
         hostId: "host-peacebank-yoga-studio",
         title: "4BEAT Vinyasa",
+        eventType: "Workshop",
         hostName: "Peacebank Yoga Studio",
         eventUrl: "https://peacebank-yoga.recess.tv/embed/checkout/explore?displayClass=list&hideMenu=true&splitLiveClassInSeparateTabs=false&class_type=LIVE&displayDays=5",
         eventDate: makeSlot("event-blu-peacebank-morning-slot", "teacher-6", 3, 9).startsAt
@@ -345,6 +353,7 @@ Beyond weekly studio classes, Blu is involved with the College of San Mateo yoga
         teacherId: "teacher-6",
         hostId: "host-yoga-source-palo-alto",
         title: "Heated Vinyasa",
+        eventType: "Workshop",
         hostName: "Yoga Source Palo Alto",
         eventUrl: "https://yogasource.com/schedule/",
         eventDate: makeSlot("event-blu-yogasource-heated-slot", "teacher-6", 6, 7).startsAt

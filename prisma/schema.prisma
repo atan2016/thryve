@@ -222,20 +222,24 @@ model TeacherStory {
 }
 
 model TeacherUpcomingEvent {
-  id        String    @id
-  teacherId String
-  hostId    String?
-  title     String
-  hostName  String?
-  address   String?
-  eventTime String?
-  imageUrl  String?
-  eventUrl  String?
-  eventDate DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  teacher   Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  host      EventHost? @relation(fields: [hostId], references: [id], onDelete: SetNull)
+  id                   String    @id
+  teacherId            String
+  hostId               String?
+  title                String
+  /// Homepage / profile category (Workshop, Retreat, Community, …).
+  eventType            String    @default("Workshop")
+  hostName             String?
+  address              String?
+  eventTime            String?
+  imageUrl             String?
+  eventImage           Bytes?
+  eventImageMimeType   String?
+  eventUrl             String?
+  eventDate            DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  teacher              Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  host                 EventHost? @relation(fields: [hostId], references: [id], onDelete: SetNull)
 
   @@index([hostId])
   @@index([teacherId, eventDate])
