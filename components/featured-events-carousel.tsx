@@ -115,8 +115,9 @@ export function FeaturedEventsCarousel({
           </span>
           <div>
             <h2 id="featured-events-heading" className="text-2xl font-semibold tracking-tight text-slate-900">
-              New Events This Week
+              Newly Added Events
             </h2>
+            <p className="mt-1 text-sm text-stone-500">Posted by teachers during this calendar month, newest listings first.</p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3 sm:pt-0.5">

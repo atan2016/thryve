@@ -152,6 +152,7 @@ export type TeacherUpcomingEvent = {
   hostName?: string;
   address?: string;
   eventTime?: string;
+  imageUrl?: string;
   eventUrl?: string;
   eventDate?: string;
 };
@@ -162,6 +163,8 @@ export type HomepageEventCard = {
   teacherSlug?: string;
   hostId?: string;
   sortDate?: string;
+  /** When the listing was added (DB `createdAt`); used for “new this month” ordering. */
+  listedAt?: string;
   title: string;
   dateRange: string;
   host: string;

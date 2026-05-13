@@ -229,6 +229,7 @@ model TeacherUpcomingEvent {
   hostName  String?
   address   String?
   eventTime String?
+  imageUrl  String?
   eventUrl  String?
   eventDate DateTime?
   createdAt DateTime  @default(now())

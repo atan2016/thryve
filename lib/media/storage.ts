@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 
 const PROFILE_UPLOAD_DIRECTORY = path.join(process.cwd(), "public", "uploads", "profile-photos");
+const EVENT_IMAGE_UPLOAD_DIRECTORY = path.join(process.cwd(), "public", "uploads", "event-images");
 const STORY_UPLOAD_DIRECTORY = path.join(process.cwd(), "public", "uploads", "story-media");
 const CERTIFICATION_UPLOAD_DIRECTORY = path.join(process.cwd(), "public", "uploads", "certifications");
 const RESUME_UPLOAD_DIRECTORY = path.join(process.cwd(), "public", "uploads", "resumes");
@@ -51,6 +52,27 @@ export async function saveProfileImage(file: File, teacherId: string) {
   await writeFile(filePath, buffer);
 
   return `/uploads/profile-photos/${fileName}`;
+}
+
+export async function saveEventImage(file: File, teacherId: string) {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Event image must be an image file.");
+  }
+
+  if (file.size > MAX_IMAGE_BYTES) {
+    throw new Error("Event image must be smaller than 5MB.");
+  }
+
+  await mkdir(EVENT_IMAGE_UPLOAD_DIRECTORY, { recursive: true });
+
+  const extension = getFileExtension(file);
+  const fileName = `${teacherId}-event-${Date.now()}${extension}`;
+  const filePath = path.join(EVENT_IMAGE_UPLOAD_DIRECTORY, fileName);
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  await writeFile(filePath, buffer);
+
+  return `/uploads/event-images/${fileName}`;
 }
 
 export async function saveStoryMedia(file: File, teacherId: string) {

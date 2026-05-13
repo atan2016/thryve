@@ -7,7 +7,7 @@ import { consumePendingSignupVerification, createPendingSignupVerification } fro
 import { getCurrentUser, signIn, clearSession } from "@/lib/auth/session";
 import { bookCalendarSession, bookSession } from "@/lib/booking/book-session";
 import { purchaseCredits } from "@/lib/credits/purchase-credits";
-import { saveCertificationDocument, savePendingSignupResume, saveProfileImage, saveStoryMedia, saveTeacherResume } from "@/lib/media/storage";
+import { saveCertificationDocument, saveEventImage, savePendingSignupResume, saveProfileImage, saveStoryMedia, saveTeacherResume } from "@/lib/media/storage";
 import { schedulePayout } from "@/lib/payouts/payout-provider";
 import { extractResumeText, type TeacherImportSourceInput } from "@/lib/teacher-profile-import";
 import { verifyRecaptchaToken } from "@/lib/recaptcha";
@@ -44,6 +44,15 @@ import {
   updateTeacherProfile
 } from "@/lib/persistence";
 import type { DeliveryMode, ServiceCategory } from "@/lib/types";
+
+function readOptionalFormText(formData: FormData, key: string): string | undefined {
+  const value = formData.get(key);
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.replace(/\u00a0/g, " ").trim();
+  return trimmed || undefined;
+}
 
 async function requireCurrentTeacher() {
   const user = await getCurrentUser();
@@ -650,19 +659,38 @@ export async function addUpcomingEventAction(formData: FormData) {
   const rawUrl = String(formData.get("eventUrl") ?? "");
   const normalizedUrl = normalizeOptionalEventUrl(rawUrl);
 
+  const address = readOptionalFormText(formData, "address") ?? "";
+  const eventTime = readOptionalFormText(formData, "eventTime") ?? "";
+
   if (rawUrl.trim() && !normalizedUrl) {
     redirect("/dashboard/teacher/profile?error=invalid_event_url");
   }
 
+  if (!normalizedUrl && (!address || !eventTime)) {
+    redirect("/dashboard/teacher/profile?error=event_needs_address_and_time");
+  }
+
+  let imageUrl: string | undefined;
+  const eventImage = formData.get("eventImage");
+  if (eventImage instanceof File && eventImage.size > 0) {
+    try {
+      imageUrl = await saveEventImage(eventImage, teacher.id);
+    } catch {
+      redirect("/dashboard/teacher/profile?error=invalid_event_image");
+    }
+  }
+
   await addTeacherUpcomingEvent(teacher.id, {
     title: String(formData.get("title") ?? ""),
-    hostName: String(formData.get("hostName") ?? "").trim() || undefined,
-    address: String(formData.get("address") ?? "").trim() || undefined,
-    eventTime: String(formData.get("eventTime") ?? "").trim() || undefined,
+    hostName: readOptionalFormText(formData, "hostName"),
+    address: address || undefined,
+    eventTime: eventTime || undefined,
     eventUrl: normalizedUrl,
-    eventDate: String(formData.get("eventDate") ?? "").trim() || undefined
+    eventDate: String(formData.get("eventDate") ?? "").trim() || undefined,
+    imageUrl
   });
 
+  revalidatePath("/");
   revalidatePath("/dashboard/teacher/profile");
   revalidatePath(`/teachers/${teacher.slug}`);
   redirect("/dashboard/teacher/profile?saved=event-added");

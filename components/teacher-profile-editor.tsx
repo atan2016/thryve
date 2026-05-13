@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useEffect, useState, type ChangeEvent } from "react";
 import { differenceInMinutes } from "date-fns";
 
+import { formatEventCalendarDayUtc } from "@/lib/format";
+
 import { HoursBookedLabel } from "@/components/hours-booked-label";
 import { MetricCard } from "@/components/metric-card";
 import { TeacherAvatar } from "@/components/teacher-avatar";
@@ -49,6 +51,7 @@ type TeacherProfileEditorProps = {
       eventTime?: string;
       eventDate?: string;
       eventUrl?: string;
+      imageUrl?: string;
     }>;
     calendarSessions?: Array<{
       id: string;
@@ -391,12 +394,23 @@ export function TeacherProfileEditor({ action, teacher }: TeacherProfileEditorPr
                     {teacher.upcomingEvents.map((event) => (
                       <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4" key={event.id}>
                         <p className="text-sm font-medium text-emerald-700">Upcoming event</p>
+                        {event.imageUrl ? (
+                          <div className="relative mt-2 aspect-[5/3] w-full overflow-hidden rounded-xl bg-stone-200">
+                            <Image
+                              alt={`${event.title} event image`}
+                              className="object-cover"
+                              fill
+                              sizes="(max-width: 768px) 100vw, 320px"
+                              src={event.imageUrl}
+                            />
+                          </div>
+                        ) : null}
                         <h6 className="mt-2 font-semibold text-stone-900">{event.title}</h6>
                         {event.hostName ? <p className="mt-1 text-sm text-stone-500">{event.hostName}</p> : null}
                         {event.address ? <p className="mt-1 text-sm text-stone-600">{event.address}</p> : null}
                         {event.eventTime ? <p className="mt-1 text-sm text-stone-600">{event.eventTime}</p> : null}
                         <p className="mt-2 text-sm text-stone-600">
-                          {event.eventDate ? new Date(event.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Ongoing schedule"}
+                          {event.eventDate ? formatEventCalendarDayUtc(event.eventDate, { year: "numeric" }) ?? "Ongoing schedule" : "Ongoing schedule"}
                         </p>
                       </div>
                     ))}

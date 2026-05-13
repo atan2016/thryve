@@ -67,6 +67,16 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
             That event link does not look like a valid URL. Use https://… or leave the link blank.
           </div>
         ) : null}
+        {error === "event_needs_address_and_time" ? (
+          <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+            If you do not add an event link, include both an address and a time so students know when and where to go. If you add a link, address and time are optional.
+          </div>
+        ) : null}
+        {error === "invalid_event_image" ? (
+          <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+            That event image could not be saved. Use a JPG, PNG, GIF, or WebP under 5MB.
+          </div>
+        ) : null}
         {saved ? (
           <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {saved === "profile"
@@ -148,30 +158,45 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
         </div>
         <div className="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
           <h2 className="text-2xl font-semibold">Add an upcoming event</h2>
+          <p className="mt-2 text-sm text-stone-500">
+            When you add a schedule or event URL, address and time are optional. Without a link, add both address and time so the listing is still clear for students.
+          </p>
           <form action={addUpcomingEventAction} className="mt-6 space-y-4">
             <label className="block">
               <span className="mb-2 block text-sm font-medium">Course or event name</span>
               <input name="title" placeholder="Sunrise Flow, Weekend Retreat, Hot Pilates..." required />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-medium">Studio or event host</span>
-              <input name="hostName" placeholder="J8 Hot Pilates & Yoga, Community Center, Wellness Festival..." />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium">Address or location</span>
-              <input name="address" placeholder="Studio address, neighborhood, or Online" required />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium">Time</span>
-              <input name="eventTime" placeholder="e.g. 6:00 PM – 7:30 PM or Doors 5:45 PM" required />
+              <span className="mb-2 block text-sm font-medium">Venue or event host (optional)</span>
+              <input
+                autoComplete="organization"
+                name="hostName"
+                placeholder="e.g. The Rooftop Lounge, community center, festival name…"
+              />
+              <span className="mt-1 block text-xs text-stone-500">
+                Shown on listings when set. Use the venue name if the event is not at your own studio.
+              </span>
             </label>
             <label className="block">
               <span className="mb-2 block text-sm font-medium">Schedule or event URL (optional)</span>
               <input name="eventUrl" placeholder="https://… for tickets, RSVP, or details" type="text" />
             </label>
             <label className="block">
+              <span className="mb-2 block text-sm font-medium">Address or location (optional if URL above is set)</span>
+              <input name="address" placeholder="Studio address, neighborhood, or Online" />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Time (optional if URL above is set)</span>
+              <input name="eventTime" placeholder="e.g. 6:00 PM – 7:30 PM or Doors 5:45 PM" />
+            </label>
+            <label className="block">
               <span className="mb-2 block text-sm font-medium">Date (optional for one-time events)</span>
               <input name="eventDate" type="date" />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Event image (optional)</span>
+              <input accept="image/*" name="eventImage" type="file" />
+              <span className="mt-1 block text-xs text-stone-500">Shown on your public profile and homepage cards when available. Max 5MB.</span>
             </label>
             <button className="rounded-full bg-stone-900 px-5 py-3 text-white" type="submit">
               Add upcoming event
@@ -187,6 +212,11 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
             {teacher.upcomingEvents?.length ? (
               teacher.upcomingEvents.map((event) => (
                 <div className="rounded-3xl border border-stone-200 bg-stone-50 p-4" key={event.id}>
+                  {event.imageUrl ? (
+                    <div className="relative mb-3 aspect-[5/3] w-full max-w-xs overflow-hidden rounded-2xl bg-stone-200">
+                      <Image alt={`${event.title} event image`} className="object-cover" fill sizes="240px" src={event.imageUrl} />
+                    </div>
+                  ) : null}
                   <p className="font-medium">{event.title}</p>
                   {event.hostName ? <p className="mt-1 text-sm text-stone-500">{event.hostName}</p> : null}
                   {event.address ? <p className="mt-1 text-sm text-stone-600">{event.address}</p> : null}

@@ -3,15 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "postinstall": "prisma generate",
+    "postinstall": "node scripts/prisma-with-env.cjs generate",
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/prisma-with-env.cjs generate && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "db:generate": "prisma generate",
-    "db:push": "prisma db push",
-    "db:seed": "prisma db seed"
+    "db:generate": "node scripts/prisma-with-env.cjs generate",
+    "db:migrate": "node scripts/prisma-with-env.cjs migrate deploy",
+    "db:migrate:dev": "node scripts/prisma-with-env.cjs migrate dev",
+    "db:push": "node scripts/prisma-with-env.cjs db push",
+    "db:seed": "node scripts/prisma-with-env.cjs db seed"
   },
   "dependencies": {
     "@prisma/client": "6.16.0",

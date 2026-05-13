@@ -1,7 +1,8 @@
 import { createHash, randomBytes } from "crypto";
 
-import { format, startOfDay } from "date-fns";
+import { endOfMonth, format, isBefore, isWithinInterval, startOfDay, startOfMonth } from "date-fns";
 
+import { formatEventCalendarDayUtc } from "@/lib/format";
 import { isUpcomingTeacherEventDateEligible } from "@/lib/teacher-upcoming-events";
 import { Prisma, CertificationSubmissionStatus, DiscussionAuthorRole, Role, StoryMediaType } from "@prisma/client";
 
@@ -38,10 +39,22 @@ import type {
 const ASHLEY_LEGACY_SCHEDULE_URL = "https://www.j8hotpilatesyoga.com/about/classes/";
 const ASHLEY_CALENDLY_URL = "https://calendly.com/ashleyt-_z90/1-hour-meeting";
 const FOLLOWED_EVENT_LABEL = "From people you follow";
-const HOMEPAGE_EVENT_LIMIT = 5;
-const NO_FOLLOW_EVENT_LIMIT = 10;
+/** Final homepage carousel length after merge, filters, and sort by listing time. */
+const HOMEPAGE_EVENT_LIMIT = 36;
+/** Rows to read from DB before merge (must comfortably exceed final limit + curated count). */
+const HOMEPAGE_EVENT_QUERY_LIMIT = 320;
+/** Slightly longer list when signed-in user has no follows yet. */
+const NO_FOLLOW_EVENT_LIMIT = 42;
 function getTodayStart() {
   return startOfDay(new Date());
+}
+
+/** Teacher events listed on the homepage: rows created during the current calendar month. */
+function getHomepagePersistedNewListingsWhere(): Prisma.TeacherUpcomingEventWhereInput {
+  const now = new Date();
+  return {
+    createdAt: { gte: startOfDay(startOfMonth(now)), lte: endOfMonth(now) }
+  };
 }
 
 const ADMIN_CONTENT_SETTINGS_ID = "global";
@@ -49,79 +62,6 @@ const DEFAULT_ADMIN_CONTENT_FILTERS: AdminContentFilters = {
   hiddenEventKeywords: [],
   hiddenJobKeywords: []
 };
-const CURATED_FALLBACK_EVENTS: HomepageEventCard[] = [
-  {
-    id: "curated-evergreen-escape",
-    sortDate: "2026-05-20T00:00:00.000Z",
-    title: "4-day Nature, Yoga and Meditation Retreat near Palisade Tahoe",
-    dateRange: "May 20 - May 24",
-    host: "Evergreen Escape",
-    location: "Truckee, CA · Near Palisade Tahoe",
-    detail: "4 days · hosted mountain stay",
-    href: "https://www.vacasa.com/unit/1016469",
-    external: true,
-    imageSrc: "https://vacasa-units.imgix.net/pal/1016469/69a95d9a881be70011ad2fa3.jpg?w=1280&fit=max&q=80&auto=format",
-    imageAlt: "Evergreen Escape vacation home exterior and mountain setting in Truckee",
-    category: "Retreat",
-    attendees: 24
-  },
-  {
-    id: "curated-full-moon-restorative",
-    sortDate: "2026-05-16T00:00:00.000Z",
-    title: "Full Moon Restorative & Sound Journey",
-    dateRange: "May 16",
-    host: "Lotus House Yoga",
-    location: "Pasadena, CA",
-    detail: "7:00 PM · 2 hr workshop",
-    href: "/community",
-    imageSrc: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80&auto=format&fit=crop",
-    imageAlt: "People in a gentle yoga pose indoors",
-    category: "Somatic Healing",
-    attendees: 18
-  },
-  {
-    id: "curated-outdoor-vinyasa",
-    sortDate: "2026-05-16T08:30:00.000Z",
-    title: "Outdoor Vinyasa at Echo Park Lake",
-    dateRange: "Saturdays · May-Aug",
-    host: "Flow State Collective",
-    location: "Los Angeles, CA",
-    detail: "8:30 AM · donation-based",
-    href: "/community",
-    imageSrc: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&q=80&auto=format&fit=crop",
-    imageAlt: "Outdoor yoga class on mats in a park",
-    category: "Meditation",
-    attendees: 36
-  },
-  {
-    id: "curated-breathwork-intensive",
-    sortDate: "2026-06-07T00:00:00.000Z",
-    title: "Breathwork Intensive Weekend",
-    dateRange: "Jun 7 - Jun 8",
-    host: "Mindful Works Inc.",
-    location: "Culver City, CA",
-    detail: "Sat-Sun · 12 spots",
-    href: "/community",
-    imageSrc: "https://images.unsplash.com/photo-1528319725582-ddc096101511?w=800&q=80&auto=format&fit=crop",
-    imageAlt: "Person in a seated meditation and breathing practice",
-    category: "Breathwork",
-    attendees: 22
-  },
-  {
-    id: "curated-community-satsang",
-    sortDate: "2026-05-11T18:30:00.000Z",
-    title: "Community Satsang & Tea",
-    dateRange: "May 11",
-    host: "Serenity Wellness Studio",
-    location: "Downtown LA",
-    detail: "6:30 PM · free · RSVP",
-    href: "/community",
-    imageSrc: "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=800&q=80&auto=format&fit=crop",
-    imageAlt: "People gathered for tea and conversation",
-    category: "Community",
-    attendees: 12
-  }
-];
 const HOMEPAGE_LOCAL_GIGS: HomepageJobCard[] = [
   {
     id: "1",
@@ -538,8 +478,9 @@ function mapUpcomingEvent(event: {
   hostId?: string | null;
   title: string;
   hostName: string | null;
-  address: string | null;
-  eventTime: string | null;
+  address?: string | null;
+  eventTime?: string | null;
+  imageUrl?: string | null;
   eventUrl: string | null;
   eventDate: Date | null;
 }): TeacherUpcomingEvent {
@@ -551,6 +492,7 @@ function mapUpcomingEvent(event: {
     hostName: event.hostName ?? undefined,
     address: event.address ?? undefined,
     eventTime: event.eventTime ?? undefined,
+    imageUrl: event.imageUrl?.trim() ? event.imageUrl.trim() : undefined,
     eventUrl: event.eventUrl?.trim() ? event.eventUrl.trim() : undefined,
     eventDate: event.eventDate?.toISOString()
   };
@@ -702,8 +644,9 @@ function hydratePersistedTeacher(teacher: {
     teacherId: string;
     title: string;
     hostName: string | null;
-    address: string | null;
-    eventTime: string | null;
+    address?: string | null;
+    eventTime?: string | null;
+    imageUrl?: string | null;
     eventUrl: string | null;
     eventDate: Date | null;
   }>;
@@ -830,6 +773,7 @@ const teacherRelationSelect = {
       hostName: true,
       address: true,
       eventTime: true,
+      imageUrl: true,
       eventUrl: true,
       eventDate: true
     },
@@ -917,6 +861,57 @@ const legacyTeacherSelectWithoutCalendar = {
   ...teacherRelationSelect
 };
 
+/** Stale generated clients may not include newer columns on TeacherUpcomingEvent (address, eventTime). */
+const teacherRelationSelectWithoutUpcomingEventLocation = {
+  teachingHours: {
+    orderBy: { category: "asc" as const }
+  },
+  certificationSubmissions: {
+    orderBy: { createdAt: "desc" as const }
+  },
+  stories: {
+    where: { published: true },
+    orderBy: { sortOrder: "asc" as const }
+  },
+  upcomingEvents: {
+    select: {
+      id: true,
+      teacherId: true,
+      title: true,
+      hostName: true,
+      eventUrl: true,
+      eventDate: true
+    },
+    orderBy: [{ eventDate: "asc" as const }, { createdAt: "asc" as const }]
+  }
+};
+
+const teacherSelectWithoutUpcomingLocation = {
+  ...teacherBaseSelect,
+  ...teacherRelationSelectWithoutUpcomingEventLocation,
+  calendarSessions: {
+    orderBy: { startsAt: "asc" as const }
+  }
+};
+
+const teacherSelectWithoutCalendarAndUpcomingLocation = {
+  ...teacherBaseSelect,
+  ...teacherRelationSelectWithoutUpcomingEventLocation
+};
+
+const legacyTeacherSelectWithoutUpcomingLocation = {
+  ...legacyTeacherBaseSelect,
+  ...teacherRelationSelectWithoutUpcomingEventLocation,
+  calendarSessions: {
+    orderBy: { startsAt: "asc" as const }
+  }
+};
+
+const legacyTeacherSelectWithoutCalendarAndUpcomingLocation = {
+  ...legacyTeacherBaseSelect,
+  ...teacherRelationSelectWithoutUpcomingEventLocation
+};
+
 function isMissingCalendarSessionTable(error: unknown) {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -984,6 +979,39 @@ function isMissingEventFollowInfrastructure(error: unknown) {
   );
 }
 
+function isMissingTeacherUpcomingEventLocationColumns(error: unknown) {
+  // Stale Prisma client vs schema: validation error when select references unknown fields.
+  if (error instanceof Prisma.PrismaClientValidationError && error.message.includes("TeacherUpcomingEvent")) {
+    const message = error.message;
+
+    return (
+      message.includes("Unknown field `address`") ||
+      message.includes("Unknown field `eventTime`") ||
+      message.includes("Unknown argument `address`") ||
+      message.includes("Unknown argument `eventTime`") ||
+      message.includes("Unknown field `imageUrl`") ||
+      message.includes("Unknown argument `imageUrl`")
+    );
+  }
+
+  // Schema migrated but DB not: runtime query fails because columns are missing on the table.
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2022") {
+    const message = error.message;
+    if (!message.includes("TeacherUpcomingEvent")) {
+      return false;
+    }
+
+    return (
+      message.includes("address") ||
+      message.includes("eventTime") ||
+      message.includes("imageUrl") ||
+      message.includes("hostId")
+    );
+  }
+
+  return false;
+}
+
 function hasEventFollowClientSupport() {
   const runtimeDb = db as unknown as Record<string, unknown>;
 
@@ -1002,7 +1030,11 @@ async function withTeacherCompatibilityFallback<T>(queries: Array<() => Promise<
     try {
       return await query();
     } catch (error) {
-      if (isMissingCalendarSessionTable(error) || isMissingTeacherImportInfrastructure(error)) {
+      if (
+        isMissingCalendarSessionTable(error) ||
+        isMissingTeacherImportInfrastructure(error) ||
+        isMissingTeacherUpcomingEventLocationColumns(error)
+      ) {
         lastCompatibilityError = error;
         continue;
       }
@@ -1089,12 +1121,20 @@ function buildHomepageEventImage(
     avatarUrl: string | null;
     stories: Array<{ mediaUrl: string }>;
   },
-  host?: { imageUrl: string | null } | null
+  host?: { imageUrl: string | null } | null,
+  eventImageUrl?: string | null
 ) {
+  const eventImage = eventImageUrl?.trim();
+  if (eventImage) {
+    return eventImage;
+  }
+
   const storyImages = teacher.stories.map((story) => story.mediaUrl).filter(Boolean);
   const categoryImages = CATEGORY_IMAGE_FALLBACKS[category] ?? CATEGORY_IMAGE_FALLBACKS.Workshop;
   const candidates = Array.from(
-    new Set([host?.imageUrl, ...storyImages, teacher.avatarUrl, ...categoryImages].filter((value): value is string => Boolean(value)))
+    new Set(
+      [host?.imageUrl, ...storyImages, teacher.avatarUrl, ...categoryImages].filter((value): value is string => Boolean(value))
+    )
   );
 
   if (candidates.length === 0) {
@@ -1119,10 +1159,12 @@ function mapPersonalizedEventCard(
     hostId: string | null;
     title: string;
     hostName: string | null;
-    address: string | null;
-    eventTime: string | null;
+    address?: string | null;
+    eventTime?: string | null;
+    imageUrl?: string | null;
     eventUrl: string | null;
     eventDate: Date | null;
+    createdAt: Date;
     teacher: {
       id: string;
       slug: string;
@@ -1144,7 +1186,12 @@ function mapPersonalizedEventCard(
   followedHostIds: Set<string>,
   personalized: boolean
 ): HomepageEventCard {
-  const hostName = event.host?.name ?? event.hostName ?? event.teacher.studioName ?? event.teacher.fullName;
+  const venueFromForm = event.hostName?.trim();
+  const hostName =
+    venueFromForm ||
+    event.host?.name?.trim() ||
+    event.teacher.studioName?.trim() ||
+    event.teacher.fullName.trim();
   const category = inferHomepageEventCategory(event.title, hostName);
   const linkUrl = event.eventUrl?.trim();
   const href = linkUrl && /^https?:\/\//i.test(linkUrl) ? linkUrl : `/teachers/${event.teacher.slug}`;
@@ -1164,14 +1211,21 @@ function mapPersonalizedEventCard(
     teacherSlug: event.teacher.slug,
     hostId: event.host?.id ?? event.hostId ?? undefined,
     sortDate: event.eventDate?.toISOString(),
+    listedAt: event.createdAt.toISOString(),
     title: event.title,
-    dateRange: event.eventDate ? format(event.eventDate, "MMM d") : "Upcoming",
+    dateRange: event.eventDate ? formatEventCalendarDayUtc(event.eventDate) ?? "Upcoming" : "Upcoming",
     host: hostName,
     location,
     detail: detailParts.join(" · "),
     href,
     external,
-    imageSrc: buildHomepageEventImage(`${event.id}:${event.title}:${hostName}`, category, event.teacher, event.host),
+    imageSrc: buildHomepageEventImage(
+      `${event.id}:${event.title}:${hostName}`,
+      category,
+      event.teacher,
+      event.host,
+      event.imageUrl
+    ),
     imageAlt: `${event.title} event image`,
     category,
     featuredLabel: personalized ? FOLLOWED_EVENT_LABEL : undefined,
@@ -1193,25 +1247,37 @@ function dedupeHomepageEvents(events: HomepageEventCard[]) {
   });
 }
 
-function sortHomepageEventsByDate(events: HomepageEventCard[]) {
+function sortHomepageFeaturedEventsByListingTime(events: HomepageEventCard[]) {
   return [...events].sort((first, second) => {
-    const firstTimestamp = first.sortDate ? new Date(first.sortDate).getTime() : Number.POSITIVE_INFINITY;
-    const secondTimestamp = second.sortDate ? new Date(second.sortDate).getTime() : Number.POSITIVE_INFINITY;
+    const firstTime = first.listedAt ? new Date(first.listedAt).getTime() : 0;
+    const secondTime = second.listedAt ? new Date(second.listedAt).getTime() : 0;
 
-    if (firstTimestamp !== secondTimestamp) {
-      return firstTimestamp - secondTimestamp;
+    if (secondTime !== firstTime) {
+      return secondTime - firstTime;
     }
 
     return first.title.localeCompare(second.title);
   });
 }
 
-function isUpcomingHomepageEvent(event: HomepageEventCard) {
-  if (!event.sortDate) {
+function isHomepageFeaturedEventCard(event: HomepageEventCard) {
+  const now = new Date();
+  const monthStart = startOfDay(startOfMonth(now));
+  const monthEnd = endOfMonth(now);
+
+  if (event.sortDate) {
+    const eventDay = startOfDay(new Date(event.sortDate));
+    if (isBefore(eventDay, getTodayStart())) {
+      return false;
+    }
+  }
+
+  const anchor = event.listedAt ?? event.sortDate;
+  if (!anchor) {
     return true;
   }
 
-  return new Date(event.sortDate) >= getTodayStart();
+  return isWithinInterval(new Date(anchor), { start: monthStart, end: monthEnd });
 }
 
 function filterHomepageEventsByKeywords(events: HomepageEventCard[], keywords: string[]) {
@@ -1374,46 +1440,77 @@ async function listPersistedHomepageEvents(options: {
       return [];
     }
 
-    const events = await db.teacherUpcomingEvent.findMany({
-      where: {
-        teacher: { is: { published: true } },
-        AND: [
-          { OR: [{ eventDate: null }, { eventDate: { gte: getTodayStart() } }] },
-          ...(options.personalized ? [{ OR: filters }] : [])
-        ]
-      },
-      orderBy: [{ eventDate: "asc" }, { createdAt: "asc" }],
-      take: options.limit ?? HOMEPAGE_EVENT_LIMIT,
-      select: {
-        id: true,
-        teacherId: true,
-        title: true,
-        hostName: true,
-        address: true,
-        eventTime: true,
-        eventUrl: true,
-        eventDate: true,
-        teacher: {
-          select: {
-            id: true,
-            slug: true,
-            fullName: true,
-            city: true,
-            avatarUrl: true,
-            studioName: true,
-            stories: {
-              where: {
-                published: true,
-                mediaType: StoryMediaType.IMAGE
-              },
-              orderBy: { sortOrder: "asc" },
-              take: 1,
-              select: { mediaUrl: true }
-            }
+    const where = {
+      teacher: { is: { published: true } },
+      AND: [getHomepagePersistedNewListingsWhere(), ...(options.personalized ? [{ OR: filters }] : [])]
+    };
+
+    const orderBy = [{ createdAt: "desc" as const }];
+    const take = options.limit ?? HOMEPAGE_EVENT_QUERY_LIMIT;
+
+    const selectWithLocation = {
+      id: true,
+      teacherId: true,
+      title: true,
+      hostName: true,
+      address: true,
+      eventTime: true,
+      imageUrl: true,
+      eventUrl: true,
+      eventDate: true,
+      createdAt: true,
+      teacher: {
+        select: {
+          id: true,
+          slug: true,
+          fullName: true,
+          city: true,
+          avatarUrl: true,
+          studioName: true,
+          stories: {
+            where: {
+              published: true,
+              mediaType: StoryMediaType.IMAGE
+            },
+            orderBy: { sortOrder: "asc" as const },
+            take: 1,
+            select: { mediaUrl: true }
           }
         }
       }
-    });
+    };
+
+    const selectWithoutLocation = {
+      id: true,
+      teacherId: true,
+      title: true,
+      hostName: true,
+      eventUrl: true,
+      eventDate: true,
+      createdAt: true,
+      teacher: selectWithLocation.teacher
+    };
+
+    let events;
+    try {
+      events = await db.teacherUpcomingEvent.findMany({
+        where,
+        orderBy,
+        take,
+        select: selectWithLocation
+      });
+    } catch (error) {
+      if (!isMissingTeacherUpcomingEventLocationColumns(error)) {
+        throw error;
+      }
+
+      events = await db.teacherUpcomingEvent.findMany({
+        where,
+        orderBy,
+        take,
+        select: selectWithoutLocation
+      });
+    }
 
     const followedTeacherIds = new Set(options.followedTeacherIds ?? []);
 
@@ -1444,56 +1541,89 @@ async function listPersistedHomepageEvents(options: {
       return [];
     }
 
-    const events = await db.teacherUpcomingEvent.findMany({
-      where: {
-        teacher: { is: { published: true } },
-        AND: [
-          { OR: [{ eventDate: null }, { eventDate: { gte: getTodayStart() } }] },
-          ...(options.personalized ? [{ OR: filters }] : [])
-        ]
-      },
-      orderBy: [{ eventDate: "asc" }, { createdAt: "asc" }],
-      take: options.limit ?? HOMEPAGE_EVENT_LIMIT,
-      select: {
-        id: true,
-        teacherId: true,
-        hostId: true,
-        title: true,
-        hostName: true,
-        address: true,
-        eventTime: true,
-        eventUrl: true,
-        eventDate: true,
-        teacher: {
-          select: {
-            id: true,
-            slug: true,
-            fullName: true,
-            city: true,
-            avatarUrl: true,
-            studioName: true,
-            stories: {
-              where: {
-                published: true,
-                mediaType: StoryMediaType.IMAGE
-              },
-              orderBy: { sortOrder: "asc" },
-              take: 1,
-              select: { mediaUrl: true }
-            }
-          }
+    const where = {
+      teacher: { is: { published: true } },
+      AND: [getHomepagePersistedNewListingsWhere(), ...(options.personalized ? [{ OR: filters }] : [])]
+    };
+
+    const orderBy = [{ createdAt: "desc" as const }];
+    const take = options.limit ?? HOMEPAGE_EVENT_QUERY_LIMIT;
+
+    const teacherCardSelect = {
+      id: true,
+      slug: true,
+      fullName: true,
+      city: true,
+      avatarUrl: true,
+      studioName: true,
+      stories: {
+        where: {
+          published: true,
+          mediaType: StoryMediaType.IMAGE
         },
-        host: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            websiteUrl: true,
-            imageUrl: true
-          }
-        }
+        orderBy: { sortOrder: "asc" as const },
+        take: 1,
+        select: { mediaUrl: true }
       }
-    });
+    };
+
+    const hostCardSelect = {
+      id: true,
+      name: true,
+      slug: true,
+      websiteUrl: true,
+      imageUrl: true
+    };
+
+    const selectWithLocationAndHost = {
+      id: true,
+      teacherId: true,
+      hostId: true,
+      title: true,
+      hostName: true,
+      address: true,
+      eventTime: true,
+      imageUrl: true,
+      eventUrl: true,
+      eventDate: true,
+      createdAt: true,
+      teacher: { select: teacherCardSelect },
+      host: { select: hostCardSelect }
+    };
+
+    const selectWithoutLocationAndHost = {
+      id: true,
+      teacherId: true,
+      hostId: true,
+      title: true,
+      hostName: true,
+      eventUrl: true,
+      eventDate: true,
+      createdAt: true,
+      teacher: { select: teacherCardSelect },
+      host: { select: hostCardSelect }
+    };
+
+    let events;
+    try {
+      events = await db.teacherUpcomingEvent.findMany({
+        where,
+        orderBy,
+        take,
+        select: selectWithLocationAndHost
+      });
+    } catch (innerError) {
+      if (!isMissingTeacherUpcomingEventLocationColumns(innerError)) {
+        throw innerError;
+      }
+
+      events = await db.teacherUpcomingEvent.findMany({
+        where,
+        orderBy,
+        take,
+        select: selectWithoutLocationAndHost
+      });
+    }
 
     const followedTeacherIds = new Set(options.followedTeacherIds ?? []);
     const followedHostIds = new Set(options.followedHostIds ?? []);
@@ -1720,17 +1850,19 @@ export async function listHomepageFeaturedEvents(userId?: string) {
       followedTeacherIds,
       followedHostIds,
       personalized: true,
-      limit: HOMEPAGE_EVENT_LIMIT
+      limit: HOMEPAGE_EVENT_QUERY_LIMIT
     });
 
     if (personalizedEvents.length > 0) {
       const genericEvents = await listPersistedHomepageEvents({
         personalized: false,
-        limit: HOMEPAGE_EVENT_LIMIT
+        limit: HOMEPAGE_EVENT_QUERY_LIMIT
       });
 
       return filterHomepageEventsByKeywords(
-        dedupeHomepageEvents([...personalizedEvents, ...genericEvents, ...CURATED_FALLBACK_EVENTS]),
+        sortHomepageFeaturedEventsByListingTime(
+          dedupeHomepageEvents([...personalizedEvents, ...genericEvents]).filter(isHomepageFeaturedEventCard)
+        ),
         contentFilters.hiddenEventKeywords
       ).slice(0, HOMEPAGE_EVENT_LIMIT);
     }
@@ -1738,19 +1870,19 @@ export async function listHomepageFeaturedEvents(userId?: string) {
 
   const genericEvents = await listPersistedHomepageEvents({
     personalized: false,
-    limit: hasNoFollows ? NO_FOLLOW_EVENT_LIMIT : HOMEPAGE_EVENT_LIMIT
+    limit: HOMEPAGE_EVENT_QUERY_LIMIT
   });
 
   const fallbackEvents = filterHomepageEventsByKeywords(
-    dedupeHomepageEvents([...genericEvents, ...CURATED_FALLBACK_EVENTS]).filter(isUpcomingHomepageEvent),
+    dedupeHomepageEvents(genericEvents).filter(isHomepageFeaturedEventCard),
     contentFilters.hiddenEventKeywords
   );
 
   if (hasNoFollows) {
-    return sortHomepageEventsByDate(fallbackEvents).slice(0, NO_FOLLOW_EVENT_LIMIT);
+    return sortHomepageFeaturedEventsByListingTime(fallbackEvents).slice(0, NO_FOLLOW_EVENT_LIMIT);
   }
 
-  return fallbackEvents.slice(0, HOMEPAGE_EVENT_LIMIT);
+  return sortHomepageFeaturedEventsByListingTime(fallbackEvents).slice(0, HOMEPAGE_EVENT_LIMIT);
 }
 
 export async function listHomepageLocalGigs() {
@@ -2271,7 +2403,17 @@ export async function ensureTeacherProfile(userId: string, fullName: string) {
     () =>
       db.teacher.findUnique({
         where: { userId },
+        select: teacherSelectWithoutUpcomingLocation
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
         select: teacherSelectWithoutCalendar
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: teacherSelectWithoutCalendarAndUpcomingLocation
       }),
     () =>
       db.teacher.findUnique({
@@ -2281,7 +2423,17 @@ export async function ensureTeacherProfile(userId: string, fullName: string) {
     () =>
       db.teacher.findUnique({
         where: { userId },
+        select: legacyTeacherSelectWithoutUpcomingLocation
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
         select: legacyTeacherSelectWithoutCalendar
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: legacyTeacherSelectWithoutCalendarAndUpcomingLocation
       })
   ]);
 
@@ -2334,7 +2486,17 @@ export async function getTeacherByUserId(userId: string) {
     () =>
       db.teacher.findUnique({
         where: { userId },
+        select: teacherSelectWithoutUpcomingLocation
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
         select: teacherSelectWithoutCalendar
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: teacherSelectWithoutCalendarAndUpcomingLocation
       }),
     () =>
       db.teacher.findUnique({
@@ -2344,7 +2506,17 @@ export async function getTeacherByUserId(userId: string) {
     () =>
       db.teacher.findUnique({
         where: { userId },
+        select: legacyTeacherSelectWithoutUpcomingLocation
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
         select: legacyTeacherSelectWithoutCalendar
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { userId },
+        select: legacyTeacherSelectWithoutCalendarAndUpcomingLocation
       })
   ]);
 
@@ -2361,7 +2533,17 @@ export async function getTeacherBySlug(slug: string) {
     () =>
       db.teacher.findFirst({
         where: { slug, published: true },
+        select: teacherSelectWithoutUpcomingLocation
+      }),
+    () =>
+      db.teacher.findFirst({
+        where: { slug, published: true },
         select: teacherSelectWithoutCalendar
+      }),
+    () =>
+      db.teacher.findFirst({
+        where: { slug, published: true },
+        select: teacherSelectWithoutCalendarAndUpcomingLocation
       }),
     () =>
       db.teacher.findFirst({
@@ -2371,7 +2553,17 @@ export async function getTeacherBySlug(slug: string) {
     () =>
       db.teacher.findFirst({
         where: { slug, published: true },
+        select: legacyTeacherSelectWithoutUpcomingLocation
+      }),
+    () =>
+      db.teacher.findFirst({
+        where: { slug, published: true },
         select: legacyTeacherSelectWithoutCalendar
+      }),
+    () =>
+      db.teacher.findFirst({
+        where: { slug, published: true },
+        select: legacyTeacherSelectWithoutCalendarAndUpcomingLocation
       })
   ]);
 
@@ -2394,7 +2586,19 @@ export async function listTeachers() {
     () =>
       db.teacher.findMany({
         where: { published: true },
+        select: teacherSelectWithoutUpcomingLocation,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        where: { published: true },
         select: teacherSelectWithoutCalendar,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        where: { published: true },
+        select: teacherSelectWithoutCalendarAndUpcomingLocation,
         orderBy: { fullName: "asc" }
       }),
     () =>
@@ -2406,7 +2610,19 @@ export async function listTeachers() {
     () =>
       db.teacher.findMany({
         where: { published: true },
+        select: legacyTeacherSelectWithoutUpcomingLocation,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        where: { published: true },
         select: legacyTeacherSelectWithoutCalendar,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        where: { published: true },
+        select: legacyTeacherSelectWithoutCalendarAndUpcomingLocation,
         orderBy: { fullName: "asc" }
       })
   ]);
@@ -2563,7 +2779,17 @@ export async function submitTeacherImportOnboarding(teacherId: string, input: Te
     () =>
       db.teacher.findUnique({
         where: { id: teacherId },
+        select: teacherSelectWithoutUpcomingLocation
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
         select: teacherSelectWithoutCalendar
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
+        select: teacherSelectWithoutCalendarAndUpcomingLocation
       }),
     () =>
       db.teacher.findUnique({
@@ -2573,7 +2799,17 @@ export async function submitTeacherImportOnboarding(teacherId: string, input: Te
     () =>
       db.teacher.findUnique({
         where: { id: teacherId },
+        select: legacyTeacherSelectWithoutUpcomingLocation
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
         select: legacyTeacherSelectWithoutCalendar
+      }),
+    () =>
+      db.teacher.findUnique({
+        where: { id: teacherId },
+        select: legacyTeacherSelectWithoutCalendarAndUpcomingLocation
       })
   ]);
 
@@ -2654,15 +2890,24 @@ export async function skipTeacherImportOnboarding(teacherId: string) {
 
 export async function addTeacherUpcomingEvent(
   teacherId: string,
-  event: Pick<TeacherUpcomingEvent, "title" | "hostName" | "eventDate" | "address" | "eventTime"> & { eventUrl?: string }
+  event: Pick<TeacherUpcomingEvent, "title" | "hostName" | "eventDate" | "address" | "eventTime"> & {
+    eventUrl?: string;
+    imageUrl?: string;
+  }
 ) {
   const teacher = await db.teacher.findUnique({
     where: { id: teacherId },
     select: {
+      id: true,
       studioName: true,
       studioWebsiteUrl: true
     }
   });
+
+  if (!teacher) {
+    throw new Error("Teacher profile not found; upcoming events must be tied to a valid instructor profile.");
+  }
+
   const hostName = event.hostName?.trim() || null;
   const eventUrlTrimmed = event.eventUrl?.trim() ?? "";
   const host =
@@ -2679,39 +2924,62 @@ export async function addTeacherUpcomingEvent(
 
   const address = event.address?.trim() || null;
   const eventTime = event.eventTime?.trim() || null;
+  const title = event.title.trim();
+  const eventUrlValue = eventUrlTrimmed ? eventUrlTrimmed : null;
+  const eventDateValue = event.eventDate ? new Date(event.eventDate) : null;
+  const hostId = host?.id ?? null;
+  const imageUrlForDb = event.imageUrl?.trim() || null;
 
-  try {
-    return await db.teacherUpcomingEvent.create({
-      data: {
-        id: `event-${Date.now()}`,
-        teacherId,
-        hostId: host?.id ?? null,
-        title: event.title.trim(),
-        hostName,
-        address,
-        eventTime,
-        eventUrl: eventUrlTrimmed ? eventUrlTrimmed : null,
-        eventDate: event.eventDate ? new Date(event.eventDate) : null
+  const newEventId = () => `event-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+  type Variant = { host: boolean; location: boolean; image: boolean };
+  const variants: Variant[] = [];
+  for (const hostFlag of [true, false]) {
+    for (const locationFlag of [true, false]) {
+      for (const imageFlag of [true, false]) {
+        if (imageFlag && !imageUrlForDb) continue;
+        variants.push({ host: hostFlag, location: locationFlag, image: imageFlag });
       }
-    });
-  } catch (error) {
-    if (!isMissingEventFollowInfrastructure(error)) {
+    }
+  }
+
+  variants.sort((a, b) => {
+    const score = (v: Variant) => Number(v.host) + Number(v.location) + Number(v.image);
+    const diff = score(b) - score(a);
+    if (diff !== 0) return diff;
+    if (a.host !== b.host) return Number(b.host) - Number(a.host);
+    if (a.location !== b.location) return Number(b.location) - Number(a.location);
+    return Number(b.image) - Number(a.image);
+  });
+
+  let lastError: unknown;
+  for (const variant of variants) {
+    try {
+      return await db.teacherUpcomingEvent.create({
+        data: {
+          id: newEventId(),
+          teacherId: teacher.id,
+          ...(variant.host ? { hostId } : {}),
+          title,
+          hostName,
+          ...(variant.location ? { address, eventTime } : {}),
+          ...(variant.image && imageUrlForDb ? { imageUrl: imageUrlForDb } : {}),
+          eventUrl: eventUrlValue,
+          eventDate: eventDateValue
+        }
+      });
+    } catch (error) {
+      lastError = error;
+      const missingColumn =
+        error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2022";
+      if (error instanceof Prisma.PrismaClientValidationError || missingColumn) {
+        continue;
+      }
       throw error;
     }
-
-    return await db.teacherUpcomingEvent.create({
-      data: {
-        id: `event-${Date.now()}`,
-        teacherId,
-        title: event.title.trim(),
-        hostName,
-        address,
-        eventTime,
-        eventUrl: eventUrlTrimmed ? eventUrlTrimmed : null,
-        eventDate: event.eventDate ? new Date(event.eventDate) : null
-      }
-    });
   }
+
+  throw lastError;
 }
 
 export async function addTeacherCalendarSession(
@@ -2956,7 +3224,17 @@ export async function listTeachersForAdmin() {
       }),
     () =>
       db.teacher.findMany({
+        select: teacherSelectWithoutUpcomingLocation,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
         select: teacherSelectWithoutCalendar,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        select: teacherSelectWithoutCalendarAndUpcomingLocation,
         orderBy: { fullName: "asc" }
       }),
     () =>
@@ -2966,7 +3244,17 @@ export async function listTeachersForAdmin() {
       }),
     () =>
       db.teacher.findMany({
+        select: legacyTeacherSelectWithoutUpcomingLocation,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
         select: legacyTeacherSelectWithoutCalendar,
+        orderBy: { fullName: "asc" }
+      }),
+    () =>
+      db.teacher.findMany({
+        select: legacyTeacherSelectWithoutCalendarAndUpcomingLocation,
         orderBy: { fullName: "asc" }
       })
   ]);

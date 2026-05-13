@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
 
+import { formatCredits, formatDateTime, formatEventCalendarDayUtc } from "@/lib/format";
 import { HoursBookedLabel } from "@/components/hours-booked-label";
 import { MetricCard } from "@/components/metric-card";
 import { TeacherContactForm } from "@/components/teacher-contact-form";
@@ -10,7 +11,6 @@ import { TeacherAvatar } from "@/components/teacher-avatar";
 import { TeacherProfileWellnessBackdrop } from "@/components/teacher-profile-wellness-backdrop";
 import { contactTeacherAction, toggleTeacherFollowAction } from "@/lib/actions";
 import { getCurrentUser } from "@/lib/auth/session";
-import { formatCredits, formatDateTime } from "@/lib/format";
 import { getTeacherBySlug, getTeacherByUserId, isTeacherFollowedByUser } from "@/lib/persistence";
 import { getRecaptchaSiteKey } from "@/lib/recaptcha";
 import type { TeacherUpcomingEvent } from "@/lib/types";
@@ -100,7 +100,8 @@ function excerptBio(bio: string, maxLen = 260) {
 function formatEventDateLabel(event: TeacherUpcomingEvent) {
   if (!event.eventDate) return null;
   try {
-    return format(new Date(event.eventDate), "MMM d").toUpperCase();
+    const label = formatEventCalendarDayUtc(event.eventDate);
+    return label ? label.toUpperCase() : null;
   } catch {
     return null;
   }
@@ -396,6 +397,17 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
                           key={event.id}
                         >
                           <div className="flex gap-4">
+                            {event.imageUrl ? (
+                              <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-xl bg-stone-200">
+                                <Image
+                                  alt={`${event.title} event`}
+                                  className="object-cover"
+                                  fill
+                                  sizes="112px"
+                                  src={event.imageUrl}
+                                />
+                              </div>
+                            ) : null}
                             {dateLabel ? (
                               <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-[#0f766e] text-center text-[10px] font-bold leading-tight text-white">
                                 {dateLabel.split(" ").map((part) => (
