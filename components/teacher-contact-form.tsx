@@ -10,9 +10,11 @@ type TeacherContactFormProps = {
   teacherName: string;
   teacherSlug: string;
   status?: string;
+  id?: string;
+  className?: string;
 };
 
-export function TeacherContactForm({ action, siteKey, teacherId, teacherName, teacherSlug, status }: TeacherContactFormProps) {
+export function TeacherContactForm({ action, siteKey, teacherId, teacherName, teacherSlug, status, id, className }: TeacherContactFormProps) {
   const [token, setToken] = useState("");
 
   const canSubmit = Boolean(siteKey && token);
@@ -62,7 +64,11 @@ export function TeacherContactForm({ action, siteKey, teacherId, teacherName, te
           )}
         </div>
         <div className="md:col-span-2">
-          <button className="rounded-full bg-stone-900 px-5 py-3 text-white disabled:cursor-not-allowed disabled:bg-stone-300" disabled={!canSubmit} type="submit">
+          <button
+            className="rounded-full bg-[#0f766e] px-6 py-3 font-semibold text-white shadow-[0_14px_36px_-18px_rgba(15,118,110,0.75)] transition hover:bg-[#0d9488] disabled:cursor-not-allowed disabled:bg-stone-300 disabled:shadow-none"
+            disabled={!canSubmit}
+            type="submit"
+          >
             Send message
           </button>
         </div>
