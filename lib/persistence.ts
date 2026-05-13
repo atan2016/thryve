@@ -538,7 +538,9 @@ function mapUpcomingEvent(event: {
   hostId?: string | null;
   title: string;
   hostName: string | null;
-  eventUrl: string;
+  address: string | null;
+  eventTime: string | null;
+  eventUrl: string | null;
   eventDate: Date | null;
 }): TeacherUpcomingEvent {
   return {
@@ -547,7 +549,9 @@ function mapUpcomingEvent(event: {
     hostId: event.hostId ?? undefined,
     title: event.title,
     hostName: event.hostName ?? undefined,
-    eventUrl: event.eventUrl,
+    address: event.address ?? undefined,
+    eventTime: event.eventTime ?? undefined,
+    eventUrl: event.eventUrl?.trim() ? event.eventUrl.trim() : undefined,
     eventDate: event.eventDate?.toISOString()
   };
 }
@@ -698,7 +702,9 @@ function hydratePersistedTeacher(teacher: {
     teacherId: string;
     title: string;
     hostName: string | null;
-    eventUrl: string;
+    address: string | null;
+    eventTime: string | null;
+    eventUrl: string | null;
     eventDate: Date | null;
   }>;
   calendarSessions?: Array<{
@@ -822,6 +828,8 @@ const teacherRelationSelect = {
       teacherId: true,
       title: true,
       hostName: true,
+      address: true,
+      eventTime: true,
       eventUrl: true,
       eventDate: true
     },
@@ -1111,7 +1119,9 @@ function mapPersonalizedEventCard(
     hostId: string | null;
     title: string;
     hostName: string | null;
-    eventUrl: string;
+    address: string | null;
+    eventTime: string | null;
+    eventUrl: string | null;
     eventDate: Date | null;
     teacher: {
       id: string;
@@ -1136,6 +1146,17 @@ function mapPersonalizedEventCard(
 ): HomepageEventCard {
   const hostName = event.host?.name ?? event.hostName ?? event.teacher.studioName ?? event.teacher.fullName;
   const category = inferHomepageEventCategory(event.title, hostName);
+  const linkUrl = event.eventUrl?.trim();
+  const href = linkUrl && /^https?:\/\//i.test(linkUrl) ? linkUrl : `/teachers/${event.teacher.slug}`;
+  const external = Boolean(linkUrl && /^https?:\/\//i.test(linkUrl));
+  const locationFromAddress = event.address?.trim();
+  const location = locationFromAddress
+    ? `${locationFromAddress} · ${event.teacher.city}`
+    : buildHomepageEventLocation(event.teacher);
+  const detailParts = [
+    event.eventTime?.trim(),
+    `Led by ${event.teacher.fullName}`
+  ].filter(Boolean);
 
   return {
     id: event.id,
@@ -1146,10 +1167,10 @@ function mapPersonalizedEventCard(
     title: event.title,
     dateRange: event.eventDate ? format(event.eventDate, "MMM d") : "Upcoming",
     host: hostName,
-    location: buildHomepageEventLocation(event.teacher),
-    detail: `Led by ${event.teacher.fullName}`,
-    href: event.eventUrl,
-    external: /^https?:\/\//.test(event.eventUrl),
+    location,
+    detail: detailParts.join(" · "),
+    href,
+    external,
     imageSrc: buildHomepageEventImage(`${event.id}:${event.title}:${hostName}`, category, event.teacher, event.host),
     imageAlt: `${event.title} event image`,
     category,
@@ -1221,16 +1242,17 @@ function includesCollegeOfSanMateo(value?: string | null) {
 function isHiddenHomepageUpcomingEvent(event: {
   title: string;
   hostName?: string | null;
-  eventUrl: string;
+  eventUrl?: string | null;
   teacher: {
     studioName?: string | null;
   };
 }) {
+  const url = event.eventUrl?.toLowerCase() ?? "";
   return (
     includesCollegeOfSanMateo(event.title) ||
     includesCollegeOfSanMateo(event.hostName) ||
     includesCollegeOfSanMateo(event.teacher.studioName) ||
-    event.eventUrl.toLowerCase().includes("collegeofsanmateo.edu")
+    (url.length > 0 && url.includes("collegeofsanmateo.edu"))
   );
 }
 
@@ -1313,7 +1335,7 @@ async function syncEventHostsFromUpcomingEvents() {
       const fallbackWebsiteUrl =
         event.teacher.studioName?.toLowerCase() === hostName.toLowerCase()
           ? event.teacher.studioWebsiteUrl
-          : /^https?:\/\//.test(event.eventUrl)
+          : /^https?:\/\//.test(event.eventUrl ?? "")
             ? event.eventUrl
             : null;
 
@@ -1367,6 +1389,8 @@ async function listPersistedHomepageEvents(options: {
         teacherId: true,
         title: true,
         hostName: true,
+        address: true,
+        eventTime: true,
         eventUrl: true,
         eventDate: true,
         teacher: {
@@ -1436,6 +1460,8 @@ async function listPersistedHomepageEvents(options: {
         hostId: true,
         title: true,
         hostName: true,
+        address: true,
+        eventTime: true,
         eventUrl: true,
         eventDate: true,
         teacher: {
@@ -2628,7 +2654,7 @@ export async function skipTeacherImportOnboarding(teacherId: string) {
 
 export async function addTeacherUpcomingEvent(
   teacherId: string,
-  event: Pick<TeacherUpcomingEvent, "title" | "hostName" | "eventUrl" | "eventDate">
+  event: Pick<TeacherUpcomingEvent, "title" | "hostName" | "eventDate" | "address" | "eventTime"> & { eventUrl?: string }
 ) {
   const teacher = await db.teacher.findUnique({
     where: { id: teacherId },
@@ -2638,17 +2664,21 @@ export async function addTeacherUpcomingEvent(
     }
   });
   const hostName = event.hostName?.trim() || null;
+  const eventUrlTrimmed = event.eventUrl?.trim() ?? "";
   const host =
     hostName
       ? await upsertEventHost(
           hostName,
           teacher?.studioName?.toLowerCase() === hostName.toLowerCase()
             ? teacher.studioWebsiteUrl
-            : /^https?:\/\//.test(event.eventUrl)
-              ? event.eventUrl
+            : /^https?:\/\//.test(eventUrlTrimmed)
+              ? eventUrlTrimmed
               : null
         )
       : null;
+
+  const address = event.address?.trim() || null;
+  const eventTime = event.eventTime?.trim() || null;
 
   try {
     return await db.teacherUpcomingEvent.create({
@@ -2656,9 +2686,11 @@ export async function addTeacherUpcomingEvent(
         id: `event-${Date.now()}`,
         teacherId,
         hostId: host?.id ?? null,
-        title: event.title,
+        title: event.title.trim(),
         hostName,
-        eventUrl: event.eventUrl,
+        address,
+        eventTime,
+        eventUrl: eventUrlTrimmed ? eventUrlTrimmed : null,
         eventDate: event.eventDate ? new Date(event.eventDate) : null
       }
     });
@@ -2671,9 +2703,11 @@ export async function addTeacherUpcomingEvent(
       data: {
         id: `event-${Date.now()}`,
         teacherId,
-        title: event.title,
+        title: event.title.trim(),
         hostName,
-        eventUrl: event.eventUrl,
+        address,
+        eventTime,
+        eventUrl: eventUrlTrimmed ? eventUrlTrimmed : null,
         eventDate: event.eventDate ? new Date(event.eventDate) : null
       }
     });

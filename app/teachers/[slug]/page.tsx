@@ -406,17 +406,23 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
                             <div>
                               <p className="font-semibold text-[#0c3d3a]">{event.title}</p>
                               {event.hostName ? <p className="text-sm text-stone-600">{event.hostName}</p> : null}
+                              {event.address ? <p className="text-sm text-stone-600">{event.address}</p> : null}
+                              {event.eventTime ? <p className="text-sm text-stone-600">{event.eventTime}</p> : null}
                             </div>
                           </div>
                           <div className="flex shrink-0 gap-2">
-                            <a
-                              className={`${tealOutlineBtn} px-5 py-2.5 text-xs`}
-                              href={event.eventUrl}
-                              rel="noopener noreferrer"
-                              target="_blank"
-                            >
-                              View details
-                            </a>
+                            {event.eventUrl ? (
+                              <a
+                                className={`${tealOutlineBtn} px-5 py-2.5 text-xs`}
+                                href={event.eventUrl}
+                                rel="noopener noreferrer"
+                                target="_blank"
+                              >
+                                View details
+                              </a>
+                            ) : (
+                              <span className="self-center text-xs text-stone-500">No external link</span>
+                            )}
                           </div>
                         </li>
                       );

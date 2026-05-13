@@ -626,13 +626,40 @@ export async function updateStoryAction(formData: FormData) {
   redirect("/dashboard/teacher/profile?saved=story-updated");
 }
 
+function normalizeOptionalEventUrl(raw: string) {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  try {
+    const parsed = new URL(withProtocol);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return undefined;
+    }
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 export async function addUpcomingEventAction(formData: FormData) {
   const teacher = await requireCurrentTeacher();
+  const rawUrl = String(formData.get("eventUrl") ?? "");
+  const normalizedUrl = normalizeOptionalEventUrl(rawUrl);
+
+  if (rawUrl.trim() && !normalizedUrl) {
+    redirect("/dashboard/teacher/profile?error=invalid_event_url");
+  }
 
   await addTeacherUpcomingEvent(teacher.id, {
     title: String(formData.get("title") ?? ""),
     hostName: String(formData.get("hostName") ?? "").trim() || undefined,
-    eventUrl: String(formData.get("eventUrl") ?? ""),
+    address: String(formData.get("address") ?? "").trim() || undefined,
+    eventTime: String(formData.get("eventTime") ?? "").trim() || undefined,
+    eventUrl: normalizedUrl,
     eventDate: String(formData.get("eventDate") ?? "").trim() || undefined
   });
 

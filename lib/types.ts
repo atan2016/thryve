@@ -150,7 +150,9 @@ export type TeacherUpcomingEvent = {
   hostId?: string;
   title: string;
   hostName?: string;
-  eventUrl: string;
+  address?: string;
+  eventTime?: string;
+  eventUrl?: string;
   eventDate?: string;
 };
 

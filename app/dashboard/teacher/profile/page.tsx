@@ -13,13 +13,14 @@ import {
 import { getTeacherDashboardContext } from "@/lib/teacher-dashboard";
 
 type TeacherProfileDashboardPageProps = {
-  searchParams: Promise<{ saved?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string }>;
 };
 
 export default async function TeacherProfileDashboardPage({ searchParams }: TeacherProfileDashboardPageProps) {
   const context = await getTeacherDashboardContext();
   const params = await searchParams;
   const saved = params.saved;
+  const error = params.error;
 
   if (context.status === "signed_out") {
     return <TeacherDashboardAccessCard state="signed_out" />;
@@ -61,6 +62,11 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
             </Link>
           </div>
         </div>
+        {error === "invalid_event_url" ? (
+          <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+            That event link does not look like a valid URL. Use https://… or leave the link blank.
+          </div>
+        ) : null}
         {saved ? (
           <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {saved === "profile"
@@ -152,8 +158,16 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
               <input name="hostName" placeholder="J8 Hot Pilates & Yoga, Community Center, Wellness Festival..." />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-medium">Schedule or event URL</span>
-              <input name="eventUrl" placeholder="https://..." required type="url" />
+              <span className="mb-2 block text-sm font-medium">Address or location</span>
+              <input name="address" placeholder="Studio address, neighborhood, or Online" required />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Time</span>
+              <input name="eventTime" placeholder="e.g. 6:00 PM – 7:30 PM or Doors 5:45 PM" required />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Schedule or event URL (optional)</span>
+              <input name="eventUrl" placeholder="https://… for tickets, RSVP, or details" type="text" />
             </label>
             <label className="block">
               <span className="mb-2 block text-sm font-medium">Date (optional for one-time events)</span>
@@ -175,12 +189,18 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
                 <div className="rounded-3xl border border-stone-200 bg-stone-50 p-4" key={event.id}>
                   <p className="font-medium">{event.title}</p>
                   {event.hostName ? <p className="mt-1 text-sm text-stone-500">{event.hostName}</p> : null}
+                  {event.address ? <p className="mt-1 text-sm text-stone-600">{event.address}</p> : null}
+                  {event.eventTime ? <p className="mt-1 text-sm text-stone-600">{event.eventTime}</p> : null}
                   <p className="mt-2 text-sm text-stone-600">
                     {event.eventDate ? new Date(event.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Ongoing schedule"}
                   </p>
-                  <a className="mt-3 inline-flex text-sm font-medium text-emerald-700" href={event.eventUrl} rel="noreferrer" target="_blank">
-                    Open event link
-                  </a>
+                  {event.eventUrl ? (
+                    <a className="mt-3 inline-flex text-sm font-medium text-emerald-700" href={event.eventUrl} rel="noreferrer" target="_blank">
+                      Open event link
+                    </a>
+                  ) : (
+                    <p className="mt-3 text-sm text-stone-500">No external link on this event.</p>
+                  )}
                 </div>
               ))
             ) : (

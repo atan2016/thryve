@@ -332,6 +332,8 @@ const demoUpcomingEvents = [
     hostId: "host-j8-hot-pilates-yoga",
     title: "Hot Pilates Flow",
     hostName: "J8 Hot Pilates & Yoga",
+    address: "300 Broadway, San Francisco, CA",
+    eventTime: "6:30 PM",
     eventUrl: "https://www.j8hotpilatesyoga.com/about/classes/",
     eventDate: new Date(Date.UTC(2026, 4, 8, 1, 0, 0))
   },

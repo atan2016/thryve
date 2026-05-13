@@ -227,7 +227,9 @@ model TeacherUpcomingEvent {
   hostId    String?
   title     String
   hostName  String?
-  eventUrl  String
+  address   String?
+  eventTime String?
+  eventUrl  String?
   eventDate DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

@@ -41,7 +41,15 @@ type TeacherProfileEditorProps = {
     badges: Array<{ name: string; verified: boolean; imageUrl?: string }>;
     offerings: Array<{ id: string; title: string; creditPrice: number; deliveryMode: "online" | "in_person"; sessionLengthMin: number }>;
     teachingHours: Array<{ category: string; totalHours: number }>;
-    upcomingEvents?: Array<{ id: string; title: string; hostName?: string; eventDate?: string; eventUrl: string }>;
+    upcomingEvents?: Array<{
+      id: string;
+      title: string;
+      hostName?: string;
+      address?: string;
+      eventTime?: string;
+      eventDate?: string;
+      eventUrl?: string;
+    }>;
     calendarSessions?: Array<{
       id: string;
       offeringId: string;
@@ -385,6 +393,8 @@ export function TeacherProfileEditor({ action, teacher }: TeacherProfileEditorPr
                         <p className="text-sm font-medium text-emerald-700">Upcoming event</p>
                         <h6 className="mt-2 font-semibold text-stone-900">{event.title}</h6>
                         {event.hostName ? <p className="mt-1 text-sm text-stone-500">{event.hostName}</p> : null}
+                        {event.address ? <p className="mt-1 text-sm text-stone-600">{event.address}</p> : null}
+                        {event.eventTime ? <p className="mt-1 text-sm text-stone-600">{event.eventTime}</p> : null}
                         <p className="mt-2 text-sm text-stone-600">
                           {event.eventDate ? new Date(event.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Ongoing schedule"}
                         </p>
