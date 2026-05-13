@@ -7,6 +7,44 @@ type MailOptions = {
   text: string;
 };
 
+export type SendMailResult =
+  | { delivered: false }
+  | { delivered: true; messageId?: string };
+
+function extractEmailAddress(from: string) {
+  const angle = from.match(/<([^>]+)>/);
+  const raw = (angle?.[1] ?? from).trim().toLowerCase();
+  return raw || undefined;
+}
+
+function domainOf(email: string) {
+  const at = email.lastIndexOf("@");
+  return at > 0 ? email.slice(at + 1) : undefined;
+}
+
+function buildFromHeader(fromEnv: string) {
+  const trimmed = fromEnv.trim();
+  const bareEmail = extractEmailAddress(trimmed) ?? trimmed;
+  const displayName = getEnvValue("SMTP_FROM_NAME")?.trim();
+  if (displayName) {
+    const safeName = displayName.replace(/["\\]/g, "").trim();
+    return safeName ? `"${safeName}" <${bareEmail}>` : trimmed;
+  }
+  return trimmed.includes("<") && trimmed.includes(">") ? trimmed : bareEmail;
+}
+
+function warnIfFromMisaligned(smtpUser: string, fromHeader: string) {
+  const authEmail = smtpUser.trim().toLowerCase();
+  const fromEmail = extractEmailAddress(fromHeader);
+  if (!fromEmail || !authEmail) return;
+  const authDomain = domainOf(authEmail);
+  const fromDomain = domainOf(fromEmail);
+  if (!authDomain || !fromDomain || authDomain === fromDomain) return;
+  console.warn(
+    "[mail] SMTP_FROM_EMAIL is on a different domain than SMTP_USER. Recipients such as Yahoo often silently drop or delay these messages. Use the same address as SMTP_USER, a verified Gmail alias, or a transactional provider with DKIM for your domain."
+  );
+}
+
 let cachedLocalEnv: Record<string, string> | null = null;
 
 function getEnvValue(...keys: string[]) {
@@ -96,6 +134,8 @@ function getMailerConfig() {
     return null;
   }
 
+  const fromHeader = buildFromHeader(from);
+
   return {
     host,
     port,
@@ -104,11 +144,11 @@ function getMailerConfig() {
       user,
       pass: password
     },
-    from
+    from: fromHeader
   };
 }
 
-export async function sendMail(options: MailOptions) {
+export async function sendMail(options: MailOptions): Promise<SendMailResult> {
   const config = getMailerConfig();
 
   if (!config) {
@@ -120,6 +160,8 @@ export async function sendMail(options: MailOptions) {
     throw new Error("SMTP is not configured.");
   }
 
+  warnIfFromMisaligned(config.auth.user, config.from);
+
   const transporter = nodemailer.createTransport({
     host: config.host,
     port: config.port,
@@ -127,14 +169,18 @@ export async function sendMail(options: MailOptions) {
     auth: config.auth
   });
 
+  const replyTo = getEnvValue("SMTP_REPLY_TO")?.trim();
+
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: config.from,
       to: options.to,
+      replyTo: replyTo || undefined,
       subject: options.subject,
       html: options.html,
       text: options.text
     });
+    return { delivered: true as const, messageId: info.messageId };
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
       console.error("[mail:dev-error]", error);
@@ -144,6 +190,4 @@ export async function sendMail(options: MailOptions) {
 
     throw error;
   }
-
-  return { delivered: true as const };
 }

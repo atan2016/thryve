@@ -180,11 +180,16 @@ export async function createPendingSignupVerification(input: CreatePendingSignup
 
   const verificationUrl = `${getAppBaseUrl()}/auth/verify-email/complete?token=${rawToken}`;
 
-  await sendVerificationEmail({
+  const mailResult = await sendVerificationEmail({
     email: normalizedEmail,
     name: input.name.trim(),
     verificationUrl
   });
+
+  if (mailResult.delivered && mailResult.messageId) {
+    const domain = normalizedEmail.includes("@") ? normalizedEmail.split("@")[1] : "unknown";
+    console.info("[signup-verification-email]", { messageId: mailResult.messageId, toDomain: domain });
+  }
 
   return {
     email: normalizedEmail,
