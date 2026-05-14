@@ -28,24 +28,41 @@ Web-only yoga teacher marketplace MVP built with Next.js App Router.
 
 ## Local development
 
+### 1. Install dependencies
 ```bash
 npm install
 cp .env.example .env.local
+```
+
+### 2. Start PostgreSQL
+```bash
+docker-compose up -d
+```
+
+### 3. Initialize database
+```bash
+npm run db:push
+```
+
+### 4. Start dev server
+```bash
 npm run dev
+```
+
+The app will be available at `http://localhost:3000`. The database schema includes demo data fallbacks, so you can test all features immediately.
+
+### Stopping PostgreSQL
+```bash
+docker-compose down
 ```
 
 ## Database setup
 
-The app includes a PostgreSQL Prisma schema in `prisma/schema.prisma`.
+The app includes a PostgreSQL Prisma schema in `prisma/schema.prisma`. `DATABASE_URL` must be set in `.env.local` (already configured in `.env.example`).
 
-When you are ready to connect a real database:
-
-```bash
-npm run db:generate
-npm run db:push
-```
-
-Set `DATABASE_URL` in `.env.local` first.
+To use a hosted database instead of Docker:
+- Update `DATABASE_URL` in `.env.local` with your database connection string
+- Run `npm run db:push` to initialize the schema
 
 ## Verification
 
@@ -55,4 +72,6 @@ npm run lint
 npm run build
 ```
 
-The current UI uses an in-memory demo store so you can validate the product flows immediately while keeping the production schema ready for later persistence work.
+## Demo data
+
+The app includes a hybrid data layer that blends real database data with demo data. When you query for teachers, events, or other data, the results include both actual database records and demo entries from `lib/mock-data.ts`. This allows you to test the full product experience immediately without seeding production data.
