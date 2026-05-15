@@ -11,7 +11,11 @@ import { sendCertificationSubmittedNotificationEmail } from "@/lib/email/certifi
 import { readCertificationFileForDatabase, readEventImageForDatabase, readProfileImageForDatabase, savePendingSignupResume, saveStoryMedia, saveTeacherResume } from "@/lib/media/storage";
 import { schedulePayout } from "@/lib/payouts/payout-provider";
 import { extractResumeText, type TeacherImportSourceInput } from "@/lib/teacher-profile-import";
-import { verifyRecaptchaToken } from "@/lib/recaptcha";
+import {
+  RECAPTCHA_ACTION_CONTACT_ADMIN,
+  RECAPTCHA_ACTION_CONTACT_TEACHER,
+  verifyRecaptchaToken
+} from "@/lib/recaptcha";
 import { normalizeTeacherUpcomingEventType } from "@/lib/teacher-upcoming-event-types";
 import { parsePendingTeacherHeartPayload, type PendingTeacherHeartOp } from "@/lib/teacher-heart-offline-queue";
 import {
@@ -882,7 +886,9 @@ export async function contactTeacherAction(formData: FormData) {
     redirect(`/teachers/${teacherSlug}?contact=captcha`);
   }
 
-  const verification = await verifyRecaptchaToken(recaptchaToken);
+  const verification = await verifyRecaptchaToken(recaptchaToken, {
+    expectedAction: RECAPTCHA_ACTION_CONTACT_TEACHER
+  });
 
   if (!verification.success) {
     redirect(`/teachers/${teacherSlug}?contact=${verification.reason === "missing_secret" ? "error" : "captcha"}`);
@@ -906,7 +912,9 @@ export async function contactAdminAction(formData: FormData) {
     redirect(appendStatusToReturnTo(returnTo, "support", "captcha"));
   }
 
-  const verification = await verifyRecaptchaToken(recaptchaToken);
+  const verification = await verifyRecaptchaToken(recaptchaToken, {
+    expectedAction: RECAPTCHA_ACTION_CONTACT_ADMIN
+  });
 
   if (!verification.success) {
     redirect(appendStatusToReturnTo(returnTo, "support", verification.reason === "missing_secret" ? "error" : "captcha"));

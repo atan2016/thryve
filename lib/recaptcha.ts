@@ -1,15 +1,41 @@
-const DEV_RECAPTCHA_SITE_KEY = "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI";
-const DEV_RECAPTCHA_SECRET_KEY = "6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe";
+import {
+  RECAPTCHA_ACTION_CONTACT_ADMIN,
+  RECAPTCHA_ACTION_CONTACT_TEACHER
+} from "@/lib/recaptcha-constants";
 
+export { RECAPTCHA_ACTION_CONTACT_ADMIN, RECAPTCHA_ACTION_CONTACT_TEACHER };
+
+const DEFAULT_MIN_SCORE = 0.5;
+
+function getMinScore(): number {
+  const raw = process.env.RECAPTCHA_MIN_SCORE;
+  if (raw == null || raw === "") {
+    return DEFAULT_MIN_SCORE;
+  }
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : DEFAULT_MIN_SCORE;
+}
+
+/**
+ * reCAPTCHA **v3** site key. Must match a v3 registration in Google Admin (not v2 checkbox keys).
+ */
 export function getRecaptchaSiteKey() {
-  return process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY ?? (process.env.NODE_ENV !== "production" ? DEV_RECAPTCHA_SITE_KEY : undefined);
+  const key = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim();
+  return key || undefined;
 }
 
 function getRecaptchaSecretKey() {
-  return process.env.RECAPTCHA_SECRET_KEY ?? (process.env.NODE_ENV !== "production" ? DEV_RECAPTCHA_SECRET_KEY : undefined);
+  const key = process.env.RECAPTCHA_SECRET_KEY?.trim();
+  return key || undefined;
 }
 
-export async function verifyRecaptchaToken(token: string) {
+export type VerifyRecaptchaOptions = {
+  expectedAction?: string;
+};
+
+export type VerifyRecaptchaFailureReason = "missing_secret" | "invalid_token" | "low_score";
+
+export async function verifyRecaptchaToken(token: string, options?: VerifyRecaptchaOptions) {
   const secret = getRecaptchaSecretKey();
 
   if (!secret) {
@@ -19,6 +45,11 @@ export async function verifyRecaptchaToken(token: string) {
     };
   }
 
+  const trimmed = token.trim();
+  if (!trimmed) {
+    return { success: false, reason: "invalid_token" as const };
+  }
+
   const response = await fetch("https://www.google.com/recaptcha/api/siteverify", {
     method: "POST",
     headers: {
@@ -26,16 +57,45 @@ export async function verifyRecaptchaToken(token: string) {
     },
     body: new URLSearchParams({
       secret,
-      response: token
+      response: trimmed
     })
   });
 
   const payload = (await response.json()) as {
     success?: boolean;
+    score?: number;
+    action?: string;
+    challenge_ts?: string;
+    hostname?: string;
+    "error-codes"?: string[];
   };
 
+  if (!payload.success) {
+    return {
+      success: false,
+      reason: "invalid_token" as const
+    };
+  }
+
+  const expectedAction = options?.expectedAction?.trim();
+  if (expectedAction && payload.action && payload.action !== expectedAction) {
+    return {
+      success: false,
+      reason: "invalid_token" as const
+    };
+  }
+
+  const score = typeof payload.score === "number" ? payload.score : 0;
+  const minScore = getMinScore();
+  if (score < minScore) {
+    return {
+      success: false,
+      reason: "low_score" as const
+    };
+  }
+
   return {
-    success: Boolean(payload.success),
-    reason: payload.success ? ("ok" as const) : ("invalid_token" as const)
+    success: true,
+    reason: "ok" as const
   };
 }

@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import ReCAPTCHA from "react-google-recaptcha";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+import { RECAPTCHA_ACTION_CONTACT_ADMIN } from "@/lib/recaptcha-constants";
+import { executeRecaptchaV3 } from "@/lib/recaptcha-v3-client";
 
 type ContactUsModalProps = {
   action: (formData: FormData) => void | Promise<void>;
@@ -19,7 +21,7 @@ export function ContactUsModal({ action, siteKey, user }: ContactUsModalProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [manualOpen, setManualOpen] = useState(false);
-  const [token, setToken] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const status = searchParams.get("support");
   const open = manualOpen || Boolean(status);
 
@@ -32,7 +34,6 @@ export function ContactUsModal({ action, siteKey, user }: ContactUsModalProps) {
 
   function closeModal() {
     setManualOpen(false);
-    setToken("");
 
     if (!status) {
       return;
@@ -41,7 +42,7 @@ export function ContactUsModal({ action, siteKey, user }: ContactUsModalProps) {
     router.replace(returnTo, { scroll: false });
   }
 
-  const canSubmit = Boolean(siteKey && token);
+  const canAttemptSubmit = Boolean(siteKey) && !submitting;
 
   return (
     <>
@@ -51,13 +52,7 @@ export function ContactUsModal({ action, siteKey, user }: ContactUsModalProps) {
         onClick={() => setManualOpen(true)}
         type="button"
       >
-        <Image
-          alt="Contact us"
-          height={72}
-          priority
-          src="/assets/images/contactus_icon.png"
-          width={72}
-        />
+        <Image alt="Contact us" height={72} priority src="/assets/images/contactus_icon.png" width={72} />
       </button>
 
       {open ? (
@@ -98,7 +93,7 @@ export function ContactUsModal({ action, siteKey, user }: ContactUsModalProps) {
             ) : null}
             {status === "captcha" ? (
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                Please complete the reCAPTCHA check before sending your message.
+                Security verification did not pass. Please try sending again.
               </div>
             ) : null}
             {status === "error" ? (
@@ -107,9 +102,25 @@ export function ContactUsModal({ action, siteKey, user }: ContactUsModalProps) {
               </div>
             ) : null}
 
-            <form action={action} className="mt-8 grid gap-4 md:grid-cols-2">
+            <form
+              className="mt-8 grid gap-4 md:grid-cols-2"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                if (!siteKey) {
+                  return;
+                }
+                setSubmitting(true);
+                try {
+                  const token = await executeRecaptchaV3(siteKey, RECAPTCHA_ACTION_CONTACT_ADMIN);
+                  const fd = new FormData(event.currentTarget);
+                  fd.set("recaptchaToken", token);
+                  await action(fd);
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+            >
               <input name="returnTo" type="hidden" value={returnTo} />
-              <input name="recaptchaToken" type="hidden" value={token} />
               <label className="block">
                 <span className="mb-2 block text-sm font-medium">Your name</span>
                 <input defaultValue={user?.name ?? ""} name="name" placeholder="Your name" required />
@@ -124,16 +135,31 @@ export function ContactUsModal({ action, siteKey, user }: ContactUsModalProps) {
               </label>
               <div className="md:col-span-2">
                 {siteKey ? (
-                  <ReCAPTCHA onChange={(value: string | null) => setToken(value ?? "")} onExpired={() => setToken("")} sitekey={siteKey} />
+                  <p className="text-xs text-stone-500">
+                    This site is protected by reCAPTCHA; the Google{" "}
+                    <a className="underline" href="https://policies.google.com/privacy" rel="noreferrer" target="_blank">
+                      Privacy Policy
+                    </a>{" "}
+                    and{" "}
+                    <a className="underline" href="https://policies.google.com/terms" rel="noreferrer" target="_blank">
+                      Terms of Service
+                    </a>{" "}
+                    apply.
+                  </p>
                 ) : (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    reCAPTCHA is not configured yet. Add `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` and `RECAPTCHA_SECRET_KEY`.
+                    reCAPTCHA is not configured yet. Add <code className="text-amber-950">NEXT_PUBLIC_RECAPTCHA_SITE_KEY</code> and{" "}
+                    <code className="text-amber-950">RECAPTCHA_SECRET_KEY</code> for reCAPTCHA v3.
                   </div>
                 )}
               </div>
               <div className="md:col-span-2 flex flex-wrap items-center gap-3">
-                <button className="rounded-full bg-stone-900 px-5 py-3 text-white disabled:cursor-not-allowed disabled:bg-stone-300" disabled={!canSubmit} type="submit">
-                  Send message
+                <button
+                  className="rounded-full bg-stone-900 px-5 py-3 text-white disabled:cursor-not-allowed disabled:bg-stone-300"
+                  disabled={!canAttemptSubmit}
+                  type="submit"
+                >
+                  {submitting ? "Sending…" : "Send message"}
                 </button>
                 <button className="rounded-full border border-stone-300 bg-white px-5 py-3 text-stone-900" onClick={closeModal} type="button">
                   Cancel
