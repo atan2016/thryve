@@ -23,7 +23,16 @@ export default async function HomePage() {
   const homepageEvents = await listHomepageFeaturedEvents(session?.userId);
   const homepageJobs = isProdBuild ? [] : await listHomepageLocalGigs();
 
-  const carouselSlice = teachers.slice(0, 6);
+  const trustedPractitionerCarouselTeachers = teachers.filter((t) => {
+    const hasVerifiedCertificationHere = t.certificationSubmissions?.some((s) => s.status === "approved");
+    if (hasVerifiedCertificationHere) return true;
+    const teachesAtListedStudio =
+      Boolean(t.studioName?.trim()) ||
+      Boolean(t.studioWebsiteUrl?.trim()) ||
+      Boolean(t.studioScheduleUrl?.trim());
+    return teachesAtListedStudio;
+  });
+  const carouselSlice = trustedPractitionerCarouselTeachers.slice(0, 10);
   const carouselIds = carouselSlice.map((t) => t.id);
   const carouselHeartCounts = await countTeacherHeartsForTeachers(carouselIds);
   const carouselHeartedByViewer = session

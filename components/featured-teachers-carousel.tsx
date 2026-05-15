@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef } from "react";
+import { useRef } from "react";
 
 import { TeacherAvatar } from "@/components/teacher-avatar";
 import { TeacherHeartControl, TeacherHeartCountLabel } from "@/components/teacher-heart-control";
@@ -54,10 +54,9 @@ function IconChevron({ direction }: { direction: "left" | "right" }) {
 }
 
 export function FeaturedTeachersCarousel({ teachers, viewerUserId }: FeaturedTeachersCarouselProps) {
-  const featuredTeachers = useMemo(() => teachers.slice(0, 6), [teachers]);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
-  if (featuredTeachers.length === 0) {
+  if (teachers.length === 0) {
     return null;
   }
 
@@ -114,7 +113,7 @@ export function FeaturedTeachersCarousel({ teachers, viewerUserId }: FeaturedTea
         ref={scrollerRef}
         className="-mx-1 flex gap-4 overflow-x-auto px-1 pb-2 scroll-smooth snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {featuredTeachers.map((teacher) => (
+        {teachers.map((teacher) => (
           <article
             key={teacher.id}
             className="flex w-[min(100%,11.75rem)] shrink-0 snap-start flex-col rounded-[1.35rem] border border-[#E7EEF5] bg-white px-4 py-4 shadow-[0_18px_36px_-30px_rgba(29,59,92,0.28)] sm:w-[11.5rem]"

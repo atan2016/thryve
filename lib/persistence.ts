@@ -13,7 +13,15 @@ import { getAppBaseUrl } from "@/lib/app-base-url";
 import { db } from "@/lib/db";
 import { sendEmailChangeVerificationEmail } from "@/lib/email/verification";
 import { buildTeacherImportDraft, type TeacherImportSourceInput } from "@/lib/teacher-profile-import";
-import { demoCalendarSessions, demoEventHosts, demoTeachers, demoUserEventHostFollows, demoUserTeacherFollows, demoUserTeacherHearts } from "@/lib/mock-data";
+import {
+  demoCalendarSessions,
+  demoEventHosts,
+  demoTeachers,
+  demoUsers,
+  demoUserEventHostFollows,
+  demoUserTeacherFollows,
+  demoUserTeacherHearts
+} from "@/lib/mock-data";
 import {
   deleteUserForAdmin as deleteUserForAdminInStore,
   getAdminContentFilters as getAdminContentFiltersFromStore,
@@ -623,6 +631,7 @@ function hydratePersistedTeacher(teacher: {
   id: string;
   userId: string | null;
   claimEmail?: string | null;
+  user?: { email: string | null } | null;
   slug: string;
   fullName: string;
   avatarUrl: string | null;
@@ -861,12 +870,14 @@ const teacherBaseSelect = {
   bio: true,
   gender: true,
   certificationStatus: true,
-  published: true
+  published: true,
+  user: { select: { email: true } }
 };
 
 const legacyTeacherBaseSelect = {
   id: true,
   userId: true,
+  claimEmail: true,
   slug: true,
   fullName: true,
   avatarUrl: true,
@@ -881,7 +892,8 @@ const legacyTeacherBaseSelect = {
   bio: true,
   gender: true,
   certificationStatus: true,
-  published: true
+  published: true,
+  user: { select: { email: true } }
 };
 
 const teacherSelect = {
@@ -1292,6 +1304,51 @@ async function insertLegacyTeacherProfile(userId: string, fullName: string) {
       ${new Date()}
     )
   `;
+}
+
+function teacherIdentityEmailLooksYogaLocal(email: string | null | undefined): boolean {
+  return (email ?? "").trim().toLowerCase().endsWith("@yoga.local");
+}
+
+function teacherRowIdentityIsYogaLocal(row: {
+  user?: { email: string | null } | null;
+  claimEmail?: string | null;
+}): boolean {
+  const effective = (row.user?.email ?? row.claimEmail ?? "").trim().toLowerCase();
+  return teacherIdentityEmailLooksYogaLocal(effective);
+}
+
+function teacherFallbackPublicProfileLooksYogaLocal(teacher: Teacher): boolean {
+  if (teacherIdentityEmailLooksYogaLocal(teacher.claimEmail)) return true;
+  const demoUser = demoUsers.find((u) => u.id === teacher.userId);
+  return teacherIdentityEmailLooksYogaLocal(demoUser?.email);
+}
+
+function dedupeTeachersByFullNamePreferNonYogaLocal<T extends { id: string; fullName: string }>(
+  teachers: T[],
+  isYogaLocalIdentity: (row: T) => boolean
+): T[] {
+  const groups = new Map<string, T[]>();
+  for (const teacher of teachers) {
+    const key = teacher.fullName.trim();
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(teacher);
+    else groups.set(key, [teacher]);
+  }
+
+  const kept: T[] = [];
+  for (const group of groups.values()) {
+    const nonPlaceholder = group.filter((t) => !isYogaLocalIdentity(t));
+    if (nonPlaceholder.length > 0) {
+      nonPlaceholder.sort((a, b) => a.id.localeCompare(b.id));
+      kept.push(...nonPlaceholder);
+    } else {
+      const sorted = [...group].sort((a, b) => a.id.localeCompare(b.id));
+      kept.push(sorted[0]!);
+    }
+  }
+
+  return kept.sort((a, b) => a.fullName.localeCompare(b.fullName));
 }
 
 function listFallbackTeachers(existingTeacherIds: string[]) {
@@ -3364,9 +3421,16 @@ export async function listTeachers() {
       })
   ]);
 
-  const persistedTeachers = teachers.map(hydratePersistedTeacher);
-  return [...persistedTeachers, ...listFallbackTeachers(persistedTeachers.map((teacher) => teacher.id))]
-    .sort((a, b) => a.fullName.localeCompare(b.fullName));
+  const dedupedRows = dedupeTeachersByFullNamePreferNonYogaLocal(teachers, teacherRowIdentityIsYogaLocal);
+  const persistedYogaLocalById = new Map(dedupedRows.map((row) => [row.id, teacherRowIdentityIsYogaLocal(row)]));
+  const persistedTeachers = dedupedRows.map(hydratePersistedTeacher);
+  const withFallback = [...persistedTeachers, ...listFallbackTeachers(persistedTeachers.map((teacher) => teacher.id))];
+
+  return dedupeTeachersByFullNamePreferNonYogaLocal(withFallback, (teacher) =>
+    persistedYogaLocalById.has(teacher.id)
+      ? persistedYogaLocalById.get(teacher.id)!
+      : teacherFallbackPublicProfileLooksYogaLocal(teacher)
+  );
 }
 
 export async function updateTeacherProfile(
