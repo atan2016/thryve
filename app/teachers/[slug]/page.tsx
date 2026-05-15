@@ -21,6 +21,7 @@ import {
   mayUserRecordHeartOnTeacher
 } from "@/lib/persistence";
 import { getRecaptchaSiteKey } from "@/lib/recaptcha";
+import { listApprovedCertificationChips } from "@/lib/teacher-verified-certifications";
 import { isTeacherUpcomingEventImageApiUrl } from "@/lib/teacher-upcoming-event-image";
 import type { TeacherUpcomingEvent } from "@/lib/types";
 
@@ -206,6 +207,7 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
 
   const bioLead = excerptBio(teacher.bio);
   const isCertified = teacher.certificationStatus === "certified";
+  const verifiedCertifications = listApprovedCertificationChips(teacher.certificationSubmissions);
   const specialtyLine = teacher.styles.slice(0, 4).join(" · ") || "Yoga & movement";
   const upcomingEvents = teacher.upcomingEvents ?? [];
 
@@ -260,6 +262,18 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
                     ) : null}
                     {badge.name}
                     {badge.verified && !badge.imageUrl ? " · verified" : null}
+                  </span>
+                ))}
+                {verifiedCertifications.map((cert) => (
+                  <span
+                    className="inline-flex items-center gap-2 rounded-full border border-[#0d6b66]/18 bg-[#ecfdf5]/90 px-3.5 py-1.5 text-sm font-medium text-[#0c4f4a]"
+                    key={cert.key}
+                    title="Credential verified by Thryve"
+                  >
+                    {cert.imageUrl ? (
+                      <Image alt="" className="h-5 w-5 object-contain" height={20} src={cert.imageUrl} width={20} />
+                    ) : null}
+                    {cert.label}
                   </span>
                 ))}
                 {teacher.styles.map((style) => (
