@@ -7,7 +7,8 @@ import { consumePendingSignupVerification, createPendingSignupVerification } fro
 import { getCurrentUser, signIn, clearSession } from "@/lib/auth/session";
 import { bookCalendarSession, bookSession } from "@/lib/booking/book-session";
 import { purchaseCredits } from "@/lib/credits/purchase-credits";
-import { readEventImageForDatabase, saveCertificationDocument, savePendingSignupResume, saveProfileImage, saveStoryMedia, saveTeacherResume } from "@/lib/media/storage";
+import { sendCertificationSubmittedNotificationEmail } from "@/lib/email/certification-submitted";
+import { readCertificationFileForDatabase, readEventImageForDatabase, savePendingSignupResume, saveProfileImage, saveStoryMedia, saveTeacherResume } from "@/lib/media/storage";
 import { schedulePayout } from "@/lib/payouts/payout-provider";
 import { extractResumeText, type TeacherImportSourceInput } from "@/lib/teacher-profile-import";
 import { verifyRecaptchaToken } from "@/lib/recaptcha";
@@ -826,15 +827,27 @@ export async function addTeacherCertificationSubmissionAction(formData: FormData
     throw new Error("Please upload a certification file before submitting.");
   }
 
-  const uploadedFile = await saveCertificationDocument(certificationFile, teacher.id);
+  const payload = await readCertificationFileForDatabase(certificationFile);
 
-  await addTeacherCertificationSubmission(teacher.id, {
+  const submission = await addTeacherCertificationSubmission(teacher.id, {
     credentialName: String(formData.get("credentialName") ?? "").trim(),
     notes: String(formData.get("notes") ?? "").trim() || undefined,
-    fileUrl: uploadedFile.url,
-    fileName: uploadedFile.fileName,
-    mimeType: uploadedFile.mimeType
+    fileName: payload.fileName,
+    mimeType: payload.mimeType,
+    fileData: payload.buffer
   });
+
+  try {
+    await sendCertificationSubmittedNotificationEmail({
+      teacherName: teacher.fullName,
+      teacherSlug: teacher.slug,
+      credentialName: submission.credentialName,
+      submissionId: submission.id,
+      notes: submission.notes
+    });
+  } catch (err) {
+    console.error("[addTeacherCertificationSubmissionAction] certification notify email failed", err);
+  }
 
   revalidatePath("/dashboard/teacher/profile");
   revalidatePath("/admin/teachers");

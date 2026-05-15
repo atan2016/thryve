@@ -12,9 +12,12 @@ body {
   color: #1c1917;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Keep default links subtle, but stay inside @layer base so Tailwind utilities (e.g. text-white on buttons) win. */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 input,

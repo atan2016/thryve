@@ -90,9 +90,6 @@ export function FeaturedLocalGigsCarousel({ gigs, isSignedIn = false }: { gigs: 
             <h2 id="featured-gigs-heading" className="text-2xl font-semibold tracking-tight text-slate-900">
               New Jobs of the Week
             </h2>
-            {gigs.some((g) => Boolean(g.applyUrl)) ? (
-              <p className="mt-1 text-xs text-stone-500">Wellness-focused listings via Adzuna; opens the original job post.</p>
-            ) : null}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3 sm:pt-0.5">
@@ -126,7 +123,7 @@ export function FeaturedLocalGigsCarousel({ gigs, isSignedIn = false }: { gigs: 
       >
         {gigs.length === 0 ? (
           <div className="w-full rounded-[1.55rem] border border-dashed border-stone-300 bg-stone-50 p-6 text-sm text-stone-500">
-            No jobs match the current admin content filters.
+            No job listings to show. They may be filtered by admin keywords, or job search may not be configured yet.
           </div>
         ) : null}
         {gigs.map((gig) => (
@@ -165,14 +162,15 @@ export function FeaturedLocalGigsCarousel({ gigs, isSignedIn = false }: { gigs: 
             </ul>
 
             {gig.applyUrl ? (
-              <a
+              <Link
                 href={gig.applyUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                prefetch={false}
                 className="mt-5 block w-full rounded-full bg-gradient-to-r from-[#EE8D72] to-[#E6866A] py-2.5 text-center text-sm font-semibold text-white shadow-[0_8px_20px_-12px_rgba(229,134,106,0.95)] transition hover:from-[#e78063] hover:to-[#dc775a]"
               >
                 Apply Now
-              </a>
+              </Link>
             ) : (
               <Link
                 href={isSignedIn ? "/teachers" : "/sign-in?next=%2Fteachers"}
@@ -184,6 +182,22 @@ export function FeaturedLocalGigsCarousel({ gigs, isSignedIn = false }: { gigs: 
           </article>
         ))}
       </div>
+
+      {gigs.some((g) => Boolean(g.applyUrl)) ? (
+        <p className="px-1 text-center text-xs text-stone-500">
+          Jobs via{" "}
+          <Link
+            href="https://developer.adzuna.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            prefetch={false}
+            className="font-semibold text-stone-600 underline decoration-stone-300 underline-offset-2 hover:text-stone-800"
+          >
+            Adzuna
+          </Link>
+          . Opens the original listing; Thryve does not employ Indeed or scrape third-party job boards.
+        </p>
+      ) : null}
     </section>
   );
 }

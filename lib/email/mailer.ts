@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 
 type MailOptions = {
   to: string;
+  cc?: string;
   subject: string;
   html: string;
   text: string;
@@ -175,6 +176,7 @@ export async function sendMail(options: MailOptions): Promise<SendMailResult> {
     const info = await transporter.sendMail({
       from: config.from,
       to: options.to,
+      cc: options.cc || undefined,
       replyTo: replyTo || undefined,
       subject: options.subject,
       html: options.html,

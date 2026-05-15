@@ -9,6 +9,7 @@ import { normalizeTeacherUpcomingEventType } from "@/lib/teacher-upcoming-event-
 import { isUpcomingTeacherEventDateEligible } from "@/lib/teacher-upcoming-events";
 import { Prisma, CertificationSubmissionStatus, DiscussionAuthorRole, Role, StoryMediaType } from "@prisma/client";
 
+import { getAppBaseUrl } from "@/lib/app-base-url";
 import { db } from "@/lib/db";
 import { sendEmailChangeVerificationEmail } from "@/lib/email/verification";
 import { buildTeacherImportDraft, type TeacherImportSourceInput } from "@/lib/teacher-profile-import";
@@ -420,10 +421,6 @@ function hashVerificationToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-function getAppBaseUrl() {
-  return (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/+$/, "");
-}
-
 function normalizeKeywordList(keywords: string[]) {
   return Array.from(
     new Set(
@@ -788,12 +785,28 @@ function hydrateFallbackTeacher(teacher: Teacher) {
   };
 }
 
+/** List/card views — omit `fileData` so teacher queries do not load multi‑MB blobs. */
+const certificationSubmissionCardSelect = {
+  id: true,
+  teacherId: true,
+  credentialName: true,
+  notes: true,
+  fileUrl: true,
+  fileName: true,
+  mimeType: true,
+  status: true,
+  reviewNote: true,
+  reviewedAt: true,
+  createdAt: true
+} as const;
+
 const teacherRelationSelect = {
   teachingHours: {
     orderBy: { category: "asc" as const }
   },
   certificationSubmissions: {
-    orderBy: { createdAt: "desc" as const }
+    orderBy: { createdAt: "desc" as const },
+    select: certificationSubmissionCardSelect
   },
   stories: {
     where: { published: true },
@@ -903,7 +916,8 @@ const teacherRelationSelectWithoutUpcomingEventLocation = {
     orderBy: { category: "asc" as const }
   },
   certificationSubmissions: {
-    orderBy: { createdAt: "desc" as const }
+    orderBy: { createdAt: "desc" as const },
+    select: certificationSubmissionCardSelect
   },
   stories: {
     where: { published: true },
@@ -2426,18 +2440,20 @@ export async function listHomepageLocalGigs() {
   const contentFilters = await getAdminContentFilters();
   const hidden = contentFilters.hiddenJobKeywords;
 
+  const useMockJobs = process.env.USE_MOCK_JOBS === "true";
   const hasAdzunaCreds = Boolean(process.env.ADZUNA_APP_ID?.trim() && process.env.ADZUNA_APP_KEY?.trim());
-  let jobs: HomepageJobCard[] = HOMEPAGE_LOCAL_GIGS;
+
+  let jobs: HomepageJobCard[] = [];
 
   if (hasAdzunaCreds) {
     try {
-      const external = await getCachedHomepageExternalJobs();
-      if (external.length > 0) {
-        jobs = external;
-      }
+      jobs = await getCachedHomepageExternalJobs();
     } catch (err) {
-      console.error("[listHomepageLocalGigs] external job search failed; using static sample jobs", err);
+      console.error("[listHomepageLocalGigs] external job search failed", err);
+      jobs = [];
     }
+  } else if (useMockJobs) {
+    jobs = HOMEPAGE_LOCAL_GIGS;
   }
 
   return filterHomepageJobsByKeywords(jobs, hidden);
@@ -3951,17 +3967,23 @@ export async function markTeacherCalendarSessionBooked(teacherId: string, sessio
 
 export async function addTeacherCertificationSubmission(
   teacherId: string,
-  submission: Pick<TeacherCertificationSubmission, "credentialName" | "notes" | "fileUrl" | "fileName" | "mimeType">
+  submission: Pick<TeacherCertificationSubmission, "credentialName" | "notes" | "fileName" | "mimeType"> & {
+    fileData: Buffer;
+  }
 ) {
+  const id = `cert-${Date.now()}-${randomBytes(8).toString("hex")}`;
+  const fileUrl = `/api/teacher-certification-submissions/${id}/file`;
+
   const created = await db.teacherCertificationSubmission.create({
     data: {
-      id: `cert-${Date.now()}`,
+      id,
       teacherId,
       credentialName: submission.credentialName,
       notes: submission.notes || null,
-      fileUrl: submission.fileUrl,
+      fileUrl,
       fileName: submission.fileName,
       mimeType: submission.mimeType,
+      fileData: submission.fileData,
       status: "PENDING"
     }
   });

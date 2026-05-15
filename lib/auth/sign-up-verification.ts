@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "crypto";
 
 import { Role as DbRole } from "@prisma/client";
 
+import { getAppBaseUrl } from "@/lib/app-base-url";
 import { createSession } from "@/lib/auth/session";
 import { hashPassword } from "@/lib/auth/password";
 import { db } from "@/lib/db";
@@ -325,10 +326,6 @@ function normalizeOptionalPath(value?: string | null) {
 
 function hashVerificationToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
-}
-
-function getAppBaseUrl() {
-  return (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/+$/, "");
 }
 
 function mapRoleToDb(role: Role) {
@@ -768,4 +765,66 @@ function buildPostVerificationRedirect(pendingSignup: PendingSignup, role: Role)
   }
 
   return "/?verified=1";
+}
+
+export type ResendPendingSignupVerificationResult =
+  | { ok: true; delivered: boolean; messageId?: string }
+  | { ok: false; reason: "no_pending_signup" };
+
+/**
+ * Invalidate prior verification links for this pending signup and send a fresh verification email.
+ * Intended for admin/support use when the original link expired or pointed at the wrong origin.
+ */
+export async function resendPendingSignupVerificationEmail(input: {
+  email: string;
+  cc?: string;
+}): Promise<ResendPendingSignupVerificationResult> {
+  const normalizedEmail = normalizeEmail(input.email);
+  const cc = input.cc?.trim() || undefined;
+
+  const pending = await db.pendingSignup.findFirst({
+    where: { normalizedEmail, status: "PENDING" },
+    orderBy: { createdAt: "desc" }
+  });
+
+  if (!pending) {
+    return { ok: false, reason: "no_pending_signup" };
+  }
+
+  const rawToken = randomBytes(32).toString("hex");
+  const tokenHash = hashVerificationToken(rawToken);
+  const expiresAt = new Date(Date.now() + TOKEN_TTL_MS);
+
+  await db.$transaction(async (tx) => {
+    await tx.emailVerificationToken.updateMany({
+      where: { pendingSignupId: pending.id, consumedAt: null },
+      data: { consumedAt: new Date() }
+    });
+    await tx.pendingSignup.update({
+      where: { id: pending.id },
+      data: { expiresAt }
+    });
+    await tx.emailVerificationToken.create({
+      data: {
+        id: `email-verification-token-${Date.now()}-${randomBytes(4).toString("hex")}`,
+        pendingSignupId: pending.id,
+        tokenHash,
+        expiresAt
+      }
+    });
+  });
+
+  const verificationUrl = `${getAppBaseUrl()}/auth/verify-email/complete?token=${rawToken}`;
+  const mailResult = await sendVerificationEmail({
+    email: normalizedEmail,
+    name: pending.name.trim(),
+    verificationUrl,
+    cc
+  });
+
+  return {
+    ok: true,
+    delivered: mailResult.delivered,
+    messageId: mailResult.delivered ? mailResult.messageId : undefined
+  };
 }

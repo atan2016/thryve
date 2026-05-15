@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 
+import { getAppBaseUrl } from "@/lib/app-base-url";
 import { purchaseCredits as purchaseCreditsInStore } from "@/lib/store";
 
 export async function purchaseCredits(userId: string, credits: number) {
@@ -19,8 +20,8 @@ export async function purchaseCredits(userId: string, credits: number) {
           }
         }
       ],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/credits?purchase=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/credits?purchase=cancelled`
+      success_url: `${getAppBaseUrl()}/credits?purchase=success`,
+      cancel_url: `${getAppBaseUrl()}/credits?purchase=cancelled`
     });
 
     return {

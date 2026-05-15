@@ -293,19 +293,22 @@ model TeachingHourCounter {
 }
 
 model TeacherCertificationSubmission {
-  id            String                        @id
-  teacherId     String
+  id             String                        @id
+  teacherId      String
   credentialName String
-  notes         String?
-  fileUrl       String
-  fileName      String
-  mimeType      String
-  status        CertificationSubmissionStatus @default(PENDING)
-  reviewNote    String?
-  reviewedAt    DateTime?
-  createdAt     DateTime                      @default(now())
-  updatedAt     DateTime                      @updatedAt
-  teacher       Teacher                       @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  notes          String?
+  /// Download URL — `/api/teacher-certification-submissions/:id/file` when stored in DB; legacy `/uploads/...` for older rows.
+  fileUrl        String
+  /// Stored bytes on serverless hosts (disk uploads do not persist); null for legacy disk-only rows.
+  fileData       Bytes?
+  fileName       String
+  mimeType       String
+  status         CertificationSubmissionStatus @default(PENDING)
+  reviewNote     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
+  teacher        Teacher                       @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 }
 
 model CommunityDiscussion {

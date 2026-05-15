@@ -131,6 +131,7 @@ export async function saveStoryMedia(file: File, teacherId: string) {
   };
 }
 
+/** @deprecated Disk path not available on serverless — use `readCertificationFileForDatabase` and DB-backed `fileData` instead. */
 export async function saveCertificationDocument(file: File, teacherId: string) {
   const allowedTypes = new Set(["application/pdf", "image/png", "image/jpeg", "image/webp"]);
 
@@ -154,6 +155,32 @@ export async function saveCertificationDocument(file: File, teacherId: string) {
   return {
     url: `/uploads/certifications/${fileName}`,
     fileName: file.name || fileName,
+    mimeType: file.type
+  };
+}
+
+/**
+ * Reads and validates a certification upload for persistence in Postgres (`TeacherCertificationSubmission.fileData`).
+ * Use this on serverless hosts; disk uploads in `saveCertificationDocument` are not writable on Vercel.
+ */
+export async function readCertificationFileForDatabase(file: File): Promise<{ buffer: Buffer; fileName: string; mimeType: string }> {
+  const allowedTypes = new Set(["application/pdf", "image/png", "image/jpeg", "image/webp"]);
+
+  if (!allowedTypes.has(file.type)) {
+    throw new Error("Certification files must be a PDF, JPG, PNG, or WebP.");
+  }
+
+  if (file.size > MAX_CERTIFICATION_BYTES) {
+    throw new Error("Certification files must be smaller than 10MB.");
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const extension = getFileExtension(file);
+  const fileName = (file.name?.trim() || `certification${extension}`).slice(0, 240);
+
+  return {
+    buffer,
+    fileName,
     mimeType: file.type
   };
 }

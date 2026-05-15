@@ -3,12 +3,22 @@ import { unstable_cache } from "next/cache";
 
 import type { HomepageJobCard } from "@/lib/types";
 
-/** Title/company must match at least one of these (word-boundary) to appear on the homepage. */
-const WELLNESS_FOCUS_PATTERN =
+/** Core wellness / mind-body signals (word boundaries). */
+const WELLNESS_CORE_PATTERN =
   /\b(yoga|pilates|wellness|meditation|mindfulness|reiki|barre|holistic|somatic|breathwork|stretch)\b/i;
 
+/** “Fitness instructor” only counts when paired with a wellness-adjacent cue (drops generic gym roles). */
+const FITNESS_INSTRUCTOR_PATTERN = /\bfitness\s+instructor\b/i;
+const FITNESS_WELLNESS_GUARD_PATTERN =
+  /\b(yoga|pilates|wellness|mindful|meditation|studio|boutique|mat|barre|stretch|holistic|somatic|reiki)\b/i;
+
 export function isHomepageWellnessJob(job: Pick<HomepageJobCard, "title" | "company">): boolean {
-  return WELLNESS_FOCUS_PATTERN.test(`${job.title} ${job.company}`);
+  const blob = `${job.title} ${job.company}`;
+  if (WELLNESS_CORE_PATTERN.test(blob)) return true;
+  if (FITNESS_INSTRUCTOR_PATTERN.test(blob)) {
+    return FITNESS_WELLNESS_GUARD_PATTERN.test(blob);
+  }
+  return false;
 }
 
 type AdzunaJob = {
@@ -23,6 +33,17 @@ type AdzunaJob = {
   contract_type?: string;
 };
 
+const parsedRevalidate = Number.parseInt(process.env.ADZUNA_CACHE_REVALIDATE_SECONDS ?? "", 10);
+const REVALIDATE_SECONDS = Number.isFinite(parsedRevalidate)
+  ? Math.min(86400, Math.max(60, parsedRevalidate))
+  : 3600;
+
+const CACHE_KEY = [
+  "homepage-adzuna-jobs",
+  (process.env.ADZUNA_COUNTRY_CODE ?? "us").trim().toLowerCase(),
+  (process.env.ADZUNA_WHERE ?? "").trim()
+];
+
 function formatSalaryRange(min?: number, max?: number): string {
   if (min != null && max != null && min > 0 && max > 0 && min !== max) {
     return `$${Math.round(min).toLocaleString("en-US")}–$${Math.round(max).toLocaleString("en-US")}`;
@@ -33,11 +54,12 @@ function formatSalaryRange(min?: number, max?: number): string {
   if (max != null && max > 0) {
     return `up to $${Math.round(max).toLocaleString("en-US")}`;
   }
-  return "See listing for pay";
+  return "See listing";
 }
 
 function mapContractType(raw?: string): string {
   const t = String(raw ?? "").toLowerCase();
+  if (t.includes("freelance") || t.includes("gig") || t.includes("casual") || t.includes("zero hour")) return "Gig";
   if (t.includes("permanent") || t.includes("full")) return "Full-time";
   if (t.includes("contract") || t.includes("temp")) return "Contract";
   if (t.includes("part")) return "Part-time";
@@ -80,6 +102,7 @@ async function fetchAdzunaSearchPage(what: string): Promise<AdzunaJob[]> {
   const appId = process.env.ADZUNA_APP_ID?.trim();
   const appKey = process.env.ADZUNA_APP_KEY?.trim();
   const country = (process.env.ADZUNA_COUNTRY_CODE ?? "us").trim().toLowerCase();
+  const where = (process.env.ADZUNA_WHERE ?? "").trim();
   if (!appId || !appKey) return [];
 
   const params = new URLSearchParams({
@@ -88,6 +111,9 @@ async function fetchAdzunaSearchPage(what: string): Promise<AdzunaJob[]> {
     results_per_page: "25",
     what
   });
+  if (where.length > 0) {
+    params.set("where", where);
+  }
 
   const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params.toString()}`;
   const res = await fetch(url, { cache: "no-store" });
@@ -103,7 +129,7 @@ async function fetchHomepageExternalJobsUncached(): Promise<HomepageJobCard[]> {
   const appKey = process.env.ADZUNA_APP_KEY?.trim();
   if (!appId || !appKey) return [];
 
-  const queries = ["yoga instructor", "pilates instructor", "wellness coach"];
+  const queries = ["yoga instructor", "pilates instructor", "wellness coach", "meditation teacher"];
   const batches = await Promise.all(queries.map((q) => fetchAdzunaSearchPage(q)));
 
   const seen = new Set<string>();
@@ -123,6 +149,6 @@ async function fetchHomepageExternalJobsUncached(): Promise<HomepageJobCard[]> {
   return cards.slice(0, 36);
 }
 
-export const getCachedHomepageExternalJobs = unstable_cache(fetchHomepageExternalJobsUncached, ["homepage-adzuna-jobs"], {
-  revalidate: 3600
+export const getCachedHomepageExternalJobs = unstable_cache(fetchHomepageExternalJobsUncached, CACHE_KEY, {
+  revalidate: REVALIDATE_SECONDS
 });

@@ -4,6 +4,7 @@ type VerificationEmailInput = {
   email: string;
   name: string;
   verificationUrl: string;
+  cc?: string;
 };
 
 type EmailChangeVerificationInput = {
@@ -41,6 +42,7 @@ export async function sendVerificationEmail(input: VerificationEmailInput) {
 
   return sendMail({
     to: input.email,
+    cc: input.cc,
     subject,
     html,
     text
