@@ -8,7 +8,7 @@ import { getCurrentUser, signIn, clearSession } from "@/lib/auth/session";
 import { bookCalendarSession, bookSession } from "@/lib/booking/book-session";
 import { purchaseCredits } from "@/lib/credits/purchase-credits";
 import { sendCertificationSubmittedNotificationEmail } from "@/lib/email/certification-submitted";
-import { readCertificationFileForDatabase, readEventImageForDatabase, savePendingSignupResume, saveProfileImage, saveStoryMedia, saveTeacherResume } from "@/lib/media/storage";
+import { readCertificationFileForDatabase, readEventImageForDatabase, readProfileImageForDatabase, savePendingSignupResume, saveStoryMedia, saveTeacherResume } from "@/lib/media/storage";
 import { schedulePayout } from "@/lib/payouts/payout-provider";
 import { extractResumeText, type TeacherImportSourceInput } from "@/lib/teacher-profile-import";
 import { verifyRecaptchaToken } from "@/lib/recaptcha";
@@ -474,8 +474,8 @@ export async function bookCalendarSessionAction(formData: FormData) {
 export async function updateTeacherProfileAction(formData: FormData) {
   const teacher = await requireCurrentTeacher();
   const avatarFile = formData.get("avatarFile");
-  const uploadedAvatarUrl =
-    avatarFile instanceof File && avatarFile.size > 0 ? await saveProfileImage(avatarFile, teacher.id) : undefined;
+  const avatarDatabase =
+    avatarFile instanceof File && avatarFile.size > 0 ? await readProfileImageForDatabase(avatarFile) : undefined;
 
   await updateTeacherProfile(teacher.id, {
     fullName: String(formData.get("fullName") ?? ""),
@@ -493,7 +493,7 @@ export async function updateTeacherProfileAction(formData: FormData) {
     linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || undefined,
     instagramUrl: String(formData.get("instagramUrl") ?? "").trim() || undefined,
     facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || undefined,
-    avatarUrl: uploadedAvatarUrl
+    ...(avatarDatabase ? { avatarDatabase } : {})
   });
 
   revalidatePath("/dashboard/teacher/profile");

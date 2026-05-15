@@ -63,6 +63,9 @@ model Teacher {
   slug                     String                        @unique
   fullName                 String
   avatarUrl                String?
+  /// Stored bytes when upload cannot be written to disk (e.g. Vercel). Served via `/api/teachers/:id/avatar`.
+  avatarImage              Bytes?
+  avatarImageMimeType      String?
   studioName               String?
   studioWebsiteUrl         String?
   studioScheduleUrl        String?

@@ -35,6 +35,24 @@ function getFileExtension(file: File) {
   return ".jpg";
 }
 
+export async function readProfileImageForDatabase(file: File): Promise<{ buffer: Buffer; mimeType: string }> {
+  const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+
+  if (!allowedTypes.has(file.type)) {
+    throw new Error("Profile photo must be a JPG, PNG, or WebP image.");
+  }
+
+  if (file.size > MAX_IMAGE_BYTES) {
+    throw new Error("Profile photo must be smaller than 5MB.");
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const mimeType = file.type?.trim() || "application/octet-stream";
+
+  return { buffer, mimeType };
+}
+
+/** @deprecated Disk writes do not persist on serverless — use `readProfileImageForDatabase` and DB `Teacher.avatarImage`. */
 export async function saveProfileImage(file: File, teacherId: string) {
   if (!file.type.startsWith("image/")) {
     throw new Error("Profile photo must be an image file.");

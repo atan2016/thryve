@@ -3454,6 +3454,7 @@ export async function updateTeacherProfile(
     | "facebookUrl"
   > & {
     avatarUrl?: string;
+    avatarDatabase?: { buffer: Buffer; mimeType: string };
   }
 ) {
   const currentTeacher = await db.teacher.findUnique({
@@ -3464,6 +3465,17 @@ export async function updateTeacherProfile(
   if (!currentTeacher) {
     throw new Error("Teacher not found.");
   }
+
+  const avatarPersistData =
+    input.avatarDatabase != null
+      ? {
+          avatarImage: input.avatarDatabase.buffer,
+          avatarImageMimeType: input.avatarDatabase.mimeType,
+          avatarUrl: `/api/teachers/${teacherId}/avatar`
+        }
+      : input.avatarUrl
+        ? { avatarUrl: input.avatarUrl }
+        : {};
 
   if (currentTeacher.userId) {
     await db.user.update({
@@ -3491,7 +3503,7 @@ export async function updateTeacherProfile(
         linkedinUrl: input.linkedinUrl?.trim() || null,
         instagramUrl: input.instagramUrl?.trim() || null,
         facebookUrl: input.facebookUrl?.trim() || null,
-        ...(input.avatarUrl ? { avatarUrl: input.avatarUrl } : {}),
+        ...avatarPersistData,
         published: true
       },
       select: { id: true }
@@ -3515,7 +3527,11 @@ export async function updateTeacherProfile(
         certificationStatus: input.certificationStatus,
         studioWebsiteUrl: input.studioWebsiteUrl?.trim() || null,
         studioScheduleUrl: input.studioScheduleUrl?.trim() || null,
-        ...(input.avatarUrl ? { avatarUrl: input.avatarUrl } : {}),
+        websiteUrl: input.websiteUrl?.trim() || null,
+        linkedinUrl: input.linkedinUrl?.trim() || null,
+        instagramUrl: input.instagramUrl?.trim() || null,
+        facebookUrl: input.facebookUrl?.trim() || null,
+        ...avatarPersistData,
         published: true
       },
       select: { id: true }
