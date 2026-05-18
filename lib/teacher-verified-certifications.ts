@@ -11,16 +11,19 @@ function credentialImageHint(name: string): string | undefined {
   if (/\b(cpr|first aid|red cross|aed|bls|basic life support)\b/.test(n)) {
     return "/assets/images/red_cross_CPR.png";
   }
-  if (/\b(200\s*-?\s*ryt|ryt\s*-?\s*200|200\s*hour|200\s*hr)\b/.test(n)) {
+  if (/\b(e-?ryt\s*-?\s*200|200\s*-?\s*ryt|ryt\s*-?\s*200|200\s*hour|200\s*hr)\b/.test(n)) {
+    return "/assets/images/200RYT_certification.jpeg";
+  }
+  if (/\b(e-?ryt\s*-?\s*500|ryt\s*-?\s*500|500\s*-?\s*hour|500\s*hr)\b/.test(n)) {
     return "/assets/images/200RYT_certification.jpeg";
   }
   if (/\byin\b/.test(n) && /\b(yoga|ytt|teacher)\b/.test(n)) {
     return "/assets/images/Yin_Yoga_Certification_badge.jpeg";
   }
-  if (/\bkids\b/.test(n) && /\byoga\b/.test(n)) {
+  if (/\b(rcyt|children'?s?\s+yoga|kids\s+yoga)\b/.test(n)) {
     return "/assets/images/yoga_kids_certification.png";
   }
-  if (/\bbackground\b/.test(n) && /\b(check|cleared|screened)\b/.test(n)) {
+  if (/\bbackground\b/.test(n) && /\b(check|checked|cleared|screened|verified)\b/.test(n)) {
     return "/assets/images/background_checked.png";
   }
   return undefined;

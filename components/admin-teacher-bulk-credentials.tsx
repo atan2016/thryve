@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { bulkGrantTeacherCredentialsAction } from "@/lib/actions";
-import { ADMIN_GRANTABLE_CREDENTIALS } from "@/lib/admin-credential-catalog";
+import { ADMIN_GRANTABLE_CREDENTIAL_GROUPS } from "@/lib/admin-credential-catalog";
 
 export type AdminBulkTeacherRow = {
   id: string;
@@ -171,29 +171,34 @@ function BulkCredentialPicker({
   onToggle: (label: string) => void;
 }) {
   return (
-    <fieldset>
+    <fieldset className="space-y-5">
       <legend className="text-sm font-medium text-stone-700">Credentials to grant</legend>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {ADMIN_GRANTABLE_CREDENTIALS.map((entry) => {
-          const checked = selectedCredentials.has(entry.label);
-          return (
-            <label
-              className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${
-                checked ? "border-emerald-600 bg-emerald-50 text-emerald-900" : "border-stone-200 bg-white text-stone-700"
-              }`}
-              key={entry.id}
-            >
-              <input
-                checked={checked}
-                className="sr-only"
-                onChange={() => onToggle(entry.label)}
-                type="checkbox"
-              />
-              {entry.label}
-            </label>
-          );
-        })}
-      </div>
+      {ADMIN_GRANTABLE_CREDENTIAL_GROUPS.map((group) => (
+        <div key={group.category}>
+          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">{group.title}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {group.credentials.map((entry) => {
+              const checked = selectedCredentials.has(entry.label);
+              return (
+                <label
+                  className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${
+                    checked ? "border-emerald-600 bg-emerald-50 text-emerald-900" : "border-stone-200 bg-white text-stone-700"
+                  }`}
+                  key={entry.id}
+                >
+                  <input
+                    checked={checked}
+                    className="sr-only"
+                    onChange={() => onToggle(entry.label)}
+                    type="checkbox"
+                  />
+                  {entry.label}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </fieldset>
   );
 }
