@@ -57,6 +57,7 @@ export const demoUsers: AppUser[] = [
   { id: "user-teacher-4", email: "robinjaffe@yoga.local", password: "password123", role: "teacher", name: "Robin Jaffe", emailVerifiedAt: today.toISOString() },
   { id: "user-teacher-5", email: "denayadailey@gmail.com", password: "password123", role: "teacher", name: "Denaya Dailey", emailVerifiedAt: today.toISOString() },
   { id: "user-teacher-6", email: "blu.high@yoga.local", password: "password123", role: "teacher", name: "Blu High", emailVerifiedAt: today.toISOString() },
+  { id: "user-teacher-7", email: "michelle.li@yoga.local", password: "password123", role: "teacher", name: "Michelle Li", emailVerifiedAt: today.toISOString() },
   { id: "user-admin-1", email: "admin@yoga.local", password: "password123", role: "admin", name: "Jordan Admin", emailVerifiedAt: today.toISOString() }
 ];
 
@@ -363,6 +364,61 @@ Beyond weekly studio classes, Blu is involved with the College of San Mateo yoga
         eventDate: makeSlot("event-blu-yogasource-heated-slot", "teacher-6", 6, 7).startsAt
       }
     ]
+  },
+  {
+    id: "teacher-7",
+    userId: "user-teacher-7",
+    slug: "michelle-li",
+    fullName: "Michelle Li",
+    studioName: "Peninsula Mindful Movement",
+    studioWebsiteUrl: "https://collegeofsanmateo.edu/yoga/",
+    studioScheduleUrl: "https://collegeofsanmateo.edu/yoga/",
+    websiteUrl: "https://collegeofsanmateo.edu/yoga/",
+    platformHoursBooked: 120,
+    city: "San Mateo",
+    serviceRadiusMiles: 20,
+    training:
+      "200-hour Yoga Teacher Training (YTT) with advanced study in Yin Yoga, plus ongoing training in Tai Chi and mindful somatic movement for balance and longevity.",
+    experienceYears: 8,
+    bio: "Michelle Li offers gentle Yin yoga, Tai Chi–informed flow, and breath-centered practices that build mobility, calm, and steady energy for everyday life.",
+    gender: "female",
+    certificationStatus: "certified",
+    published: true,
+    certificationSubmissions: [
+      {
+        id: "cert-mock-michelle-red-cross-cpr",
+        teacherId: "teacher-7",
+        credentialName: "Red Cross CPR",
+        fileUrl: "/api/teacher-certification-submissions/cert-mock-michelle-red-cross-cpr/file",
+        fileName: "cpr-certificate.pdf",
+        mimeType: "application/pdf",
+        status: "approved",
+        reviewedAt: addDays(today, -14).toISOString(),
+        createdAt: addDays(today, -20).toISOString()
+      },
+      {
+        id: "cert-mock-michelle-200-ryt",
+        teacherId: "teacher-7",
+        credentialName: "200 RYT",
+        fileUrl: "/api/teacher-certification-submissions/cert-mock-michelle-200-ryt/file",
+        fileName: "ryt-certificate.pdf",
+        mimeType: "application/pdf",
+        status: "approved",
+        reviewedAt: addDays(today, -12).toISOString(),
+        createdAt: addDays(today, -18).toISOString()
+      },
+      {
+        id: "cert-mock-michelle-yin-yoga",
+        teacherId: "teacher-7",
+        credentialName: "Yin Yoga",
+        fileUrl: "/api/teacher-certification-submissions/cert-mock-michelle-yin-yoga/file",
+        fileName: "yin-certificate.pdf",
+        mimeType: "application/pdf",
+        status: "approved",
+        reviewedAt: addDays(today, -10).toISOString(),
+        createdAt: addDays(today, -16).toISOString()
+      }
+    ]
   }
 ];
 
@@ -405,7 +461,8 @@ export const demoYogaStyles: YogaStyle[] = [
   { id: "style-7", name: "Classic Pilates" },
   { id: "style-8", name: "Inferno Pilates" },
   { id: "style-9", name: "Meditation" },
-  { id: "style-10", name: "Somatic Yoga" }
+  { id: "style-10", name: "Somatic Yoga" },
+  { id: "style-11", name: "Tai Chi" }
 ];
 
 export const demoTeacherStyles: TeacherStyle[] = [
@@ -430,7 +487,9 @@ export const demoTeacherStyles: TeacherStyle[] = [
   { teacherId: "teacher-5", styleId: "style-7" },
   { teacherId: "teacher-5", styleId: "style-9" },
   { teacherId: "teacher-6", styleId: "style-1" },
-  { teacherId: "teacher-6", styleId: "style-3" }
+  { teacherId: "teacher-6", styleId: "style-3" },
+  { teacherId: "teacher-7", styleId: "style-11" },
+  { teacherId: "teacher-7", styleId: "style-4" }
 ];
 
 export const demoOfferings: TeacherOffering[] = [
@@ -674,6 +733,17 @@ export const demoOfferings: TeacherOffering[] = [
     deliveryMode: "in_person",
     sessionLengthMin: 60,
     creditPrice: 18,
+    active: true
+  },
+  {
+    id: "offering-23",
+    teacherId: "teacher-7",
+    category: "studio",
+    title: "Tai Chi & Yin foundations",
+    description: "Slow, meditative movement pairing Tai Chi principles with Yin-style floor work for mobility and stress relief.",
+    deliveryMode: "in_person",
+    sessionLengthMin: 75,
+    creditPrice: 14,
     active: true
   }
 ];
@@ -1073,7 +1143,10 @@ export const demoTeachingHours: TeachingHourCounter[] = [
   { teacherId: "teacher-5", category: "corporate-events", totalHours: 40 },
   { teacherId: "teacher-6", category: "studio", totalHours: 124 },
   { teacherId: "teacher-6", category: "private", totalHours: 22 },
-  { teacherId: "teacher-6", category: "corporate-events", totalHours: 14 }
+  { teacherId: "teacher-6", category: "corporate-events", totalHours: 14 },
+  { teacherId: "teacher-7", category: "studio", totalHours: 72 },
+  { teacherId: "teacher-7", category: "private", totalHours: 28 },
+  { teacherId: "teacher-7", category: "older", totalHours: 20 }
 ];
 
 export const demoCommunityDiscussions: CommunityDiscussion[] = [

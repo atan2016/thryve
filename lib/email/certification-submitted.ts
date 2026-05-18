@@ -1,12 +1,6 @@
+import { getAdminNotifyRecipient } from "@/lib/email/admin-notify-recipient";
 import { getAppBaseUrl } from "@/lib/app-base-url";
 import { sendMail } from "@/lib/email/mailer";
-
-const DEFAULT_NOTIFY_EMAIL = "ashleyt@gmail.com";
-
-function getCertificationNotifyRecipient(): string {
-  const raw = process.env.CERTIFICATION_NOTIFY_EMAIL?.trim();
-  return raw || DEFAULT_NOTIFY_EMAIL;
-}
 
 function escapeHtml(value: string) {
   return value
@@ -24,7 +18,7 @@ export async function sendCertificationSubmittedNotificationEmail(input: {
   submissionId: string;
   notes?: string;
 }): Promise<void> {
-  const to = getCertificationNotifyRecipient();
+  const to = getAdminNotifyRecipient();
   const base = getAppBaseUrl();
   const adminTeachersUrl = `${base}/admin/teachers`;
   const publicProfileUrl = `${base}/teachers/${encodeURIComponent(input.teacherSlug)}`;

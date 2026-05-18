@@ -7,6 +7,7 @@ import { consumePendingSignupVerification, createPendingSignupVerification } fro
 import { getCurrentUser, signIn, clearSession } from "@/lib/auth/session";
 import { bookCalendarSession, bookSession } from "@/lib/booking/book-session";
 import { purchaseCredits } from "@/lib/credits/purchase-credits";
+import { sendContactAdminInquiryEmail } from "@/lib/email/contact-admin-inquiry";
 import { sendCertificationSubmittedNotificationEmail } from "@/lib/email/certification-submitted";
 import { readCertificationFileForDatabase, readEventImageForDatabase, readProfileImageForDatabase, savePendingSignupResume, saveStoryMedia, saveTeacherResume } from "@/lib/media/storage";
 import { schedulePayout } from "@/lib/payouts/payout-provider";
@@ -40,6 +41,7 @@ import {
   followTeacherForUser,
   heartTeacherForUser,
   mayUserRecordHeartOnTeacher,
+  grantTeacherCredentialsAdmin,
   reviewTeacherCertificationSubmission,
   skipTeacherImportOnboarding,
   submitTeacherImportOnboarding,
@@ -878,6 +880,41 @@ export async function reviewTeacherCertificationSubmissionAction(formData: FormD
   }
 }
 
+export async function bulkGrantTeacherCredentialsAction(formData: FormData) {
+  await requireCurrentAdmin();
+
+  const teacherIds = formData
+    .getAll("teacherIds")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+  const credentialLabels = formData
+    .getAll("credentialLabels")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+
+  if (!teacherIds.length || !credentialLabels.length) {
+    redirect("/admin/teachers?bulkError=missing_selection");
+  }
+
+  const result = await grantTeacherCredentialsAdmin(
+    teacherIds,
+    credentialLabels,
+    String(formData.get("reviewNote") ?? "")
+  );
+
+  revalidatePath("/admin/teachers");
+  for (const slug of result.affectedSlugs) {
+    revalidatePath(`/teachers/${slug}`);
+  }
+
+  const params = new URLSearchParams({
+    bulkCreated: String(result.created),
+    bulkUpdated: String(result.updated),
+    bulkSkipped: String(result.skipped)
+  });
+  redirect(`/admin/teachers?${params.toString()}`);
+}
+
 export async function contactTeacherAction(formData: FormData) {
   const teacherSlug = String(formData.get("teacherSlug") ?? "");
   const recaptchaToken = String(formData.get("recaptchaToken") ?? "");
@@ -920,11 +957,33 @@ export async function contactAdminAction(formData: FormData) {
     redirect(appendStatusToReturnTo(returnTo, "support", verification.reason === "missing_secret" ? "error" : "captcha"));
   }
 
-  addAdminContactInquiry({
-    name: String(formData.get("name") ?? ""),
-    email: String(formData.get("email") ?? ""),
-    message: String(formData.get("message") ?? "")
-  });
+  const name = String(formData.get("name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const message = String(formData.get("message") ?? "").trim();
+
+  if (!name || !email || !message) {
+    redirect(appendStatusToReturnTo(returnTo, "support", "error"));
+  }
+
+  const inquiry = addAdminContactInquiry({ name, email, message });
+
+  try {
+    const mailResult = await sendContactAdminInquiryEmail({
+      name,
+      email,
+      message,
+      inquiryId: inquiry.id
+    });
+
+    if (!mailResult.delivered && process.env.NODE_ENV === "production") {
+      redirect(appendStatusToReturnTo(returnTo, "support", "error"));
+    }
+  } catch (err) {
+    console.error("[contactAdminAction] contact notify email failed", err);
+    if (process.env.NODE_ENV === "production") {
+      redirect(appendStatusToReturnTo(returnTo, "support", "error"));
+    }
+  }
 
   redirect(appendStatusToReturnTo(returnTo, "support", "sent"));
 }

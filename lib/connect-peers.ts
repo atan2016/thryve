@@ -2,7 +2,8 @@ export type ConnectPeerCard = {
   slug: string;
   fullName: string;
   avatarUrl?: string;
-  specialty: string;
+  /** Optional subtitle (e.g. specialty) — only shown when set. */
+  specialty?: string;
   isDemo?: boolean;
   /** Present for real teachers from the directory (not demo filler). */
   teacherId?: string;
@@ -12,12 +13,12 @@ export type ConnectPeerCard = {
 };
 
 const DEMO_PEERS: ConnectPeerCard[] = [
-  { slug: "_demo-maya", fullName: "Maya Chen", specialty: "Vinyasa Flow", isDemo: true },
-  { slug: "_demo-james", fullName: "James Rivera", specialty: "Meditation", isDemo: true },
-  { slug: "_demo-priya", fullName: "Priya Sharma", specialty: "Hatha Yoga", isDemo: true },
-  { slug: "_demo-marcus", fullName: "Marcus Johnson", specialty: "Breathwork", isDemo: true },
-  { slug: "_demo-luna", fullName: "Luna Park", specialty: "Yin Yoga", isDemo: true },
-  { slug: "_demo-david", fullName: "David Kim", specialty: "Pilates", isDemo: true },
+  { slug: "_demo-maya", fullName: "Maya Chen", isDemo: true },
+  { slug: "_demo-james", fullName: "James Rivera", isDemo: true },
+  { slug: "_demo-priya", fullName: "Priya Sharma", isDemo: true },
+  { slug: "_demo-marcus", fullName: "Marcus Johnson", isDemo: true },
+  { slug: "_demo-luna", fullName: "Luna Park", isDemo: true },
+  { slug: "_demo-david", fullName: "David Kim", isDemo: true },
 ];
 
 export type BuildConnectPeersOptions = {
@@ -28,7 +29,7 @@ export type BuildConnectPeersOptions = {
 
 /** Up to six peer cards from published teachers; optional exclusions; padded with demo peers. */
 export function buildConnectPeers(
-  teachers: Array<{ id: string; slug: string; userId?: string; fullName: string; avatarUrl?: string; styles: string[] }>,
+  teachers: Array<{ id: string; slug: string; userId?: string; fullName: string; avatarUrl?: string }>,
   options?: BuildConnectPeersOptions,
 ): ConnectPeerCard[] {
   const excludeSlug = options?.excludeSlug;
@@ -41,13 +42,18 @@ export function buildConnectPeers(
       return true;
     })
     .slice(0, 6)
-    .map((t) => ({
-      slug: t.slug,
-      teacherId: t.id,
-      fullName: t.fullName,
-      avatarUrl: t.avatarUrl,
-      specialty: t.styles[0] ?? "Yoga",
-    }));
+    .map((t) => {
+      const card: ConnectPeerCard = {
+        slug: t.slug,
+        teacherId: t.id,
+        fullName: t.fullName,
+        avatarUrl: t.avatarUrl
+      };
+      if (t.slug === "michelle-li") {
+        card.specialty = "Tai Chi";
+      }
+      return card;
+    });
 
   if (fromDb.length >= 6) {
     return fromDb;

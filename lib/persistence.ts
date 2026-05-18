@@ -9,6 +9,7 @@ import { normalizeTeacherUpcomingEventType } from "@/lib/teacher-upcoming-event-
 import { isUpcomingTeacherEventDateEligible } from "@/lib/teacher-upcoming-events";
 import { Prisma, CertificationSubmissionStatus, DiscussionAuthorRole, Role, StoryMediaType } from "@prisma/client";
 
+import { normalizeAdminGrantableCredentialLabels } from "@/lib/admin-credential-catalog";
 import { getAppBaseUrl } from "@/lib/app-base-url";
 import { db } from "@/lib/db";
 import { sendEmailChangeVerificationEmail } from "@/lib/email/verification";
@@ -4103,6 +4104,142 @@ export async function reviewTeacherCertificationSubmission(
   }
 
   return mapCertificationSubmission(updated);
+}
+
+export const ADMIN_GRANT_FILE_URL = "/admin/granted";
+export const ADMIN_GRANT_FILE_NAME = "admin-granted";
+export const ADMIN_GRANT_NOTES = "Admin-granted (no upload required)";
+
+export type GrantTeacherCredentialsAdminResult = {
+  created: number;
+  updated: number;
+  skipped: number;
+  affectedTeacherIds: string[];
+  affectedSlugs: string[];
+};
+
+export function isAdminGrantedCertificationSubmission(submission: {
+  fileUrl: string;
+  fileName: string;
+  notes?: string | null;
+}): boolean {
+  return (
+    submission.fileUrl === ADMIN_GRANT_FILE_URL ||
+    submission.fileName === ADMIN_GRANT_FILE_NAME ||
+    (submission.notes?.includes("Admin-granted") ?? false)
+  );
+}
+
+export async function grantTeacherCredentialsAdmin(
+  teacherIds: string[],
+  credentialLabels: string[],
+  reviewNote?: string
+): Promise<GrantTeacherCredentialsAdminResult> {
+  const labels = normalizeAdminGrantableCredentialLabels(credentialLabels);
+  const uniqueTeacherIds = [...new Set(teacherIds.map((id) => id.trim()).filter(Boolean))];
+
+  if (!uniqueTeacherIds.length || !labels.length) {
+    return { created: 0, updated: 0, skipped: 0, affectedTeacherIds: [], affectedSlugs: [] };
+  }
+
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  const affectedTeacherIds = new Set<string>();
+  const reviewNoteTrimmed = reviewNote?.trim() || null;
+
+  await db.$transaction(async (tx) => {
+    for (const teacherId of uniqueTeacherIds) {
+      const teacher = await tx.teacher.findUnique({
+        where: { id: teacherId },
+        select: { id: true }
+      });
+
+      if (!teacher) {
+        continue;
+      }
+
+      const existing = await tx.teacherCertificationSubmission.findMany({
+        where: { teacherId },
+        select: { id: true, credentialName: true, status: true }
+      });
+
+      let teacherChanged = false;
+
+      for (const label of labels) {
+        const norm = label.toLowerCase();
+        const match = existing.find((row) => row.credentialName.trim().toLowerCase() === norm);
+
+        if (match?.status === CertificationSubmissionStatus.APPROVED) {
+          skipped += 1;
+          continue;
+        }
+
+        if (match?.status === CertificationSubmissionStatus.PENDING) {
+          await tx.teacherCertificationSubmission.update({
+            where: { id: match.id },
+            data: {
+              status: CertificationSubmissionStatus.APPROVED,
+              reviewedAt: new Date(),
+              reviewNote: reviewNoteTrimmed,
+              notes: ADMIN_GRANT_NOTES
+            }
+          });
+          updated += 1;
+          teacherChanged = true;
+          const idx = existing.findIndex((row) => row.id === match.id);
+          if (idx >= 0) {
+            existing[idx] = { ...match, status: CertificationSubmissionStatus.APPROVED };
+          }
+          continue;
+        }
+
+        const id = `cert-admin-${Date.now()}-${randomBytes(8).toString("hex")}`;
+        await tx.teacherCertificationSubmission.create({
+          data: {
+            id,
+            teacherId,
+            credentialName: label,
+            notes: ADMIN_GRANT_NOTES,
+            fileUrl: ADMIN_GRANT_FILE_URL,
+            fileName: ADMIN_GRANT_FILE_NAME,
+            mimeType: "application/octet-stream",
+            status: CertificationSubmissionStatus.APPROVED,
+            reviewNote: reviewNoteTrimmed,
+            reviewedAt: new Date()
+          }
+        });
+        created += 1;
+        teacherChanged = true;
+        existing.push({ id, credentialName: label, status: CertificationSubmissionStatus.APPROVED });
+      }
+
+      if (teacherChanged) {
+        affectedTeacherIds.add(teacherId);
+        await tx.teacher.update({
+          where: { id: teacherId },
+          data: { certificationStatus: "certified" },
+          select: { id: true }
+        });
+      }
+    }
+  });
+
+  const slugRows =
+    affectedTeacherIds.size > 0
+      ? await db.teacher.findMany({
+          where: { id: { in: [...affectedTeacherIds] } },
+          select: { slug: true }
+        })
+      : [];
+
+  return {
+    created,
+    updated,
+    skipped,
+    affectedTeacherIds: [...affectedTeacherIds],
+    affectedSlugs: slugRows.map((row) => row.slug)
+  };
 }
 
 export async function listTeachersForAdmin() {

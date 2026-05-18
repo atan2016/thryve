@@ -3,6 +3,8 @@ import nodemailer from "nodemailer";
 type MailOptions = {
   to: string;
   cc?: string;
+  /** Reply-To header (e.g. submitter email on contact forms). Overrides SMTP_REPLY_TO when set. */
+  replyTo?: string;
   subject: string;
   html: string;
   text: string;
@@ -170,7 +172,7 @@ export async function sendMail(options: MailOptions): Promise<SendMailResult> {
     auth: config.auth
   });
 
-  const replyTo = getEnvValue("SMTP_REPLY_TO")?.trim();
+  const replyTo = options.replyTo?.trim() || getEnvValue("SMTP_REPLY_TO")?.trim();
 
   try {
     const info = await transporter.sendMail({

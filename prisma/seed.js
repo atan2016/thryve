@@ -5,7 +5,19 @@ const rootDir = path.join(__dirname, "..");
 dotenv.config({ path: path.join(rootDir, ".env") });
 dotenv.config({ path: path.join(rootDir, ".env.local"), override: true });
 
-const { PrismaClient, Role, DiscussionAuthorRole, StoryMediaType } = require("@prisma/client");
+const {
+  PrismaClient,
+  Role,
+  DiscussionAuthorRole,
+  StoryMediaType,
+  CertificationSubmissionStatus
+} = require("@prisma/client");
+
+/** Minimal PNG for seeded certification file bytes (matches serverless uploads). */
+const DEMO_CERT_PLACEHOLDER_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/x8AAwMCAO+X2ZsAAAAASUVORK5CYII=",
+  "base64"
+);
 
 const prisma = new PrismaClient();
 
@@ -17,6 +29,7 @@ const demoUsers = [
   { id: "user-teacher-4", email: "robinjaffe@yoga.local", password: "password123", role: Role.TEACHER, name: "Robin Jaffe", emailVerifiedAt: new Date() },
   { id: "user-teacher-5", email: "denayadailey@gmail.com", password: "password123", role: Role.TEACHER, name: "Denaya Dailey", emailVerifiedAt: new Date() },
   { id: "user-teacher-6", email: "blu.high@yoga.local", password: "password123", role: Role.TEACHER, name: "Blu High", emailVerifiedAt: new Date() },
+  { id: "user-teacher-7", email: "michelle.li@yoga.local", password: "password123", role: Role.TEACHER, name: "Michelle Li", emailVerifiedAt: new Date() },
   { id: "user-admin-1", email: "admin@yoga.local", password: "password123", role: Role.ADMIN, name: "Jordan Admin", emailVerifiedAt: new Date() }
 ];
 
@@ -227,6 +240,26 @@ Blu's practice began at age 15 and grew into a breath-centered teaching style sh
 
 Beyond weekly studio classes, Blu is involved with the College of San Mateo yoga community as a Yoga Teacher Training graduate and advisory-council member, bringing a grounded, holistic perspective informed by yoga, Thai massage, Reiki, and Ayurveda.`,
     gender: "male",
+    certificationStatus: "certified",
+    published: true
+  },
+  {
+    id: "teacher-7",
+    userId: "user-teacher-7",
+    slug: "michelle-li",
+    fullName: "Michelle Li",
+    studioName: "Peninsula Mindful Movement",
+    studioWebsiteUrl: "https://collegeofsanmateo.edu/yoga/",
+    studioScheduleUrl: "https://collegeofsanmateo.edu/yoga/",
+    websiteUrl: "https://collegeofsanmateo.edu/yoga/",
+    platformHoursBooked: 120,
+    city: "San Mateo",
+    serviceRadiusMiles: 20,
+    training:
+      "200-hour Yoga Teacher Training (YTT) with advanced study in Yin Yoga, plus ongoing training in Tai Chi and mindful somatic movement for balance and longevity.",
+    experienceYears: 8,
+    bio: "Michelle Li offers gentle Yin yoga, Tai Chi–informed flow, and breath-centered practices that build mobility, calm, and steady energy for everyday life.",
+    gender: "female",
     certificationStatus: "certified",
     published: true
   }
@@ -465,7 +498,10 @@ const demoTeachingHours = [
   { id: "hours-teacher-5-corporate-events", teacherId: "teacher-5", category: "corporate-events", totalHours: 40 },
   { id: "hours-teacher-6-studio", teacherId: "teacher-6", category: "studio", totalHours: 124 },
   { id: "hours-teacher-6-private", teacherId: "teacher-6", category: "private", totalHours: 22 },
-  { id: "hours-teacher-6-corporate-events", teacherId: "teacher-6", category: "corporate-events", totalHours: 14 }
+  { id: "hours-teacher-6-corporate-events", teacherId: "teacher-6", category: "corporate-events", totalHours: 14 },
+  { id: "hours-teacher-7-studio", teacherId: "teacher-7", category: "studio", totalHours: 72 },
+  { id: "hours-teacher-7-private", teacherId: "teacher-7", category: "private", totalHours: 28 },
+  { id: "hours-teacher-7-older", teacherId: "teacher-7", category: "older", totalHours: 20 }
 ];
 
 const demoCalendarSessions = [
@@ -651,6 +687,36 @@ const demoCalendarSessions = [
   }
 ];
 
+/** Approved certs for Michelle Li (verified hero chips). Add 200 RYT + Yin beside existing uploads (e.g. CPR). */
+const demoMichelleApprovedCerts = [
+  {
+    id: "cert-seed-michelle-200-ryt",
+    teacherId: "teacher-7",
+    credentialName: "200 RYT",
+    notes: "Seeded credential",
+    fileUrl: "/api/teacher-certification-submissions/cert-seed-michelle-200-ryt/file",
+    fileData: DEMO_CERT_PLACEHOLDER_PNG,
+    fileName: "200-ryt-certificate.pdf",
+    mimeType: "application/pdf",
+    status: CertificationSubmissionStatus.APPROVED,
+    reviewNote: "Approved (demo seed)",
+    reviewedAt: new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000)
+  },
+  {
+    id: "cert-seed-michelle-yin-yoga",
+    teacherId: "teacher-7",
+    credentialName: "Yin Yoga",
+    notes: "Seeded credential",
+    fileUrl: "/api/teacher-certification-submissions/cert-seed-michelle-yin-yoga/file",
+    fileData: DEMO_CERT_PLACEHOLDER_PNG,
+    fileName: "yin-yoga-certificate.pdf",
+    mimeType: "application/pdf",
+    status: CertificationSubmissionStatus.APPROVED,
+    reviewNote: "Approved (demo seed)",
+    reviewedAt: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000)
+  }
+];
+
 const demoDiscussions = [
   {
     id: "discussion-1",
@@ -698,6 +764,24 @@ async function main() {
       where: { id: teacher.id },
       update: teacher,
       create: teacher
+    });
+  }
+
+  for (const cert of demoMichelleApprovedCerts) {
+    await prisma.teacherCertificationSubmission.upsert({
+      where: { id: cert.id },
+      update: {
+        credentialName: cert.credentialName,
+        notes: cert.notes,
+        fileUrl: cert.fileUrl,
+        fileData: cert.fileData,
+        fileName: cert.fileName,
+        mimeType: cert.mimeType,
+        status: cert.status,
+        reviewNote: cert.reviewNote,
+        reviewedAt: cert.reviewedAt
+      },
+      create: cert
     });
   }
 
@@ -765,6 +849,11 @@ async function main() {
     data: { platformHoursBooked: 320 }
   });
 
+  await prisma.teacher.update({
+    where: { id: "teacher-7" },
+    data: { platformHoursBooked: 120 }
+  });
+
   for (const discussion of demoDiscussions) {
     await prisma.communityDiscussion.upsert({
       where: { id: discussion.id },
@@ -799,7 +888,9 @@ async function main() {
     });
   }
 
-  console.log("Seeded demo users, teachers, hosts, follow relationships, stories, calendar sessions, upcoming events, teaching hours, and community discussions.");
+  console.log(
+    "Seeded demo users, teachers, Michelle Li approved certs, hosts, follow relationships, stories, calendar sessions, upcoming events, teaching hours, and community discussions."
+  );
 }
 
 main()

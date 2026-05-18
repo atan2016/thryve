@@ -90,7 +90,7 @@ export function ConnectWithPeers({ peers, viewerUserId }: ConnectWithPeersProps)
                   <p className="mt-4 font-semibold text-stone-900">{peer.fullName}</p>
                 </>
               )}
-              <p className="mt-1 text-sm text-stone-500">{peer.specialty}</p>
+              {peer.specialty?.trim() ? <p className="mt-1 text-sm text-stone-500">{peer.specialty}</p> : null}
               {peer.teacherId && !peer.isDemo ? (
                 <div className="mt-3 flex w-full items-center justify-between gap-2 text-xs text-stone-600">
                   <TeacherHeartCountLabel
