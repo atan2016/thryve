@@ -106,13 +106,14 @@ export function ContactUsModal({ action, siteKey, user }: ContactUsModalProps) {
               className="mt-8 grid gap-4 md:grid-cols-2"
               onSubmit={async (event) => {
                 event.preventDefault();
+                const form = event.currentTarget;
                 if (!siteKey) {
                   return;
                 }
                 setSubmitting(true);
                 try {
                   const token = await executeRecaptchaV3(siteKey, RECAPTCHA_ACTION_CONTACT_ADMIN);
-                  const fd = new FormData(event.currentTarget);
+                  const fd = new FormData(form);
                   fd.set("recaptchaToken", token);
                   await action(fd);
                 } finally {
