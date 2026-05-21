@@ -27,3 +27,11 @@ export function formatEventCalendarDayUtc(
     timeZone: "UTC"
   }).format(date);
 }
+
+/** Value for `<input type="date">` from a stored event date (UTC calendar day). */
+export function formatEventDateInputValue(value: Date | string | number | null | undefined) {
+  if (value == null) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}

@@ -203,6 +203,9 @@ export type HomepageJobCard = {
   posted: string;
   /** When set, “Apply” opens this external listing URL instead of Thryve sign-in. */
   applyUrl?: string;
+  /** Curated listings: primary contact name (e.g. recreation coordinator). */
+  contactName?: string;
+  contactRole?: string;
 };
 
 export type TeacherCalendarSession = {

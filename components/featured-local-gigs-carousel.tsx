@@ -10,6 +10,7 @@ const categoryClassNames: Record<string, string> = {
   Contract: "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
   Gig: "bg-rose-50 text-rose-700 ring-1 ring-rose-100",
   "Full-time": "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100",
+  Volunteer: "bg-sky-50 text-sky-800 ring-1 ring-sky-100"
 };
 
 function IconBuilding({ className }: { className?: string }) {
@@ -159,17 +160,28 @@ export function FeaturedLocalGigsCarousel({ gigs, isSignedIn = false }: { gigs: 
                 <IconDollar className="mt-0.5 h-4 w-4 shrink-0 text-[#E58768]" />
                 <span>{gig.pay}</span>
               </li>
+              {gig.contactName ? (
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 text-base leading-none text-stone-400" aria-hidden>
+                    ✉
+                  </span>
+                  <span>
+                    Contact {gig.contactName}
+                    {gig.contactRole ? ` (${gig.contactRole})` : ""}
+                  </span>
+                </li>
+              ) : null}
             </ul>
 
             {gig.applyUrl ? (
               <Link
                 href={gig.applyUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+                target={gig.applyUrl.startsWith("mailto:") ? undefined : "_blank"}
+                rel={gig.applyUrl.startsWith("mailto:") ? undefined : "noopener noreferrer"}
                 prefetch={false}
                 className="mt-5 block w-full rounded-full bg-gradient-to-r from-[#EE8D72] to-[#E6866A] py-2.5 text-center text-sm font-semibold text-white shadow-[0_8px_20px_-12px_rgba(229,134,106,0.95)] transition hover:from-[#e78063] hover:to-[#dc775a]"
               >
-                Apply Now
+                {gig.applyUrl.startsWith("mailto:") ? "Contact" : "Apply Now"}
               </Link>
             ) : (
               <Link
@@ -183,7 +195,7 @@ export function FeaturedLocalGigsCarousel({ gigs, isSignedIn = false }: { gigs: 
         ))}
       </div>
 
-      {gigs.some((g) => Boolean(g.applyUrl)) ? (
+      {gigs.some((g) => Boolean(g.applyUrl?.startsWith("http"))) ? (
         <p className="px-1 text-center text-xs text-stone-500">
           Jobs via{" "}
           <Link

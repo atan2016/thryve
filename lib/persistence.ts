@@ -75,6 +75,24 @@ const DEFAULT_ADMIN_CONTENT_FILTERS: AdminContentFilters = {
   hiddenEventKeywords: [],
   hiddenJobKeywords: []
 };
+/** Always shown on the homepage jobs carousel (prepended before Adzuna / mock listings). */
+const CURATED_HOMEPAGE_JOBS: HomepageJobCard[] = [
+  {
+    id: "curated-burlingame-first-friday-yoga",
+    title:
+      "Volunteer to teach a Free Yoga class on the First Fridays of Each Month at Burlingame Community Center?",
+    category: "Volunteer",
+    pay: "Volunteer",
+    company: "Burlingame Community Center",
+    location: "Burlingame, CA",
+    posted: "Featured",
+    contactName: "George Folau",
+    contactRole: "Recreation Coordinator",
+    applyUrl:
+      "mailto:gfolau@burlingame.org?subject=Volunteer%20yoga%20instructor%20%E2%80%93%20First%20Fridays%20at%20Burlingame%20Community%20Center"
+  }
+];
+
 const HOMEPAGE_LOCAL_GIGS: HomepageJobCard[] = [
   {
     id: "1",
@@ -1766,7 +1784,17 @@ function filterHomepageJobsByKeywords(jobs: HomepageJobCard[], keywords: string[
   return jobs.filter(
     (job) =>
       !matchesKeywordFilter(
-        [job.title, job.category, job.pay, job.company, job.location, job.posted, job.applyUrl ?? ""],
+        [
+          job.title,
+          job.category,
+          job.pay,
+          job.company,
+          job.location,
+          job.posted,
+          job.applyUrl ?? "",
+          job.contactName ?? "",
+          job.contactRole ?? ""
+        ],
         keywords
       )
   );
@@ -2701,7 +2729,8 @@ export async function listHomepageLocalGigs() {
     jobs = HOMEPAGE_LOCAL_GIGS;
   }
 
-  return filterHomepageJobsByKeywords(jobs, hidden);
+  const merged = [...CURATED_HOMEPAGE_JOBS, ...jobs];
+  return filterHomepageJobsByKeywords(merged, hidden);
 }
 
 export async function incrementTeachingHoursInDb(teacherId: string, category: ServiceCategory, minutesAdded: number) {
@@ -4052,6 +4081,150 @@ export async function addTeacherUpcomingEvent(
   }
 
   throw lastError;
+}
+
+export async function updateTeacherUpcomingEvent(
+  teacherId: string,
+  eventId: string,
+  event: Pick<TeacherUpcomingEvent, "title" | "hostName" | "eventDate" | "address" | "eventTime" | "eventType"> & {
+    eventUrl?: string;
+    imageUrl?: string;
+    eventImage?: { bytes: Buffer; mimeType: string };
+  }
+) {
+  const existing = await db.teacherUpcomingEvent.findFirst({
+    where: { id: eventId, teacherId }
+  });
+
+  if (!existing) {
+    throw new Error("Upcoming event not found.");
+  }
+
+  const teacher = await db.teacher.findUnique({
+    where: { id: teacherId },
+    select: {
+      id: true,
+      studioName: true,
+      studioWebsiteUrl: true
+    }
+  });
+
+  if (!teacher) {
+    throw new Error("Teacher profile not found.");
+  }
+
+  const hostName = event.hostName?.trim() || null;
+  const eventUrlTrimmed = event.eventUrl?.trim() ?? "";
+  const host =
+    hostName
+      ? await upsertEventHost(
+          hostName,
+          teacher.studioName?.toLowerCase() === hostName.toLowerCase()
+            ? teacher.studioWebsiteUrl
+            : /^https?:\/\//.test(eventUrlTrimmed)
+              ? eventUrlTrimmed
+              : null
+        )
+      : null;
+
+  const address = event.address?.trim() || null;
+  const eventTime = event.eventTime?.trim() || null;
+  const title = event.title.trim();
+  const eventUrlValue = eventUrlTrimmed ? eventUrlTrimmed : null;
+  const eventDateValue = event.eventDate?.trim() ? new Date(event.eventDate.trim()) : null;
+  const hostId = host?.id ?? null;
+  const imageUrlForDb = event.imageUrl?.trim() || null;
+  const fileImage = event.eventImage?.bytes?.length ? event.eventImage : null;
+  const normalizedEventType = normalizeTeacherUpcomingEventType(event.eventType);
+
+  type Variant = { host: boolean; location: boolean; dbImage: boolean; legacyImageUrl: boolean };
+  const variants: Variant[] = [];
+  const imageModes: Array<{ db: boolean; url: boolean }> = [];
+
+  if (fileImage) {
+    imageModes.push({ db: true, url: false }, { db: false, url: false });
+  } else if (imageUrlForDb) {
+    imageModes.push({ db: false, url: true }, { db: false, url: false });
+  } else {
+    imageModes.push({ db: false, url: false });
+  }
+
+  for (const hostFlag of [true, false]) {
+    for (const locationFlag of [true, false]) {
+      for (const mode of imageModes) {
+        variants.push({
+          host: hostFlag,
+          location: locationFlag,
+          dbImage: mode.db,
+          legacyImageUrl: mode.url
+        });
+      }
+    }
+  }
+
+  variants.sort((a, b) => {
+    const score = (v: Variant) =>
+      Number(v.host) + Number(v.location) + Number(v.dbImage) + Number(v.legacyImageUrl);
+    const diff = score(b) - score(a);
+    if (diff !== 0) return diff;
+    if (a.host !== b.host) return Number(b.host) - Number(a.host);
+    if (a.location !== b.location) return Number(b.location) - Number(a.location);
+    if (a.dbImage !== b.dbImage) return Number(b.dbImage) - Number(a.dbImage);
+    return Number(a.legacyImageUrl) - Number(b.legacyImageUrl);
+  });
+
+  let lastError: unknown;
+  for (const variant of variants) {
+    for (const withEventTypeField of [true, false]) {
+      try {
+        return await db.teacherUpcomingEvent.update({
+          where: { id: eventId },
+          data: {
+            ...(variant.host ? { hostId } : {}),
+            title,
+            hostName,
+            ...(variant.location ? { address, eventTime } : {}),
+            ...(variant.dbImage && fileImage
+              ? {
+                  eventImage: fileImage.bytes,
+                  eventImageMimeType: fileImage.mimeType,
+                  imageUrl: null
+                }
+              : {}),
+            ...(variant.legacyImageUrl && imageUrlForDb ? { imageUrl: imageUrlForDb } : {}),
+            eventUrl: eventUrlValue,
+            eventDate: eventDateValue,
+            ...(withEventTypeField ? { eventType: normalizedEventType } : {})
+          }
+        });
+      } catch (error) {
+        lastError = error;
+        const missingColumn =
+          error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2022";
+        if (error instanceof Prisma.PrismaClientValidationError || missingColumn) {
+          continue;
+        }
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+export async function deleteTeacherUpcomingEvent(teacherId: string, eventId: string) {
+  const existing = await db.teacherUpcomingEvent.findFirst({
+    where: { id: eventId, teacherId },
+    select: { id: true }
+  });
+
+  if (!existing) {
+    throw new Error("Upcoming event not found.");
+  }
+
+  await db.teacherUpcomingEvent.delete({
+    where: { id: eventId }
+  });
 }
 
 export async function addTeacherCalendarSession(

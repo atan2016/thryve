@@ -19,7 +19,7 @@ export default async function HomePage() {
   const session = await getSession();
   const teachers = await listTeachers();
   const homepageEvents = await listHomepageFeaturedEvents(session?.userId);
-  const homepageJobs = isProdBuild ? [] : await listHomepageLocalGigs();
+  const homepageJobs = await listHomepageLocalGigs();
 
   const trustedPractitionerCarouselTeachers = teachers.filter((t) => {
     const hasVerifiedCertificationHere = t.certificationSubmissions?.some((s) => s.status === "approved");
@@ -90,7 +90,9 @@ export default async function HomePage() {
         toggleEventHostFollowAction={toggleEventHostFollowAction}
       />
 
-      {isProdBuild ? null : <FeaturedLocalGigsCarousel gigs={homepageJobs} isSignedIn={Boolean(session)} />}
+      {homepageJobs.length > 0 ? (
+        <FeaturedLocalGigsCarousel gigs={homepageJobs} isSignedIn={Boolean(session)} />
+      ) : null}
 
       <FeaturedTeachersCarousel teachers={featuredTeachersForCarousel} viewerUserId={session?.userId ?? null} />
     </div>

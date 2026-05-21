@@ -40,6 +40,8 @@ import {
   addTeacherCertificationSubmission,
   addTeacherStory,
   addTeacherUpcomingEvent,
+  deleteTeacherUpcomingEvent,
+  updateTeacherUpcomingEvent,
   createContactInquiry,
   deleteUserForAdmin,
   deleteTeacherCalendarSession,
@@ -899,6 +901,78 @@ export async function addUpcomingEventAction(formData: FormData) {
   revalidatePath("/dashboard/teacher/profile");
   revalidatePath(`/teachers/${teacher.slug}`);
   redirect("/dashboard/teacher/profile?saved=event-added");
+}
+
+export async function updateUpcomingEventAction(formData: FormData) {
+  const teacher = await requireCurrentTeacher();
+  const eventId = String(formData.get("eventId") ?? "").trim();
+  const rawUrl = String(formData.get("eventUrl") ?? "");
+  const normalizedUrl = normalizeOptionalEventUrl(rawUrl);
+
+  const address = readOptionalFormText(formData, "address") ?? "";
+  const eventTime = readOptionalFormText(formData, "eventTime") ?? "";
+
+  if (!eventId) {
+    redirect("/dashboard/teacher/profile?error=event_update_failed");
+  }
+
+  if (rawUrl.trim() && !normalizedUrl) {
+    redirect("/dashboard/teacher/profile?error=invalid_event_url");
+  }
+
+  if (!normalizedUrl && (!address || !eventTime)) {
+    redirect("/dashboard/teacher/profile?error=event_needs_address_and_time");
+  }
+
+  let eventImage: { bytes: Buffer; mimeType: string } | undefined;
+  const eventImageField = formData.get("eventImage");
+  if (eventImageField instanceof File && eventImageField.size > 0) {
+    try {
+      eventImage = await readEventImageForDatabase(eventImageField);
+    } catch {
+      redirect("/dashboard/teacher/profile?error=invalid_event_image");
+    }
+  }
+
+  try {
+    await updateTeacherUpcomingEvent(teacher.id, eventId, {
+      title: String(formData.get("title") ?? ""),
+      hostName: readOptionalFormText(formData, "hostName"),
+      address: address || undefined,
+      eventTime: eventTime || undefined,
+      eventUrl: normalizedUrl,
+      eventDate: String(formData.get("eventDate") ?? "").trim() || undefined,
+      eventType: normalizeTeacherUpcomingEventType(String(formData.get("eventType") ?? "")),
+      eventImage
+    });
+  } catch {
+    redirect("/dashboard/teacher/profile?error=event_update_failed");
+  }
+
+  revalidatePath("/");
+  revalidatePath("/dashboard/teacher/profile");
+  revalidatePath(`/teachers/${teacher.slug}`);
+  redirect("/dashboard/teacher/profile?saved=event-updated");
+}
+
+export async function deleteUpcomingEventAction(formData: FormData) {
+  const teacher = await requireCurrentTeacher();
+  const eventId = String(formData.get("eventId") ?? "").trim();
+
+  if (!eventId) {
+    redirect("/dashboard/teacher/profile?error=event_delete_failed");
+  }
+
+  try {
+    await deleteTeacherUpcomingEvent(teacher.id, eventId);
+  } catch {
+    redirect("/dashboard/teacher/profile?error=event_delete_failed");
+  }
+
+  revalidatePath("/");
+  revalidatePath("/dashboard/teacher/profile");
+  revalidatePath(`/teachers/${teacher.slug}`);
+  redirect("/dashboard/teacher/profile?saved=event-deleted");
 }
 
 export async function toggleTeacherFollowAction(formData: FormData) {

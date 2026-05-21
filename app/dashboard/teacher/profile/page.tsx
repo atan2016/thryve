@@ -8,9 +8,12 @@ import {
   addStoryAction,
   addTeacherCertificationSubmissionAction,
   addUpcomingEventAction,
+  deleteUpcomingEventAction,
   updateStoryAction,
-  updateTeacherProfileAction
+  updateTeacherProfileAction,
+  updateUpcomingEventAction
 } from "@/lib/actions";
+import { formatEventDateInputValue } from "@/lib/format";
 import { getTeacherDashboardContext } from "@/lib/teacher-dashboard";
 import { getEventImageMaxSizeLabel, isTeacherUpcomingEventImageApiUrl } from "@/lib/teacher-upcoming-event-image";
 import { TEACHER_UPCOMING_EVENT_TYPE_OPTIONS } from "@/lib/teacher-upcoming-event-types";
@@ -88,6 +91,16 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
             That event image could not be saved. Use a JPG, PNG, GIF, or WebP under {eventImageMaxLabel}.
           </div>
         ) : null}
+        {error === "event_update_failed" ? (
+          <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+            We could not update that event. Please try again.
+          </div>
+        ) : null}
+        {error === "event_delete_failed" ? (
+          <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+            We could not delete that event. Please try again.
+          </div>
+        ) : null}
         {user.mustChangePassword ? (
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             Your account uses a temporary password. Update it in Account security below before continuing.
@@ -107,9 +120,15 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
                 ? "Story added."
                 : saved === "event-added"
                   ? "Upcoming event added."
-                  : saved === "certification-submitted"
-                    ? "Certification file submitted for admin review."
-                : "Story updated."}
+                  : saved === "event-updated"
+                    ? "Upcoming event updated."
+                    : saved === "event-deleted"
+                      ? "Upcoming event removed."
+                      : saved === "certification-submitted"
+                        ? "Certification file submitted for admin review."
+                        : saved === "story-updated"
+                          ? "Story updated."
+                          : null}
           </div>
         ) : null}
         <TeacherProfileEditor action={updateTeacherProfileAction} teacher={teacher} />
@@ -270,21 +289,67 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
                       />
                     </div>
                   ) : null}
-                  <p className="font-medium">{event.title}</p>
-                  <p className="mt-1 text-xs font-medium uppercase tracking-wide text-teal-700">{event.eventType}</p>
-                  {event.hostName ? <p className="mt-1 text-sm text-stone-500">{event.hostName}</p> : null}
-                  {event.address ? <p className="mt-1 text-sm text-stone-600">{event.address}</p> : null}
-                  {event.eventTime ? <p className="mt-1 text-sm text-stone-600">{event.eventTime}</p> : null}
-                  <p className="mt-2 text-sm text-stone-600">
-                    {event.eventDate ? new Date(event.eventDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Ongoing schedule"}
-                  </p>
                   {event.eventUrl ? (
-                    <a className="mt-3 inline-flex text-sm font-medium text-emerald-700" href={event.eventUrl} rel="noreferrer" target="_blank">
+                    <a className="mb-3 inline-flex text-sm font-medium text-emerald-700" href={event.eventUrl} rel="noreferrer" target="_blank">
                       Open event link
                     </a>
-                  ) : (
-                    <p className="mt-3 text-sm text-stone-500">No external link on this event.</p>
-                  )}
+                  ) : null}
+                  <form action={updateUpcomingEventAction} className="space-y-4">
+                    <input name="eventId" type="hidden" value={event.id} />
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium">Course or event name</span>
+                      <input defaultValue={event.title} name="title" required />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium">Event type</span>
+                      <select
+                        className="w-full max-w-md rounded-xl border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 shadow-sm"
+                        defaultValue={event.eventType}
+                        name="eventType"
+                        required
+                      >
+                        {TEACHER_UPCOMING_EVENT_TYPE_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium">Venue or event host (optional)</span>
+                      <input defaultValue={event.hostName ?? ""} name="hostName" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium">Schedule or event URL (optional)</span>
+                      <input defaultValue={event.eventUrl ?? ""} name="eventUrl" placeholder="https://…" type="text" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium">Address or location (optional if URL is set)</span>
+                      <input defaultValue={event.address ?? ""} name="address" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium">Time (optional if URL is set)</span>
+                      <input defaultValue={event.eventTime ?? ""} name="eventTime" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium">Date (optional for one-time events)</span>
+                      <input defaultValue={formatEventDateInputValue(event.eventDate)} name="eventDate" type="date" />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-sm font-medium">Replace event image (optional)</span>
+                      <input accept="image/*" name="eventImage" type="file" />
+                      <span className="mt-1 block text-xs text-stone-500">Leave blank to keep the current image. Max {eventImageMaxLabel}.</span>
+                    </label>
+                    <button className="rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white" type="submit">
+                      Save changes
+                    </button>
+                  </form>
+                  <form action={deleteUpcomingEventAction} className="mt-4">
+                    <input name="eventId" type="hidden" value={event.id} />
+                    <button className="rounded-full border border-red-200 px-5 py-3 text-sm font-medium text-red-700" type="submit">
+                      Delete event
+                    </button>
+                  </form>
                 </div>
               ))
             ) : (
