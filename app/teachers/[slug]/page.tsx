@@ -6,11 +6,10 @@ import { eachDayOfInterval, endOfMonth, endOfWeek, format, isSameDay, isSameMont
 import { formatCredits, formatDateTime, formatEventCalendarDayUtc } from "@/lib/format";
 import { HoursBookedLabel } from "@/components/hours-booked-label";
 import { MetricCard } from "@/components/metric-card";
-import { TeacherContactForm } from "@/components/teacher-contact-form";
 import { TeacherAvatar } from "@/components/teacher-avatar";
 import { TeacherProfileWellnessBackdrop } from "@/components/teacher-profile-wellness-backdrop";
 import { TeacherHeartControl } from "@/components/teacher-heart-control";
-import { contactTeacherAction, toggleTeacherFollowAction } from "@/lib/actions";
+import { toggleTeacherFollowAction } from "@/lib/actions";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
   countTeacherHearts,
@@ -20,14 +19,12 @@ import {
   isTeacherHeartedByUser,
   mayUserRecordHeartOnTeacher
 } from "@/lib/persistence";
-import { getRecaptchaSiteKey } from "@/lib/recaptcha";
 import { listApprovedCertificationChips } from "@/lib/teacher-verified-certifications";
 import { isTeacherUpcomingEventImageApiUrl } from "@/lib/teacher-upcoming-event-image";
 import type { TeacherUpcomingEvent } from "@/lib/types";
 
 type TeacherProfileProps = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ contact?: string }>;
 };
 
 function IconGlobe() {
@@ -134,9 +131,8 @@ const tealSolidBtn =
 const tealOutlineBtn =
   "inline-flex items-center justify-center rounded-full border-2 border-[#0f766e] bg-white/80 px-7 py-3.5 text-center text-sm font-semibold text-[#0c4f4a] transition hover:bg-teal-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0f766e]";
 
-export default async function TeacherProfilePage({ params, searchParams }: TeacherProfileProps) {
+export default async function TeacherProfilePage({ params }: TeacherProfileProps) {
   const { slug } = await params;
-  const query = await searchParams;
   const user = await getCurrentUser();
   let teacher = await getTeacherBySlug(slug);
 
@@ -146,8 +142,6 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
       teacher = ownedTeacher;
     }
   }
-
-  const recaptchaSiteKey = getRecaptchaSiteKey();
 
   if (!teacher) {
     notFound();
@@ -313,9 +307,6 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
                 <Link className={tealSolidBtn} href={teacherBookHref} style={{ color: "#ffffff" }}>
                   Book a session
                 </Link>
-                <a className={tealOutlineBtn} href="#contact-instructor">
-                  Contact me for job opportunities
-                </a>
                 {canFollowTeacher ? (
                   <form action={toggleTeacherFollowAction}>
                     <input name="teacherId" type="hidden" value={teacher.id} />
@@ -643,16 +634,6 @@ export default async function TeacherProfilePage({ params, searchParams }: Teach
               </section>
             ) : null}
 
-            <TeacherContactForm
-              action={contactTeacherAction}
-              className={`${wellnessCard} p-6 sm:p-8`}
-              id="contact-instructor"
-              siteKey={recaptchaSiteKey}
-              status={query.contact}
-              teacherId={teacher.id}
-              teacherName={teacher.fullName}
-              teacherSlug={teacher.slug}
-            />
           </div>
 
           {/* Sidebar */}

@@ -1,8 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { ConnectWithPeers } from "@/components/connect-with-peers";
-import { buildConnectPeers } from "@/lib/connect-peers";
 import { FeaturedEventsCarousel } from "@/components/featured-events-carousel";
 import { FeaturedLocalGigsCarousel } from "@/components/featured-local-gigs-carousel";
 import { FeaturedTeachersCarousel } from "@/components/featured-teachers-carousel";
@@ -54,26 +52,6 @@ export default async function HomePage() {
       | "none"
   }));
 
-  const connectPeersRaw = session ? buildConnectPeers(teachers, { excludeUserId: session.userId }) : [];
-  const peerTeacherIds = connectPeersRaw.map((p) => p.teacherId).filter((id): id is string => Boolean(id));
-  const peerHeartCounts = await countTeacherHeartsForTeachers(peerTeacherIds);
-  const peerHeartedByViewer = session
-    ? await listTeacherIdsHeartedByUser(session.userId, peerTeacherIds)
-    : new Set<string>();
-  const teacherById = new Map(teachers.map((t) => [t.id, t]));
-  const connectPeers = connectPeersRaw.map((p) => {
-    const owner = p.teacherId ? teacherById.get(p.teacherId) : undefined;
-    const heartInteraction = (
-      !p.teacherId || p.isDemo ? "none" : !session ? "signin" : !owner ? "none" : owner.userId === session.userId ? "none" : "toggle"
-    ) as "toggle" | "signin" | "none";
-    return {
-      ...p,
-      heartCount: p.teacherId && !p.isDemo ? peerHeartCounts.get(p.teacherId) ?? 0 : 0,
-      viewerHasHearted: Boolean(session && p.teacherId && !p.isDemo && peerHeartedByViewer.has(p.teacherId)),
-      heartInteraction
-    };
-  });
-
   return (
     <div className="space-y-10">
       <section className="relative overflow-hidden rounded-2xl shadow-sm">
@@ -115,8 +93,6 @@ export default async function HomePage() {
       {isProdBuild ? null : <FeaturedLocalGigsCarousel gigs={homepageJobs} isSignedIn={Boolean(session)} />}
 
       <FeaturedTeachersCarousel teachers={featuredTeachersForCarousel} viewerUserId={session?.userId ?? null} />
-
-      {session ? <ConnectWithPeers key={session.userId} peers={connectPeers} viewerUserId={session.userId} /> : null}
     </div>
   );
 }
