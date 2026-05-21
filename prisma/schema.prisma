@@ -41,19 +41,22 @@ enum PendingSignupStatus {
 }
 
 model User {
-  id               String                @id
-  email            String                @unique
-  password         String
-  role             Role
-  name             String
-  emailVerifiedAt  DateTime?
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
-  teacher          Teacher?
+  id                  String                @id
+  email               String                @unique
+  password            String
+  role                Role
+  name                String
+  emailVerifiedAt     DateTime?
+  mustChangePassword  Boolean               @default(false)
+  passwordChangedAt   DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  teacher             Teacher?
   pendingEmailChanges PendingUserEmailChange[]
-  teacherFollows   UserTeacherFollow[]
-  teacherHearts    UserTeacherHeart[]
-  eventHostFollows UserEventHostFollow[]
+  passwordResetTokens PasswordResetToken[]
+  teacherFollows      UserTeacherFollow[]
+  teacherHearts       UserTeacherHeart[]
+  eventHostFollows    UserEventHostFollow[]
 }
 
 model Teacher {
@@ -165,6 +168,20 @@ model PendingUserEmailChange {
 
   @@index([userId])
   @@index([normalizedNextEmail])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id         String    @id
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
   @@index([expiresAt])
 }
 

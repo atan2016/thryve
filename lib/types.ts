@@ -18,6 +18,8 @@ export type AppUser = {
   role: Role;
   name: string;
   emailVerifiedAt?: string;
+  mustChangePassword?: boolean;
+  passwordChangedAt?: string;
 };
 
 export type AdminManagedUser = AppUser & {

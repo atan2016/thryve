@@ -244,21 +244,21 @@ Robin teaches in homes, studios, schools, Fortune 500 workplaces, and community 
         id: "event-robin-sunporch",
         teacherId: "teacher-4",
         hostId: "host-sunporch-yoga",
-        title: "Candlelight Yin Yoga",
+        title: "Pilates Foundations",
         eventType: "Somatic Healing",
         hostName: "SunPorch Yoga",
         eventUrl: "https://fitlocalfit.com/Services/Sunporch-Yoga",
-        eventDate: makeSlot("event-robin-sunporch-slot", "teacher-4", 3, 18).startsAt
+        eventDate: makeSlot("event-robin-sunporch-slot", "teacher-4", 1, 12).startsAt
       },
       {
         id: "event-robin-vennu",
         teacherId: "teacher-4",
         hostId: "host-vennu-yoga",
-        title: "Trio3: Gentle Yoga Pilates and Meditation",
+        title: "Gentle Yoga, Strength Building and Meditation",
         eventType: "Workshop",
         hostName: "Vennu Yoga",
         eventUrl: "https://vennu-studio.com/book-a-class",
-        eventDate: makeSlot("event-robin-vennu-slot", "teacher-4", 1, 11).startsAt
+        eventDate: makeSlot("event-robin-vennu-slot", "teacher-4", 2, 11).startsAt
       }
     ]
   },
@@ -792,9 +792,9 @@ export const demoStories: TeacherStory[] = [
   {
     id: "story-5",
     teacherId: "teacher-4",
-    title: "Candlelight Yin in San Francisco",
-    caption: "A gentle evening practice with props, breath, and long-held shapes designed to soften stress and build resilience.",
-    mediaUrl: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1200&q=80",
+    title: "Mat Pilates foundations",
+    caption: "Core-aware Pilates progressions that build stability, breath control, and confident movement.",
+    mediaUrl: "/assets/images/pilates-group-class.png",
     mediaType: "image",
     sortOrder: 2,
     published: true
@@ -949,11 +949,11 @@ export const demoCalendarSessions: TeacherCalendarSession[] = [
     id: "calendar-robin-2",
     teacherId: "teacher-4",
     offeringId: "offering-11",
-    title: "Candlelight Yin Yoga",
-    description: "Grounding floor-based Yin postures with props, soft pacing, and a gentle candlelight atmosphere.",
+    title: "Pilates Foundations",
+    description: "Grounding long-held floor-based postures with props; candlelight, gentle, and meditative.",
     location: "SunPorch Yoga · San Francisco",
-    startsAt: makeSlot("calendar-robin-2-slot", "teacher-4", 3, 18).startsAt,
-    endsAt: makeSlot("calendar-robin-2-slot", "teacher-4", 3, 18).endsAt,
+    startsAt: makeSlot("calendar-robin-2-slot", "teacher-4", 1, 12).startsAt,
+    endsAt: makeSlot("calendar-robin-2-slot", "teacher-4", 1, 12).endsAt,
     timezone: "America/Los_Angeles",
     sourceUrl: "https://fitlocalfit.com/Services/Sunporch-Yoga",
     isBooked: false
@@ -962,11 +962,11 @@ export const demoCalendarSessions: TeacherCalendarSession[] = [
     id: "calendar-robin-3",
     teacherId: "teacher-4",
     offeringId: "offering-12",
-    title: "Trio3: Gentle Yoga Pilates and Meditation",
-    description: "Gentle yoga, Pilates-based core awareness, and guided meditation in a welcoming all-levels format.",
+    title: "Gentle Yoga, Strength Building and Meditation",
+    description: "Beginner-friendly yoga and Pilates-based core awareness, strength building, and guided meditation.",
     location: "Vennu Yoga · Millbrae",
-    startsAt: makeSlot("calendar-robin-3-slot", "teacher-4", 1, 11).startsAt,
-    endsAt: makeSlot("calendar-robin-3-slot", "teacher-4", 1, 11).endsAt,
+    startsAt: makeSlot("calendar-robin-3-slot", "teacher-4", 2, 11).startsAt,
+    endsAt: makeSlot("calendar-robin-3-slot", "teacher-4", 2, 11).endsAt,
     timezone: "America/Los_Angeles",
     sourceUrl: "https://vennu-studio.com/book-a-class",
     isBooked: false

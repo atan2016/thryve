@@ -4,6 +4,13 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { consumePendingSignupVerification, createPendingSignupVerification } from "@/lib/auth/sign-up-verification";
+import {
+  changePassword,
+  consumePasswordReset,
+  createUserAsAdmin,
+  requestPasswordReset,
+  setTemporaryPasswordAsAdmin
+} from "@/lib/auth/password-reset";
 import { getCurrentUser, signIn, clearSession } from "@/lib/auth/session";
 import { bookCalendarSession, bookSession } from "@/lib/booking/book-session";
 import { purchaseCredits } from "@/lib/credits/purchase-credits";
@@ -194,8 +201,10 @@ export async function signInAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const nextPath = String(formData.get("next") ?? "").trim();
 
+  let user;
+
   try {
-    await signIn(email, password);
+    user = await signIn(email, password);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to sign in.";
     redirect(
@@ -210,6 +219,14 @@ export async function signInAction(formData: FormData) {
         email
       })
     );
+  }
+
+  if (user.mustChangePassword) {
+    const params = new URLSearchParams({ required: "1" });
+    if (nextPath) {
+      params.set("next", nextPath);
+    }
+    redirect(`/change-password?${params.toString()}`);
   }
 
   redirect(nextPath || "/");
@@ -269,6 +286,181 @@ export async function signUpAction(formData: FormData) {
 export async function signOutAction() {
   await clearSession();
   redirect("/");
+}
+
+function buildPasswordRedirect(pathname: string, params: Record<string, string | undefined>) {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value?.trim()) {
+      searchParams.set(key, value);
+    }
+  }
+
+  const query = searchParams.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
+export async function requestPasswordResetAction(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+
+  let result: Awaited<ReturnType<typeof requestPasswordReset>>;
+
+  try {
+    result = await requestPasswordReset(email);
+  } catch (error) {
+    console.error("[requestPasswordResetAction]", error);
+    redirect(buildPasswordRedirect("/forgot-password", { error: "send_failed", email }));
+  }
+
+  redirect(
+    buildPasswordRedirect("/forgot-password", {
+      status: "sent",
+      email,
+      dev_reset: result.devResetUrl
+    })
+  );
+}
+
+export async function resetPasswordAction(formData: FormData) {
+  const token = String(formData.get("token") ?? "").trim();
+  const newPassword = String(formData.get("newPassword") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  if (newPassword !== confirmPassword) {
+    redirect(buildPasswordRedirect("/reset-password", { error: "mismatch", token }));
+  }
+
+  let result: Awaited<ReturnType<typeof consumePasswordReset>>;
+
+  try {
+    result = await consumePasswordReset(token, newPassword);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to reset password.";
+    redirect(
+      buildPasswordRedirect("/reset-password", {
+        error: "policy",
+        message,
+        token
+      })
+    );
+  }
+
+  if (result.status !== "success") {
+    redirect(
+      buildPasswordRedirect("/reset-password", {
+        error: result.status,
+        token: result.status === "invalid" ? undefined : token
+      })
+    );
+  }
+
+  redirect("/sign-in?status=password_reset");
+}
+
+export async function changePasswordAction(formData: FormData) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/sign-in?next=/change-password");
+  }
+
+  const currentPassword = String(formData.get("currentPassword") ?? "");
+  const newPassword = String(formData.get("newPassword") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  const required = String(formData.get("required") ?? "") === "1";
+  const nextPath = String(formData.get("next") ?? "").trim();
+  const returnTo = String(formData.get("returnTo") ?? "").trim();
+
+  if (newPassword !== confirmPassword) {
+    redirect(
+      buildPasswordRedirect(returnTo || "/change-password", {
+        error: "mismatch",
+        required: required ? "1" : undefined,
+        next: nextPath || undefined
+      })
+    );
+  }
+
+  try {
+    await changePassword(user.id, currentPassword, newPassword);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to change password.";
+    redirect(
+      buildPasswordRedirect(returnTo || "/change-password", {
+        error: "change_failed",
+        message,
+        required: required ? "1" : undefined,
+        next: nextPath || undefined
+      })
+    );
+  }
+
+  if (returnTo === "/dashboard/teacher/profile") {
+    revalidatePath("/dashboard/teacher/profile");
+    redirect("/dashboard/teacher/profile?saved=password");
+  }
+
+  if (nextPath) {
+    redirect(nextPath);
+  }
+
+  if (user.role === "teacher") {
+    redirect("/dashboard/teacher/profile?saved=password");
+  }
+
+  if (user.role === "admin") {
+    redirect("/admin/users?saved=password");
+  }
+
+  redirect("/?saved=password");
+}
+
+export async function createUserAsAdminAction(formData: FormData) {
+  await requireCurrentAdmin();
+
+  const name = String(formData.get("name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const role = String(formData.get("role") ?? "teacher") as "customer" | "teacher" | "admin";
+
+  let result: Awaited<ReturnType<typeof createUserAsAdmin>>;
+
+  try {
+    result = await createUserAsAdmin({ name, email, role });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to create user.";
+    const errorCode = message === "That email is already in use." ? "email_in_use" : "create_failed";
+    redirect(`/admin/users?error=${errorCode}`);
+  }
+
+  revalidatePath("/admin/users");
+  const params = new URLSearchParams({
+    saved: "user_created",
+    tempPassword: result.temporaryPassword,
+    createdEmail: result.user.email
+  });
+  redirect(`/admin/users?${params.toString()}`);
+}
+
+export async function setTemporaryPasswordAsAdminAction(formData: FormData) {
+  await requireCurrentAdmin();
+  const userId = String(formData.get("userId") ?? "");
+
+  let result: Awaited<ReturnType<typeof setTemporaryPasswordAsAdmin>>;
+
+  try {
+    result = await setTemporaryPasswordAsAdmin(userId);
+  } catch {
+    redirect("/admin/users?error=temp_password_failed");
+  }
+
+  revalidatePath("/admin/users");
+  const params = new URLSearchParams({
+    saved: "temp_password",
+    tempPassword: result.temporaryPassword,
+    userId
+  });
+  redirect(`/admin/users?${params.toString()}`);
 }
 
 export async function completePendingSignupVerificationAction(formData: FormData) {

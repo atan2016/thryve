@@ -3,12 +3,24 @@ import Link from "next/link";
 import { AdminDashboardAccessCard } from "@/components/admin-dashboard-access-card";
 import { AdminDashboardNav } from "@/components/admin-dashboard-nav";
 import { MetricCard } from "@/components/metric-card";
-import { deleteUserAsAdminAction, updateUserAsAdminAction } from "@/lib/actions";
+import {
+  createUserAsAdminAction,
+  deleteUserAsAdminAction,
+  setTemporaryPasswordAsAdminAction,
+  updateUserAsAdminAction
+} from "@/lib/actions";
 import { getAdminDashboardContext } from "@/lib/admin-dashboard";
 import { listUsersForAdmin } from "@/lib/persistence";
 
 type AdminUsersPageProps = {
-  searchParams: Promise<{ saved?: string; removed?: string; error?: string }>;
+  searchParams: Promise<{
+    saved?: string;
+    removed?: string;
+    error?: string;
+    tempPassword?: string;
+    createdEmail?: string;
+    userId?: string;
+  }>;
 };
 
 export default async function AdminUsersPage({ searchParams }: AdminUsersPageProps) {
@@ -29,32 +41,48 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
   const customerCount = users.filter((user) => user.role === "customer").length;
   const verifiedCount = users.filter((user) => user.emailVerifiedAt).length;
 
+  const tempPasswordNotice =
+    params.saved === "user_created" && params.tempPassword
+      ? `Account created for ${params.createdEmail ?? "the user"}. Temporary password (share securely): ${params.tempPassword}`
+      : params.saved === "temp_password" && params.tempPassword
+        ? `New temporary password set. Share securely: ${params.tempPassword}`
+        : params.saved === "password"
+          ? "Your password was updated."
+          : null;
+
   const feedbackMessage =
-    params.saved === "user"
+    tempPasswordNotice ??
+    (params.saved === "user"
       ? "User updated."
       : params.saved === "email_change_requested"
         ? "User updated. A confirmation email was sent to the new address before the email change will be applied."
-      : params.removed === "user"
-        ? "User removed."
-        : params.error === "cannot_delete_self"
-          ? "You cannot remove the admin account you are currently using."
-          : params.error === "cannot_demote_self"
-            ? "You cannot remove your own admin access while signed in."
-            : params.error === "email_in_use"
-              ? "That email is already in use."
-              : params.error === "email_pending"
-                ? "That email is already waiting for confirmation."
-              : params.error === "update_failed"
-                ? "We couldn't update that user."
-                : params.error === "delete_failed"
-                  ? "We couldn't remove that user."
-                  : null;
+        : params.removed === "user"
+          ? "User removed."
+          : params.error === "cannot_delete_self"
+            ? "You cannot remove the admin account you are currently using."
+            : params.error === "cannot_demote_self"
+              ? "You cannot remove your own admin access while signed in."
+              : params.error === "email_in_use"
+                ? "That email is already in use."
+                : params.error === "email_pending"
+                  ? "That email is already waiting for confirmation."
+                  : params.error === "create_failed"
+                    ? "We couldn't create that user."
+                    : params.error === "temp_password_failed"
+                      ? "We couldn't reset that user's password."
+                      : params.error === "update_failed"
+                        ? "We couldn't update that user."
+                        : params.error === "delete_failed"
+                          ? "We couldn't remove that user."
+                          : null);
 
   const feedbackTone =
     params.error === "cannot_delete_self" ||
     params.error === "cannot_demote_self" ||
     params.error === "email_in_use" ||
     params.error === "email_pending" ||
+    params.error === "create_failed" ||
+    params.error === "temp_password_failed" ||
     params.error === "update_failed" ||
     params.error === "delete_failed"
       ? "border-rose-200 bg-rose-50 text-rose-700"
@@ -75,6 +103,36 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
         <MetricCard label="Admins" value={adminCount} />
         <MetricCard label="Teachers" value={teacherCount} />
         <MetricCard label="Verified emails" value={verifiedCount} />
+      </section>
+
+      <section className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
+        <h2 className="text-xl font-semibold">Create account with temporary password</h2>
+        <p className="mt-1 text-sm text-stone-500">
+          The user can sign in immediately and will be prompted to choose a new password. Email is marked verified (no signup confirmation).
+        </p>
+        <form action={createUserAsAdminAction} className="mt-6 grid gap-4 md:grid-cols-3">
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium">Name</span>
+            <input name="name" required />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium">Email</span>
+            <input name="email" required type="email" />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium">Role</span>
+            <select defaultValue="teacher" name="role">
+              <option value="customer">Customer</option>
+              <option value="teacher">Teacher</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <div className="md:col-span-3">
+            <button className="rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white" type="submit">
+              Create account
+            </button>
+          </div>
+        </form>
       </section>
 
       <section className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
@@ -172,16 +230,27 @@ export default async function AdminUsersPage({ searchParams }: AdminUsersPagePro
                     </div>
                   </form>
 
-                  <form action={deleteUserAsAdminAction} className="flex items-end">
-                    <input name="userId" type="hidden" value={user.id} />
-                    <button
-                      className="rounded-full bg-rose-600 px-5 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-rose-300"
-                      disabled={isCurrentAdmin}
-                      type="submit"
-                    >
-                      Remove user
-                    </button>
-                  </form>
+                  <div className="flex flex-col items-stretch gap-3 sm:items-end">
+                    <form action={setTemporaryPasswordAsAdminAction}>
+                      <input name="userId" type="hidden" value={user.id} />
+                      <button
+                        className="w-full rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-800 sm:w-auto"
+                        type="submit"
+                      >
+                        Set temporary password
+                      </button>
+                    </form>
+                    <form action={deleteUserAsAdminAction}>
+                      <input name="userId" type="hidden" value={user.id} />
+                      <button
+                        className="w-full rounded-full bg-rose-600 px-5 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-rose-300 sm:w-auto"
+                        disabled={isCurrentAdmin}
+                        type="submit"
+                      >
+                        Remove user
+                      </button>
+                    </form>
+                  </div>
                 </div>
               </article>
             );

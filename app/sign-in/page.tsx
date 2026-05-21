@@ -3,7 +3,7 @@ import Link from "next/link";
 import { signInAction } from "@/lib/actions";
 
 type SignInPageProps = {
-  searchParams: Promise<{ next?: string; error?: string; email?: string }>;
+  searchParams: Promise<{ next?: string; error?: string; email?: string; status?: string }>;
 };
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
@@ -11,6 +11,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   const nextPath = params.next ?? "";
   const error = params.error;
   const defaultEmail = params.email ?? "";
+  const successMessage = params.status === "password_reset" ? "Your password was reset. Sign in with your new password." : null;
   const errorMessage =
     error === "invalid_credentials"
       ? "Invalid email or password. Please try again."
@@ -28,6 +29,11 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         <p>Teacher demo: `teacher@yoga.local` / `password123`</p>
         <p className="mt-1">Student demo: `student@yoga.local` / `password123`</p>
       </div>
+      {successMessage ? (
+        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {successMessage}
+        </div>
+      ) : null}
       {errorMessage ? (
         <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{errorMessage}</div>
       ) : null}
@@ -38,8 +44,13 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           <input defaultValue={defaultEmail} name="email" type="email" />
         </label>
         <label className="block">
-          <span className="mb-2 block text-sm font-medium">Password</span>
-          <input name="password" type="password" />
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-sm font-medium">Password</span>
+            <Link className="text-sm font-medium text-emerald-700" href="/forgot-password">
+              Forgot password?
+            </Link>
+          </div>
+          <input name="password" type="password" autoComplete="current-password" />
         </label>
         <button className="w-full rounded-full bg-stone-900 px-5 py-3 text-white" type="submit">
           Sign in

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { ChangePasswordForm } from "@/components/change-password-form";
 import { TeacherDashboardAccessCard } from "@/components/teacher-dashboard-access-card";
 import { TeacherProfileEditor } from "@/components/teacher-profile-editor";
 import {
@@ -15,7 +16,7 @@ import { getEventImageMaxSizeLabel, isTeacherUpcomingEventImageApiUrl } from "@/
 import { TEACHER_UPCOMING_EVENT_TYPE_OPTIONS } from "@/lib/teacher-upcoming-event-types";
 
 type TeacherProfileDashboardPageProps = {
-  searchParams: Promise<{ saved?: string; error?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string; message?: string }>;
 };
 
 export default async function TeacherProfileDashboardPage({ searchParams }: TeacherProfileDashboardPageProps) {
@@ -32,8 +33,15 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
     return <TeacherDashboardAccessCard state="wrong_role" userName={context.user.name} />;
   }
 
-  const { teacher } = context;
+  const { teacher, user } = context;
   const eventImageMaxLabel = getEventImageMaxSizeLabel();
+
+  const passwordErrorMessage =
+    error === "mismatch"
+      ? "New passwords do not match."
+      : error === "change_failed"
+        ? params.message ?? "Unable to update password. Check your entries and try again."
+        : null;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
@@ -80,10 +88,17 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
             That event image could not be saved. Use a JPG, PNG, GIF, or WebP under {eventImageMaxLabel}.
           </div>
         ) : null}
+        {user.mustChangePassword ? (
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Your account uses a temporary password. Update it in Account security below before continuing.
+          </div>
+        ) : null}
         {saved ? (
           <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {saved === "profile"
               ? "Profile saved and displayed on your public page."
+              : saved === "password"
+                ? "Password updated."
               : saved === "imported"
                 ? "Profile import finished. Review the suggested details below before publishing."
                 : saved === "import-skipped"
@@ -101,6 +116,16 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
       </section>
 
       <section className="space-y-6">
+        <div className="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
+          <h2 className="text-2xl font-semibold">Account security</h2>
+          <p className="mt-2 text-stone-500">Change the password you use to sign in to your teacher dashboard.</p>
+          <ChangePasswordForm
+            compact
+            returnTo="/dashboard/teacher/profile"
+            errorMessage={passwordErrorMessage}
+            required={user.mustChangePassword}
+          />
+        </div>
         <div className="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
           <h2 className="text-2xl font-semibold">Certification files</h2>
           <p className="mt-2 text-stone-500">Upload proof like PDFs or image certificates so the admin can review them before granting badges.</p>

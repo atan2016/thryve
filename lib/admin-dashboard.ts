@@ -1,3 +1,4 @@
+import { redirectIfMustChangePassword } from "@/lib/auth/require-password-changed";
 import { getCurrentUser } from "@/lib/auth/session";
 
 export async function getAdminDashboardContext() {
@@ -13,6 +14,8 @@ export async function getAdminDashboardContext() {
       user
     };
   }
+
+  redirectIfMustChangePassword(user);
 
   return {
     status: "ready" as const,

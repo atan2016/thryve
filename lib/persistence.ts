@@ -122,10 +122,24 @@ const HOMEPAGE_LOCAL_GIGS: HomepageJobCard[] = [
     posted: "4 days ago"
   }
 ];
+/** Pilates class cards — prefer over teacher headshots (e.g. Robin’s Pilates Foundations). */
+const PILATES_CLASS_IMAGE_FALLBACKS = [
+  "/assets/images/pilates-studio-v-sit.png",
+  "/assets/images/pilates-group-class.png"
+];
+
+/** Yoga / movement class cards — used when the event title describes a studio class (e.g. Heated Vinyasa). */
+const YOGA_CLASS_IMAGE_FALLBACKS = [
+  "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200&q=80&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1200&q=80&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1545389336-cf090694435e?w=1200&q=80&auto=format&fit=crop"
+];
+
 const CATEGORY_IMAGE_FALLBACKS: Record<string, string[]> = {
   Retreat: [
     "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1472396961693-142e6e269027?w=1200&q=80&auto=format&fit=crop",
+    "https://images.unsplash.com/photo-1528319725582-ddc096101511?w=1200&q=80&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1510797215324-95aa89f43c33?w=1200&q=80&auto=format&fit=crop"
   ],
   "Somatic Healing": [
@@ -161,18 +175,73 @@ const CATEGORY_IMAGE_FALLBACKS: Record<string, string[]> = {
  */
 const CSM_YTT_GRADUATION_HOMEPAGE_IMAGE = "/assets/images/csm-ytt-graduation-card.png";
 
-/** Graduation / CSM YTT–branded titles: prefer static card even if a stale DB image row points at the API route. */
-function shouldForceCsmYttGraduationHomepageImage(eventKey: string) {
-  const k = eventKey.toLowerCase();
-  return k.includes("csm") && k.includes("ytt");
+/** Homepage hero artwork — never reuse on event cards below the hero. */
+const HOMEPAGE_HERO_IMAGES = new Set([
+  "/assets/images/home-hero-wellbeing-v2.png",
+  "/assets/images/home-hero-wellbeing.png"
+]);
+
+/** Reserved for a single branded card (CSM YTT only) — never pool on other events. */
+const HOMEPAGE_SINGLE_USE_IMAGES = new Set([CSM_YTT_GRADUATION_HOMEPAGE_IMAGE]);
+
+function titleDescribesPilatesClass(title: string) {
+  return /\bpilates\b/i.test(title);
 }
 
-function shouldUseCsmYttGraduationWhenNoCustomImage(eventKey: string) {
-  const k = eventKey.toLowerCase();
+function titleDescribesYogaMovementClass(title: string) {
+  if (titleDescribesPilatesClass(title)) {
+    return false;
+  }
+
+  const haystack = title.toLowerCase();
+  return /\b(yoga|vinyasa|ashtanga|bikram|hot|heated|flow|yin|hatha|rocket|4beat|4\s*beat|chair|sculpt|barre)\b/.test(
+    haystack
+  );
+}
+
+function getHomepageEventStockImages(title: string, category: string) {
+  if (titleDescribesPilatesClass(title)) {
+    return PILATES_CLASS_IMAGE_FALLBACKS;
+  }
+
+  if (titleDescribesYogaMovementClass(title)) {
+    return YOGA_CLASS_IMAGE_FALLBACKS;
+  }
+
+  return CATEGORY_IMAGE_FALLBACKS[category] ?? CATEGORY_IMAGE_FALLBACKS.Workshop;
+}
+
+function isExcludedFromHomepageEventImagePool(url?: string | null) {
+  if (!url) {
+    return false;
+  }
+  return HOMEPAGE_HERO_IMAGES.has(url) || HOMEPAGE_SINGLE_USE_IMAGES.has(url);
+}
+
+function withoutExcludedHomepageEventImages(urls: string[]) {
+  return urls.filter((url) => !isExcludedFromHomepageEventImagePool(url));
+}
+
+type HomepageEventImageMix = {
+  customImage?: string;
+  headshots: string[];
+  stories: string[];
+  hosts: string[];
+  stocks: string[];
+};
+
+type HomepageEventCardDraft = HomepageEventCard & {
+  imageMix?: HomepageEventImageMix | null;
+};
+
+/** May 19, 2026 CSM YTT graduation listing only (not other YTT / CSM events). */
+function isCsmYttGraduationCelebrationHomepageEvent(title: string, eventDate: Date | null | undefined) {
+  if (!eventDate || !/csm\s+ytt\s+graduation/i.test(title.trim())) {
+    return false;
+  }
+
   return (
-    k.includes("200-hour") &&
-    (k.includes("teacher training") || k.includes("ytt")) &&
-    k.includes("college of san mateo")
+    eventDate.getUTCFullYear() === 2026 && eventDate.getUTCMonth() === 4 && eventDate.getUTCDate() === 19
   );
 }
 
@@ -218,7 +287,9 @@ const userSelect = {
   password: true,
   role: true,
   name: true,
-  emailVerifiedAt: true
+  emailVerifiedAt: true,
+  mustChangePassword: true,
+  passwordChangedAt: true
 };
 
 const adminUserSelect = {
@@ -284,6 +355,29 @@ function isMissingUserEmailVerificationInfrastructure(error: unknown) {
   );
 }
 
+function isMissingUserPasswordResetInfrastructure(error: unknown) {
+  return (
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2022" &&
+      (error.message.includes("User.mustChangePassword") ||
+        error.message.includes("mustChangePassword") ||
+        error.message.includes("passwordChangedAt"))) ||
+    (error instanceof Prisma.PrismaClientValidationError &&
+      (error.message.includes("Unknown field `mustChangePassword`") ||
+        error.message.includes("Unknown field `passwordChangedAt`")))
+  );
+}
+
+function isMissingPasswordResetTokenInfrastructure(error: unknown) {
+  return (
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2021" || error.code === "P2022") &&
+      error.message.includes("PasswordResetToken")) ||
+    (error instanceof Prisma.PrismaClientValidationError &&
+      error.message.includes("PasswordResetToken"))
+  );
+}
+
 function isMissingPendingUserEmailChangeInfrastructure(error: unknown) {
   return (
     (error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -318,7 +412,7 @@ async function withUserEmailVerificationFallback<T>(queries: Array<() => Promise
     try {
       return await query();
     } catch (error) {
-      if (isMissingUserEmailVerificationInfrastructure(error)) {
+      if (isMissingUserEmailVerificationInfrastructure(error) || isMissingUserPasswordResetInfrastructure(error)) {
         lastCompatibilityError = error;
         continue;
       }
@@ -373,6 +467,8 @@ function mapUser(user: {
   role: Role;
   name: string;
   emailVerifiedAt?: Date | null;
+  mustChangePassword?: boolean;
+  passwordChangedAt?: Date | null;
 }): AppUser {
   return {
     id: user.id,
@@ -380,7 +476,9 @@ function mapUser(user: {
     password: user.password,
     role: mapRoleToApp(user.role),
     name: user.name,
-    emailVerifiedAt: user.emailVerifiedAt?.toISOString()
+    emailVerifiedAt: user.emailVerifiedAt?.toISOString(),
+    mustChangePassword: user.mustChangePassword ?? false,
+    passwordChangedAt: user.passwordChangedAt?.toISOString()
   };
 }
 
@@ -1381,8 +1479,9 @@ function hashLabel(value: string) {
   return hash;
 }
 
-function buildHomepageEventImage(
-  eventKey: string,
+function buildHomepageEventImageMix(
+  title: string,
+  eventDate: Date | null | undefined,
   category: string,
   teacher: {
     avatarUrl: string | null;
@@ -1390,33 +1489,107 @@ function buildHomepageEventImage(
   },
   host?: { imageUrl: string | null } | null,
   eventImageUrl?: string | null
-) {
-  if (shouldForceCsmYttGraduationHomepageImage(eventKey)) {
-    return CSM_YTT_GRADUATION_HOMEPAGE_IMAGE;
+): HomepageEventImageMix {
+  const useGraduationCard = isCsmYttGraduationCelebrationHomepageEvent(title, eventDate);
+
+  if (useGraduationCard) {
+    return { customImage: CSM_YTT_GRADUATION_HOMEPAGE_IMAGE, headshots: [], stories: [], hosts: [], stocks: [] };
   }
 
   const eventImage = eventImageUrl?.trim();
-  if (eventImage) {
-    return eventImage;
+  if (eventImage && !isExcludedFromHomepageEventImagePool(eventImage)) {
+    return { customImage: eventImage, headshots: [], stories: [], hosts: [], stocks: [] };
   }
 
-  if (shouldUseCsmYttGraduationWhenNoCustomImage(eventKey)) {
-    return CSM_YTT_GRADUATION_HOMEPAGE_IMAGE;
-  }
-
-  const storyImages = teacher.stories.map((story) => story.mediaUrl).filter(Boolean);
-  const categoryImages = CATEGORY_IMAGE_FALLBACKS[category] ?? CATEGORY_IMAGE_FALLBACKS.Workshop;
-  const candidates = Array.from(
-    new Set(
-      [host?.imageUrl, ...storyImages, teacher.avatarUrl, ...categoryImages].filter((value): value is string => Boolean(value))
-    )
+  const storyImages = withoutExcludedHomepageEventImages(
+    teacher.stories.map((story) => story.mediaUrl).filter(Boolean)
   );
+  const headshots = withoutExcludedHomepageEventImages(teacher.avatarUrl ? [teacher.avatarUrl] : []);
+  const hosts = withoutExcludedHomepageEventImages(host?.imageUrl ? [host.imageUrl] : []);
+  const stocks = withoutExcludedHomepageEventImages(getHomepageEventStockImages(title, category));
 
-  if (candidates.length === 0) {
-    return CATEGORY_IMAGE_FALLBACKS.Workshop[0];
+  return {
+    headshots,
+    stories: storyImages,
+    hosts,
+    stocks
+  };
+}
+
+function pickFromPool(pool: string[], index: number, exclude?: string | null) {
+  const eligible = withoutExcludedHomepageEventImages(pool);
+  if (eligible.length === 0) {
+    return undefined;
   }
 
-  return candidates[hashLabel(eventKey) % candidates.length];
+  for (let offset = 0; offset < eligible.length; offset += 1) {
+    const candidate = eligible[(index + offset) % eligible.length];
+    if (candidate && candidate !== exclude) {
+      return candidate;
+    }
+  }
+
+  return eligible[index % eligible.length];
+}
+
+/** Alternate headshots, demo/stock, and story art; avoid identical images on neighboring cards. */
+function mixAdjacentHomepageEventImages(events: HomepageEventCardDraft[]) {
+  let previousImage: string | null = null;
+  let preferHeadshot = true;
+
+  for (let index = 0; index < events.length; index += 1) {
+    const event = events[index];
+    const mix = event.imageMix;
+
+    if (!mix) {
+      previousImage = event.imageSrc;
+      continue;
+    }
+
+    if (mix.customImage) {
+      event.imageSrc = mix.customImage;
+      previousImage = event.imageSrc;
+      continue;
+    }
+
+    const pilatesClass = titleDescribesPilatesClass(event.title);
+    const yogaClass = titleDescribesYogaMovementClass(event.title);
+    const tiers: string[][] = pilatesClass
+      ? [mix.stocks, mix.stories, mix.hosts]
+      : yogaClass
+        ? preferHeadshot
+          ? [mix.headshots, mix.stories, mix.stocks, mix.hosts]
+          : [mix.stories, mix.headshots, mix.stocks, mix.hosts]
+        : preferHeadshot
+          ? [mix.headshots, mix.stocks, mix.stories, mix.hosts]
+          : [mix.stocks, mix.headshots, mix.stories, mix.hosts];
+    preferHeadshot = !preferHeadshot;
+
+    let picked: string | undefined;
+    for (const tier of tiers) {
+      picked = pickFromPool(tier, index + hashLabel(event.id), previousImage);
+      if (picked) {
+        break;
+      }
+    }
+
+    if (!picked) {
+      const fallbackPool = withoutExcludedHomepageEventImages(
+        Array.from(new Set([...mix.stocks, ...mix.headshots, ...mix.stories, ...mix.hosts]))
+      );
+      const workshopFallback = withoutExcludedHomepageEventImages(CATEGORY_IMAGE_FALLBACKS.Workshop);
+      picked =
+        pickFromPool(fallbackPool, index, previousImage) ?? workshopFallback[0] ?? CATEGORY_IMAGE_FALLBACKS.Workshop[0];
+    }
+
+    event.imageSrc = picked;
+    previousImage = picked;
+  }
+}
+
+function publishHomepageEventCards(events: HomepageEventCardDraft[]): HomepageEventCard[] {
+  mixAdjacentHomepageEventImages(events);
+  return events.map(({ imageMix: _imageMix, ...card }) => card);
 }
 
 function buildHomepageEventLocation(teacher: { city: string; studioName: string | null }) {
@@ -1462,7 +1635,7 @@ function mapPersonalizedEventCard(
   followedTeacherIds: Set<string>,
   followedHostIds: Set<string>,
   personalized: boolean
-): HomepageEventCard {
+): HomepageEventCardDraft {
   const venueFromForm = event.hostName?.trim();
   const hostName =
     venueFromForm ||
@@ -1485,6 +1658,25 @@ function mapPersonalizedEventCard(
     `Led by ${event.teacher.fullName}`
   ].filter(Boolean);
 
+  const imageMix = buildHomepageEventImageMix(
+    event.title,
+    event.eventDate,
+    category,
+    event.teacher,
+    event.host,
+    resolveTeacherUpcomingEventImageUrl({
+      id: event.id,
+      imageUrl: event.imageUrl,
+      eventImageMimeType: event.eventImageMimeType
+    })
+  );
+
+  const placeholderImage =
+    imageMix.customImage ??
+    imageMix.headshots[0] ??
+    imageMix.stocks[hashLabel(event.id) % Math.max(imageMix.stocks.length, 1)] ??
+    CATEGORY_IMAGE_FALLBACKS.Workshop[0];
+
   return {
     id: event.id,
     teacherId: event.teacher.id,
@@ -1499,22 +1691,13 @@ function mapPersonalizedEventCard(
     detail: detailParts.join(" · "),
     href,
     external,
-    imageSrc: buildHomepageEventImage(
-      `${event.id}:${event.title}:${hostName}`,
-      category,
-      event.teacher,
-      event.host,
-      resolveTeacherUpcomingEventImageUrl({
-        id: event.id,
-        imageUrl: event.imageUrl,
-        eventImageMimeType: event.eventImageMimeType
-      })
-    ),
+    imageSrc: placeholderImage,
     imageAlt: `${event.title} event image`,
     category,
     featuredLabel: personalized ? FOLLOWED_EVENT_LABEL : undefined,
     isFollowedTeacher: followedTeacherIds.has(event.teacher.id),
-    isFollowedHost: event.host?.id ? followedHostIds.has(event.host.id) : event.hostId ? followedHostIds.has(event.hostId) : false
+    isFollowedHost: event.host?.id ? followedHostIds.has(event.host.id) : event.hostId ? followedHostIds.has(event.hostId) : false,
+    imageMix: imageMix.customImage ? null : imageMix
   };
 }
 
@@ -1716,7 +1899,7 @@ async function listPersistedHomepageEvents(options: {
   followedHostIds?: string[];
   personalized?: boolean;
   limit?: number;
-}) {
+}): Promise<HomepageEventCardDraft[]> {
   if (!hasEventFollowClientSupport()) {
     const filters: Prisma.TeacherUpcomingEventWhereInput[] = [];
 
@@ -1763,7 +1946,7 @@ async function listPersistedHomepageEvents(options: {
               mediaType: StoryMediaType.IMAGE
             },
             orderBy: { sortOrder: "asc" as const },
-            take: 1,
+            take: 3,
             select: { mediaUrl: true }
           }
         }
@@ -1901,7 +2084,7 @@ async function listPersistedHomepageEvents(options: {
           mediaType: StoryMediaType.IMAGE
         },
         orderBy: { sortOrder: "asc" as const },
-        take: 1,
+        take: 3,
         select: { mediaUrl: true }
       }
     };
@@ -2468,12 +2651,12 @@ export async function listHomepageFeaturedEvents(userId?: string) {
         limit: HOMEPAGE_EVENT_QUERY_LIMIT
       });
 
-      return filterHomepageEventsByKeywords(
-        sortHomepageFeaturedEventsByListingTime(
-          dedupeHomepageEvents([...personalizedEvents, ...genericEvents]).filter(isHomepageFeaturedEventCard)
-        ),
+      const merged = filterHomepageEventsByKeywords(
+        dedupeHomepageEvents([...personalizedEvents, ...genericEvents]).filter(isHomepageFeaturedEventCard),
         contentFilters.hiddenEventKeywords
       ).slice(0, HOMEPAGE_EVENT_LIMIT);
+
+      return publishHomepageEventCards(sortHomepageFeaturedEventsByListingTime(merged));
     }
   }
 
@@ -2488,10 +2671,14 @@ export async function listHomepageFeaturedEvents(userId?: string) {
   );
 
   if (hasNoFollows) {
-    return sortHomepageFeaturedEventsByListingTime(fallbackEvents).slice(0, NO_FOLLOW_EVENT_LIMIT);
+    return publishHomepageEventCards(
+      sortHomepageFeaturedEventsByListingTime(fallbackEvents).slice(0, NO_FOLLOW_EVENT_LIMIT)
+    );
   }
 
-  return sortHomepageFeaturedEventsByListingTime(fallbackEvents).slice(0, HOMEPAGE_EVENT_LIMIT);
+  return publishHomepageEventCards(
+    sortHomepageFeaturedEventsByListingTime(fallbackEvents).slice(0, HOMEPAGE_EVENT_LIMIT)
+  );
 }
 
 export async function listHomepageLocalGigs() {

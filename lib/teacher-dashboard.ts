@@ -1,3 +1,4 @@
+import { redirectIfMustChangePassword } from "@/lib/auth/require-password-changed";
 import { getCurrentUser } from "@/lib/auth/session";
 import { ensureTeacherProfile } from "@/lib/persistence";
 
@@ -14,6 +15,8 @@ export async function getTeacherDashboardContext() {
       user
     };
   }
+
+  redirectIfMustChangePassword(user);
 
   return {
     status: "ready" as const,

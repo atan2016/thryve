@@ -309,9 +309,9 @@ const demoStories = [
   {
     id: "story-5",
     teacherId: "teacher-4",
-    title: "Candlelight Yin in San Francisco",
-    caption: "A gentle evening practice with props, breath, and long-held shapes designed to soften stress and build resilience.",
-    mediaUrl: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=1200&q=80",
+    title: "Mat Pilates foundations",
+    caption: "Core-aware Pilates progressions that build stability, breath control, and confident movement.",
+    mediaUrl: "/assets/images/pilates-group-class.png",
     mediaType: StoryMediaType.IMAGE,
     sortOrder: 2,
     published: true
