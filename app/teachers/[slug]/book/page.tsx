@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { bookCalendarSessionAction, bookSessionAction } from "@/lib/actions";
+import { BOOKING_ENABLED } from "@/lib/booking-enabled";
 import { formatCredits, formatDateTime } from "@/lib/format";
 import { getTeacherBySlug } from "@/lib/persistence";
 
@@ -12,6 +13,11 @@ type TeacherBookingPageProps = {
 export default async function TeacherBookingPage({ params, searchParams }: TeacherBookingPageProps) {
   const { slug } = await params;
   const query = await searchParams;
+
+  if (!BOOKING_ENABLED) {
+    redirect(`/teachers/${slug}`);
+  }
+
   const teacher = await getTeacherBySlug(slug);
 
   if (!teacher) {

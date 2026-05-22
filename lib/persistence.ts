@@ -4227,6 +4227,8 @@ export async function deleteTeacherUpcomingEvent(teacherId: string, eventId: str
   });
 }
 
+export { syncTeacherUpcomingEventsFromWeb } from "@/lib/schedule-sync/sync-events-to-db";
+
 export async function addTeacherCalendarSession(
   teacherId: string,
   session: Pick<TeacherCalendarSession, "offeringId" | "title" | "description" | "location" | "startsAt" | "endsAt" | "timezone" | "sourceUrl">

@@ -1,5 +1,8 @@
+import { redirect } from "next/navigation";
+
 import { TeacherDashboardAccessCard } from "@/components/teacher-dashboard-access-card";
 import { addOfferingAction } from "@/lib/actions";
+import { BOOKING_ENABLED } from "@/lib/booking-enabled";
 import { formatCredits, formatDateTime } from "@/lib/format";
 import { getServiceOptions, getTeacherBookings } from "@/lib/store";
 import { getTeacherDashboardContext } from "@/lib/teacher-dashboard";
@@ -13,6 +16,10 @@ export default async function TeacherBookingsDashboardPage() {
 
   if (context.status === "wrong_role") {
     return <TeacherDashboardAccessCard state="wrong_role" userName={context.user.name} />;
+  }
+
+  if (!BOOKING_ENABLED) {
+    redirect("/dashboard/teacher/profile");
   }
 
   const { teacher } = context;

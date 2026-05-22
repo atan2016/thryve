@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactElement } from "react";
 
 import { signOutAction } from "@/lib/actions";
+import { BOOKING_ENABLED } from "@/lib/booking-enabled";
 import { isProdBuild } from "@/lib/is-production";
 import type { Role } from "@/lib/types";
 
@@ -102,8 +103,12 @@ const NAV_ITEMS: NavItemConfig[] = [
 ];
 
 function navItemsForBuild(): NavItemConfig[] {
-  if (!isProdBuild) return NAV_ITEMS;
-  return NAV_ITEMS.filter((item) => item.label !== "Community" && item.label !== "Promotion" && item.label !== "Jobs");
+  let items = NAV_ITEMS;
+  if (!BOOKING_ENABLED) {
+    items = items.filter((item) => item.label !== "Promotion");
+  }
+  if (!isProdBuild) return items;
+  return items.filter((item) => item.label !== "Community" && item.label !== "Promotion" && item.label !== "Jobs");
 }
 
 export function AppHeader({ user, canAccessTeacherDashboard }: AppHeaderProps) {
@@ -160,13 +165,15 @@ export function AppHeader({ user, canAccessTeacherDashboard }: AppHeaderProps) {
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {user ? (
             <>
-              <Link
-                href="/bookings"
-                className="rounded-full p-2 text-slate-800 transition hover:bg-white/80 hover:text-teal-700"
-                aria-label="My bookings"
-              >
-                <IconBookmark className="h-6 w-6" />
-              </Link>
+              {BOOKING_ENABLED ? (
+                <Link
+                  href="/bookings"
+                  className="rounded-full p-2 text-slate-800 transition hover:bg-white/80 hover:text-teal-700"
+                  aria-label="My bookings"
+                >
+                  <IconBookmark className="h-6 w-6" />
+                </Link>
+              ) : null}
               <div className="relative pl-1" ref={accountRef}>
                 <button
                   type="button"
@@ -192,12 +199,16 @@ export function AppHeader({ user, canAccessTeacherDashboard }: AppHeaderProps) {
                     className="absolute right-0 z-50 mt-2 w-52 rounded-xl border border-stone-200 bg-white py-1 shadow-lg ring-1 ring-slate-900/5"
                     role="menu"
                   >
-                    <Link href="/bookings" className="block px-4 py-2.5 text-sm text-slate-800 hover:bg-stone-50" role="menuitem" onClick={() => setAccountOpen(false)}>
-                      My bookings
-                    </Link>
-                    <Link href="/credits" className="block px-4 py-2.5 text-sm text-slate-800 hover:bg-stone-50" role="menuitem" onClick={() => setAccountOpen(false)}>
-                      Credits
-                    </Link>
+                    {BOOKING_ENABLED ? (
+                      <Link href="/bookings" className="block px-4 py-2.5 text-sm text-slate-800 hover:bg-stone-50" role="menuitem" onClick={() => setAccountOpen(false)}>
+                        My bookings
+                      </Link>
+                    ) : null}
+                    {BOOKING_ENABLED ? (
+                      <Link href="/credits" className="block px-4 py-2.5 text-sm text-slate-800 hover:bg-stone-50" role="menuitem" onClick={() => setAccountOpen(false)}>
+                        Credits
+                      </Link>
+                    ) : null}
                     {user.role === "admin" ? (
                       <Link
                         href="/admin/users"

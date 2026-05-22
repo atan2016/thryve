@@ -1,6 +1,9 @@
+import { redirect } from "next/navigation";
+
 import { AdminDashboardAccessCard } from "@/components/admin-dashboard-access-card";
 import { AdminDashboardNav } from "@/components/admin-dashboard-nav";
 import { getAdminDashboardContext } from "@/lib/admin-dashboard";
+import { BOOKING_ENABLED } from "@/lib/booking-enabled";
 import { formatCredits, formatDateTime } from "@/lib/format";
 import { getAdminSnapshot } from "@/lib/store";
 
@@ -13,6 +16,10 @@ export default async function AdminBookingsPage() {
 
   if (context.status === "wrong_role") {
     return <AdminDashboardAccessCard state="wrong_role" userName={context.user.name} />;
+  }
+
+  if (!BOOKING_ENABLED) {
+    redirect("/admin/teachers");
   }
 
   const snapshot = getAdminSnapshot();

@@ -8,6 +8,7 @@ import {
   addStoryAction,
   addTeacherCertificationSubmissionAction,
   addUpcomingEventAction,
+  autoUpdateUpcomingEventsFromWebAction,
   deleteUpcomingEventAction,
   updateStoryAction,
   updateTeacherProfileAction,
@@ -101,6 +102,11 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
             We could not delete that event. Please try again.
           </div>
         ) : null}
+        {error === "schedule_sync_failed" ? (
+          <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+            {params.message ?? "Could not auto-update upcoming events from the web. Add a schedule or website URL on your profile and try again."}
+          </div>
+        ) : null}
         {user.mustChangePassword ? (
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             Your account uses a temporary password. Update it in Account security below before continuing.
@@ -124,7 +130,9 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
                     ? "Upcoming event updated."
                     : saved === "event-deleted"
                       ? "Upcoming event removed."
-                      : saved === "certification-submitted"
+                      : saved === "schedule-synced"
+                        ? (params.message ?? "Upcoming events updated from the web.")
+                        : saved === "certification-submitted"
                         ? "Certification file submitted for admin review."
                         : saved === "story-updated"
                           ? "Story updated."
@@ -265,6 +273,19 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
             </label>
             <button className="rounded-full bg-stone-900 px-5 py-3 text-white" type="submit">
               Add upcoming event
+            </button>
+          </form>
+          <form action={autoUpdateUpcomingEventsFromWebAction} className="mt-6 border-t border-stone-200 pt-6">
+            <p className="text-sm text-stone-600">
+              Pull recurring classes from public schedule pages linked on your profile (website, schedule URL, social
+              pages). Uses your name and email to find relevant listings. Does not remove events you added manually and
+              does not change your availability calendar.
+            </p>
+            <button
+              className="mt-4 rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-900 hover:bg-stone-50"
+              type="submit"
+            >
+              Auto-update from web
             </button>
           </form>
         </div>

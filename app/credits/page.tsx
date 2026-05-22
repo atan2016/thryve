@@ -1,9 +1,16 @@
+import { redirect } from "next/navigation";
+
 import { MetricCard } from "@/components/metric-card";
 import { purchaseCreditsAction } from "@/lib/actions";
+import { BOOKING_ENABLED } from "@/lib/booking-enabled";
 import { formatCredits } from "@/lib/format";
 import { getCustomerTransactions, getCustomerWallet } from "@/lib/store";
 
 export default function CreditsPage() {
+  if (!BOOKING_ENABLED) {
+    redirect("/teachers");
+  }
+
   const wallet = getCustomerWallet();
   const transactions = getCustomerTransactions();
 

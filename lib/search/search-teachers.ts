@@ -1,8 +1,13 @@
 import { listTeachers } from "@/lib/persistence";
 import type { SearchFilters } from "@/lib/types";
 
+function hasOfferingFilters(filters: SearchFilters) {
+  return Boolean(filters.category || filters.length || filters.deliveryMode);
+}
+
 export async function searchTeachers(filters: SearchFilters) {
   const teachers = await listTeachers();
+  const offeringFiltersActive = hasOfferingFilters(filters);
 
   return teachers.filter((teacher) => {
     if (filters.city && !teacher.city.toLowerCase().includes(filters.city.toLowerCase())) return false;
@@ -18,6 +23,11 @@ export async function searchTeachers(filters: SearchFilters) {
       return true;
     });
 
-    return matchingOfferings.length > 0;
+    if (offeringFiltersActive) {
+      return matchingOfferings.length > 0;
+    }
+
+    // Published teachers without demo session types still appear in the directory.
+    return matchingOfferings.length > 0 || teacher.offerings.length === 0;
   });
 }

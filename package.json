@@ -14,7 +14,9 @@
     "db:migrate:dev": "node scripts/prisma-with-env.cjs migrate dev",
     "db:push": "node scripts/prisma-with-env.cjs db push",
     "db:seed": "node scripts/prisma-with-env.cjs db seed",
-    "db:restore:k-j-robin": "node scripts/restore-kj-robin-teachers.cjs"
+    "db:restore:k-j-robin": "node scripts/restore-kj-robin-teachers.cjs",
+    "schedules:scrape:blu-robin": "node scripts/scrape-sync-blu-robin-schedules.cjs",
+    "schedules:scrape:blu-robin:dry": "node scripts/scrape-sync-blu-robin-schedules.cjs --dry-run"
   },
   "dependencies": {
     "@prisma/client": "6.16.0",

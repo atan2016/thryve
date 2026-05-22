@@ -1,10 +1,16 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { MetricCard } from "@/components/metric-card";
+import { BOOKING_ENABLED } from "@/lib/booking-enabled";
 import { formatCredits, formatDateTime } from "@/lib/format";
 import { getCustomerBookings } from "@/lib/store";
 
 export default function BookingsPage() {
+  if (!BOOKING_ENABLED) {
+    redirect("/teachers");
+  }
+
   const bookings = getCustomerBookings();
 
   return (

@@ -17,6 +17,7 @@ import { purchaseCredits } from "@/lib/credits/purchase-credits";
 import { sendContactAdminInquiryEmail } from "@/lib/email/contact-admin-inquiry";
 import { sendCertificationSubmittedNotificationEmail } from "@/lib/email/certification-submitted";
 import { readCertificationFileForDatabase, readEventImageForDatabase, readProfileImageForDatabase, savePendingSignupResume, saveStoryMedia, saveTeacherResume } from "@/lib/media/storage";
+import { BOOKING_ENABLED } from "@/lib/booking-enabled";
 import { schedulePayout } from "@/lib/payouts/payout-provider";
 import { extractResumeText, type TeacherImportSourceInput } from "@/lib/teacher-profile-import";
 import {
@@ -54,6 +55,7 @@ import {
   reviewTeacherCertificationSubmission,
   skipTeacherImportOnboarding,
   submitTeacherImportOnboarding,
+  syncTeacherUpcomingEventsFromWeb,
   unfollowEventHostForUser,
   unfollowTeacherForUser,
   unheartTeacherForUser,
@@ -584,6 +586,10 @@ export async function completePendingUserEmailChangeAction(formData: FormData) {
 }
 
 export async function purchaseCreditsAction(formData: FormData) {
+  if (!BOOKING_ENABLED) {
+    redirect("/teachers");
+  }
+
   const credits = Number(formData.get("credits") ?? 0);
   const user = await getCurrentUser();
   const result = await purchaseCredits(user?.id ?? DEFAULT_CUSTOMER_ID, credits);
@@ -618,6 +624,11 @@ export async function addCommunityDiscussionAction(formData: FormData) {
 }
 
 export async function bookSessionAction(formData: FormData) {
+  if (!BOOKING_ENABLED) {
+    const teacherSlug = String(formData.get("teacherSlug") ?? "");
+    redirect(teacherSlug ? `/teachers/${teacherSlug}` : "/teachers");
+  }
+
   const teacherId = String(formData.get("teacherId"));
   const offeringId = String(formData.get("offeringId"));
   const slotId = String(formData.get("slotId"));
@@ -645,6 +656,11 @@ export async function bookSessionAction(formData: FormData) {
 }
 
 export async function bookCalendarSessionAction(formData: FormData) {
+  if (!BOOKING_ENABLED) {
+    const teacherSlug = String(formData.get("teacherSlug") ?? "");
+    redirect(teacherSlug ? `/teachers/${teacherSlug}` : "/teachers");
+  }
+
   const teacherId = String(formData.get("teacherId"));
   const sessionId = String(formData.get("sessionId"));
   const teacherSlug = String(formData.get("teacherSlug"));
@@ -697,6 +713,7 @@ export async function updateTeacherProfileAction(formData: FormData) {
   });
 
   revalidatePath("/dashboard/teacher/profile");
+  revalidatePath("/teachers");
   revalidatePath(`/teachers/${teacher.slug}`);
   redirect("/dashboard/teacher/profile?saved=profile");
 }
@@ -790,6 +807,10 @@ export async function updatePublicCalendarVisibilityAction(formData: FormData) {
 }
 
 export async function addOfferingAction(formData: FormData) {
+  if (!BOOKING_ENABLED) {
+    redirect("/dashboard/teacher/profile");
+  }
+
   const teacher = await requireCurrentTeacher();
 
   addTeacherOffering(teacher.id, {
@@ -973,6 +994,42 @@ export async function deleteUpcomingEventAction(formData: FormData) {
   revalidatePath("/dashboard/teacher/profile");
   revalidatePath(`/teachers/${teacher.slug}`);
   redirect("/dashboard/teacher/profile?saved=event-deleted");
+}
+
+function formatScheduleSyncHostnames(sources: string[]) {
+  const hostnames = [
+    ...new Set(
+      sources.map((url) => {
+        try {
+          return new URL(url).hostname.replace(/^www\./, "");
+        } catch {
+          return url;
+        }
+      })
+    )
+  ].slice(0, 4);
+  return hostnames.join(", ");
+}
+
+export async function autoUpdateUpcomingEventsFromWebAction() {
+  const teacher = await requireCurrentTeacher();
+
+  try {
+    const result = await syncTeacherUpcomingEventsFromWeb(teacher.id);
+    const hosts = formatScheduleSyncHostnames(result.sources);
+    const summary = `Updated ${result.eventCount} upcoming event${result.eventCount === 1 ? "" : "s"}${hosts ? ` from ${hosts}` : ""}.`;
+    const warningNote =
+      result.warnings.length > 0 ? ` ${result.warnings.slice(0, 2).join(" ")}` : "";
+    const message = encodeURIComponent(`${summary}${warningNote}`.trim());
+
+    revalidatePath("/");
+    revalidatePath("/dashboard/teacher/profile");
+    revalidatePath(`/teachers/${teacher.slug}`);
+    redirect(`/dashboard/teacher/profile?saved=schedule-synced&message=${message}`);
+  } catch (err) {
+    const message = encodeURIComponent(err instanceof Error ? err.message : "Could not update events from the web.");
+    redirect(`/dashboard/teacher/profile?error=schedule_sync_failed&message=${message}`);
+  }
 }
 
 export async function toggleTeacherFollowAction(formData: FormData) {

@@ -10,6 +10,7 @@ import { TeacherAvatar } from "@/components/teacher-avatar";
 import { TeacherProfileWellnessBackdrop } from "@/components/teacher-profile-wellness-backdrop";
 import { TeacherHeartControl } from "@/components/teacher-heart-control";
 import { toggleTeacherFollowAction } from "@/lib/actions";
+import { BOOKING_ENABLED } from "@/lib/booking-enabled";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
   countTeacherHearts,
@@ -304,9 +305,11 @@ export default async function TeacherProfilePage({ params }: TeacherProfileProps
               <p className="max-w-3xl text-lg leading-relaxed text-stone-700">{bioLead}</p>
 
               <div className="flex flex-wrap gap-3 pt-1">
-                <Link className={tealSolidBtn} href={teacherBookHref} style={{ color: "#ffffff" }}>
-                  Book a session
-                </Link>
+                {BOOKING_ENABLED ? (
+                  <Link className={tealSolidBtn} href={teacherBookHref} style={{ color: "#ffffff" }}>
+                    Book a session
+                  </Link>
+                ) : null}
                 {canFollowTeacher ? (
                   <form action={toggleTeacherFollowAction}>
                     <input name="teacherId" type="hidden" value={teacher.id} />
@@ -513,7 +516,9 @@ export default async function TeacherProfilePage({ params }: TeacherProfileProps
                   <div className="flex flex-wrap items-end justify-between gap-3">
                     <div>
                       <h2 className="text-2xl font-bold text-[#0c3d3a]">Teaching calendar</h2>
-                      <p className="text-stone-600">Upcoming sessions you can book.</p>
+                      <p className="text-stone-600">
+                        {BOOKING_ENABLED ? "Upcoming sessions you can book." : "Upcoming teaching sessions."}
+                      </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                       <p className="rounded-full border border-teal-800/15 bg-teal-50/90 px-4 py-2 text-sm font-semibold text-[#0f766e]">
@@ -594,17 +599,19 @@ export default async function TeacherProfilePage({ params }: TeacherProfileProps
                                               <h3 className="mt-0.5 text-xs font-semibold leading-snug text-[#0c3d3a]">{session.title}</h3>
                                               <p className="mt-1 text-[10px] text-stone-600">{session.location}</p>
                                               <div className="mt-2 flex flex-wrap gap-1">
-                                                <Link
-                                                  className="rounded-full bg-[#0f766e] px-2.5 py-1 text-[10px] font-semibold text-white"
-                                                  href={
-                                                    user
-                                                      ? `/teachers/${teacher.slug}/book?sessionId=${encodeURIComponent(session.id)}`
-                                                      : getSignInHref(`/teachers/${teacher.slug}/book?sessionId=${encodeURIComponent(session.id)}`)
-                                                  }
-                                                  style={{ color: "#ffffff" }}
-                                                >
-                                                  Book
-                                                </Link>
+                                                {BOOKING_ENABLED ? (
+                                                  <Link
+                                                    className="rounded-full bg-[#0f766e] px-2.5 py-1 text-[10px] font-semibold text-white"
+                                                    href={
+                                                      user
+                                                        ? `/teachers/${teacher.slug}/book?sessionId=${encodeURIComponent(session.id)}`
+                                                        : getSignInHref(`/teachers/${teacher.slug}/book?sessionId=${encodeURIComponent(session.id)}`)
+                                                    }
+                                                    style={{ color: "#ffffff" }}
+                                                  >
+                                                    Book
+                                                  </Link>
+                                                ) : null}
                                                 {session.sourceUrl ? (
                                                   <a
                                                     className="rounded-full border border-teal-800/25 bg-white px-2.5 py-1 text-[10px] font-medium text-[#0c4f4a]"
@@ -722,7 +729,9 @@ export default async function TeacherProfilePage({ params }: TeacherProfileProps
                 {showPublicCalendar
                   ? teacher.studioScheduleUrl
                     ? "First open times from their calendar."
-                    : "Open slots also appear on booking."
+                    : BOOKING_ENABLED
+                      ? "Open slots also appear on booking."
+                      : "Open times listed on their profile."
                   : "Public calendar is hidden."}
               </p>
               <div className="mt-4 space-y-2">
@@ -732,13 +741,15 @@ export default async function TeacherProfilePage({ params }: TeacherProfileProps
                       <p className="text-xs font-semibold text-[#0c3d3a]">{formatDateTime(slot.startsAt)}</p>
                       <p className="text-[10px] text-stone-500">{slot.timezone}</p>
                     </div>
-                    <Link
-                      className="shrink-0 rounded-full bg-[#0f766e] px-3 py-1 text-[10px] font-bold text-white"
-                      href={teacherBookHref}
-                      style={{ color: "#ffffff" }}
-                    >
-                      Book
-                    </Link>
+                    {BOOKING_ENABLED ? (
+                      <Link
+                        className="shrink-0 rounded-full bg-[#0f766e] px-3 py-1 text-[10px] font-bold text-white"
+                        href={teacherBookHref}
+                        style={{ color: "#ffffff" }}
+                      >
+                        Book
+                      </Link>
+                    ) : null}
                   </div>
                 ))}
                 {availabilitySlotsToShow.length === 0 ? (

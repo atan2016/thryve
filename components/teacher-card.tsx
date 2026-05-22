@@ -42,7 +42,7 @@ export function TeacherCard({ teacher }: TeacherCardProps) {
           href={`/teachers/${teacher.slug}`}
           style={{ color: "#ffffff" }}
         >
-          Book
+          Details
         </Link>
       </div>
       <div className="mt-4 flex flex-wrap gap-2 text-sm">
@@ -79,17 +79,21 @@ export function TeacherCard({ teacher }: TeacherCardProps) {
           )
         ))}
       </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        {teacher.offerings.slice(0, 2).map((offering) => (
-          <div className="rounded-2xl bg-stone-50 p-4" key={offering.title}>
-            <p className="font-medium">{offering.title}</p>
-            <p className="text-sm text-stone-500">
-              {offering.deliveryMode === "online" ? "Online" : "In person"} • {offering.sessionLengthMin} min
-            </p>
-            <p className="mt-2 text-sm font-semibold">{formatCredits(offering.creditPrice)}</p>
-          </div>
-        ))}
-      </div>
+      {teacher.offerings.length ? (
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {teacher.offerings.slice(0, 2).map((offering) => (
+            <div className="rounded-2xl bg-stone-50 p-4" key={offering.title}>
+              <p className="font-medium">{offering.title}</p>
+              <p className="text-sm text-stone-500">
+                {offering.deliveryMode === "online" ? "Online" : "In person"} • {offering.sessionLengthMin} min
+              </p>
+              <p className="mt-2 text-sm font-semibold">{formatCredits(offering.creditPrice)}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-stone-500">View profile for classes, events, and schedule details.</p>
+      )}
     </article>
   );
 }

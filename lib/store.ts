@@ -320,6 +320,8 @@ function matchesDate(teacherId: string, date: string) {
 }
 
 export function searchTeachers(filters: SearchFilters) {
+  const offeringFiltersActive = Boolean(filters.category || filters.length || filters.deliveryMode);
+
   return listTeachers().filter((teacher) => {
     if (filters.city && !teacher.city.toLowerCase().includes(filters.city.toLowerCase())) return false;
     if (filters.certified && teacher.certificationStatus !== filters.certified) return false;
@@ -334,7 +336,11 @@ export function searchTeachers(filters: SearchFilters) {
       return true;
     });
 
-    return matchingOfferings.length > 0;
+    if (offeringFiltersActive) {
+      return matchingOfferings.length > 0;
+    }
+
+    return matchingOfferings.length > 0 || teacher.offerings.length === 0;
   });
 }
 

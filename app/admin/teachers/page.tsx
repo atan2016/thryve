@@ -84,7 +84,13 @@ export default async function AdminTeachersPage({ searchParams }: AdminTeachersP
                   {teacher.city} • {teacher.certificationStatus === "certified" ? "Certified" : "Not certified"}
                 </p>
               </div>
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700">Published</span>
+              <span
+                className={`rounded-full px-3 py-1 text-sm ${
+                  teacher.published ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"
+                }`}
+              >
+                {teacher.published ? "Published" : "Draft"}
+              </span>
             </div>
             <div className="mt-4 flex flex-wrap gap-2 text-sm">
               {teacher.badges.map((badge) => (

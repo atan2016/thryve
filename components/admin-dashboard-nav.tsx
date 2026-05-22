@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { BOOKING_ENABLED } from "@/lib/booking-enabled";
+
 type AdminDashboardNavProps = {
   current: "users" | "teachers" | "bookings" | "payouts" | "content";
 };
@@ -13,9 +15,11 @@ const ITEMS: Array<{ id: AdminDashboardNavProps["current"]; href: string; label:
 ];
 
 export function AdminDashboardNav({ current }: AdminDashboardNavProps) {
+  const items = BOOKING_ENABLED ? ITEMS : ITEMS.filter((item) => item.id !== "bookings");
+
   return (
     <div className="flex flex-wrap gap-3">
-      {ITEMS.map((item) => {
+      {items.map((item) => {
         const isCurrent = item.id === current;
         return (
           <Link
