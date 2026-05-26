@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AppShell } from "@/components/app-shell";
+import { GoogleAnalytics } from "@/components/google-analytics";
 
 import "./globals.css";
 
@@ -14,6 +15,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
+        <GoogleAnalytics />
         <AppShell>{children}</AppShell>
       </body>
     </html>
