@@ -64,6 +64,14 @@ To use a hosted database instead of Docker:
 - Update `DATABASE_URL` in `.env.local` with your database connection string
 - Run `npm run db:push` to initialize the schema
 
+## Instagram sync
+
+Recent Instagram media can be synced into teacher content. Non-event posts publish as Practice in motion stories, while captions that look like events publish into Newly Added Events.
+
+Set `CRON_SECRET` for the protected cron route. Each instructor manages their own Instagram user ID and access token from the teacher profile dashboard. The scheduled Vercel job calls `/api/cron/sync-instagram` daily and syncs every instructor with saved credentials.
+
+`INSTAGRAM_SYNC_ACCOUNTS` and `INSTAGRAM_ACCESS_TOKEN` are still supported as optional fallback configuration, but they are not required when instructors save credentials in the UI.
+
 ## Verification
 
 ```bash

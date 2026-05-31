@@ -10,6 +10,8 @@ import {
   addUpcomingEventAction,
   autoUpdateUpcomingEventsFromWebAction,
   deleteUpcomingEventAction,
+  syncInstagramPostsAction,
+  updateInstagramSyncSettingsAction,
   updateStoryAction,
   updateTeacherProfileAction,
   updateUpcomingEventAction
@@ -107,6 +109,11 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
             {params.message ?? "Could not auto-update upcoming events from the web. Add a schedule or website URL on your profile and try again."}
           </div>
         ) : null}
+        {error === "instagram_sync_failed" ? (
+          <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+            {params.message ?? "Could not sync Instagram posts. Check your Instagram sync configuration and try again."}
+          </div>
+        ) : null}
         {user.mustChangePassword ? (
           <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             Your account uses a temporary password. Update it in Account security below before continuing.
@@ -132,6 +139,10 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
                       ? "Upcoming event removed."
                       : saved === "schedule-synced"
                         ? (params.message ?? "Upcoming events updated from the web.")
+                        : saved === "instagram-synced"
+                        ? (params.message ?? "Instagram posts synced.")
+                        : saved === "instagram-settings"
+                        ? "Instagram sync settings saved."
                         : saved === "certification-submitted"
                         ? "Certification file submitted for admin review."
                         : saved === "story-updated"
@@ -382,6 +393,54 @@ export default async function TeacherProfileDashboardPage({ searchParams }: Teac
         </div>
         <div className="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
           <h2 className="text-2xl font-semibold">Add a story</h2>
+          <form action={updateInstagramSyncSettingsAction} className="mt-6 space-y-4 rounded-3xl border border-stone-200 bg-stone-50 p-4">
+            <div>
+              <h3 className="font-semibold text-stone-900">Instagram sync</h3>
+              <p className="mt-1 text-sm text-stone-600">
+                Save the Instagram Graph API details for this instructor. Leave the access token blank to keep the saved token.
+              </p>
+              <p className="mt-2 text-xs font-medium text-stone-500">
+                Status: {teacher.instagramSyncEnabled ? "Access token saved" : "Not connected"}
+              </p>
+            </div>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Instagram user ID</span>
+              <input
+                defaultValue={teacher.instagramUserId ?? ""}
+                name="instagramUserId"
+                placeholder="e.g. 17841400000000000"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Instagram access token</span>
+              <input
+                autoComplete="off"
+                name="instagramAccessToken"
+                placeholder={teacher.instagramSyncEnabled ? "Leave blank to keep saved token" : "Paste access token"}
+                type="password"
+              />
+            </label>
+            {teacher.instagramSyncEnabled ? (
+              <label className="flex items-center gap-2 text-sm text-stone-700">
+                <input className="h-4 w-4 rounded border-stone-300" name="clearAccessToken" type="checkbox" />
+                Clear saved access token
+              </label>
+            ) : null}
+            <button className="rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white" type="submit">
+              Save Instagram settings
+            </button>
+          </form>
+          <form action={syncInstagramPostsAction} className="mt-4 rounded-3xl border border-stone-200 bg-stone-50 p-4">
+            <p className="text-sm text-stone-600">
+              Pull recent Instagram posts into Practice in motion, and route event posts into Newly Added Events.
+            </p>
+            <button
+              className="mt-4 rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-900 hover:bg-stone-100"
+              type="submit"
+            >
+              Sync Instagram posts
+            </button>
+          </form>
           <form action={addStoryAction} className="mt-6 space-y-4">
             <input name="title" placeholder="Story title" />
             <textarea className="min-h-28" name="caption" placeholder="What makes this story or offering unique?" />

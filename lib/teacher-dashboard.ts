@@ -1,6 +1,6 @@
 import { redirectIfMustChangePassword } from "@/lib/auth/require-password-changed";
 import { getCurrentUser } from "@/lib/auth/session";
-import { ensureTeacherProfile } from "@/lib/persistence";
+import { ensureTeacherProfile, getTeacherInstagramSyncSettings } from "@/lib/persistence";
 
 export async function getTeacherDashboardContext() {
   const user = await getCurrentUser();
@@ -18,9 +18,15 @@ export async function getTeacherDashboardContext() {
 
   redirectIfMustChangePassword(user);
 
+  const teacher = await ensureTeacherProfile(user.id, user.name);
+  const instagramSyncSettings = await getTeacherInstagramSyncSettings(teacher.id);
+
   return {
     status: "ready" as const,
     user,
-    teacher: await ensureTeacherProfile(user.id, user.name)
+    teacher: {
+      ...teacher,
+      ...instagramSyncSettings
+    }
   };
 }

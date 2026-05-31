@@ -54,6 +54,8 @@ export type Teacher = {
   websiteUrl?: string;
   linkedinUrl?: string;
   instagramUrl?: string;
+  instagramUserId?: string;
+  instagramSyncEnabled?: boolean;
   facebookUrl?: string;
   resumeUrl?: string;
   resumeFileName?: string;

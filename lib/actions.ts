@@ -17,6 +17,7 @@ import { purchaseCredits } from "@/lib/credits/purchase-credits";
 import { sendContactAdminInquiryEmail } from "@/lib/email/contact-admin-inquiry";
 import { sendCertificationSubmittedNotificationEmail } from "@/lib/email/certification-submitted";
 import { readCertificationFileForDatabase, readEventImageForDatabase, readProfileImageForDatabase, savePendingSignupResume, saveStoryMedia, saveTeacherResume } from "@/lib/media/storage";
+import { syncInstagramPostsForTeacher } from "@/lib/instagram-sync";
 import { BOOKING_ENABLED } from "@/lib/booking-enabled";
 import { schedulePayout } from "@/lib/payouts/payout-provider";
 import { extractResumeText, type TeacherImportSourceInput } from "@/lib/teacher-profile-import";
@@ -60,6 +61,7 @@ import {
   unfollowTeacherForUser,
   unheartTeacherForUser,
   updateAdminContentFilters,
+  updateTeacherInstagramSyncSettings,
   updateUserForAdmin,
   updateTeacherCalendarSession,
   updateTeacherPublicCalendarVisibility,
@@ -1030,6 +1032,43 @@ export async function autoUpdateUpcomingEventsFromWebAction() {
     const message = encodeURIComponent(err instanceof Error ? err.message : "Could not update events from the web.");
     redirect(`/dashboard/teacher/profile?error=schedule_sync_failed&message=${message}`);
   }
+}
+
+export async function syncInstagramPostsAction() {
+  const teacher = await requireCurrentTeacher();
+
+  try {
+    const result = await syncInstagramPostsForTeacher(teacher.id);
+    const message = encodeURIComponent(
+      `Imported ${result.importedStories} practice post${result.importedStories === 1 ? "" : "s"} and ${result.importedEvents} event${result.importedEvents === 1 ? "" : "s"} from Instagram.`
+    );
+
+    revalidatePath("/");
+    revalidatePath("/dashboard/teacher/profile");
+    revalidatePath(`/teachers/${teacher.slug}`);
+    redirect(`/dashboard/teacher/profile?saved=instagram-synced&message=${message}`);
+  } catch (err) {
+    const message = encodeURIComponent(err instanceof Error ? err.message : "Could not sync Instagram posts.");
+    redirect(`/dashboard/teacher/profile?error=instagram_sync_failed&message=${message}`);
+  }
+}
+
+export async function updateInstagramSyncSettingsAction(formData: FormData) {
+  const teacher = await requireCurrentTeacher();
+
+  try {
+    await updateTeacherInstagramSyncSettings(teacher.id, {
+      instagramUserId: String(formData.get("instagramUserId") ?? ""),
+      instagramAccessToken: String(formData.get("instagramAccessToken") ?? ""),
+      clearAccessToken: String(formData.get("clearAccessToken") ?? "") === "on"
+    });
+  } catch {
+    const message = encodeURIComponent("Instagram settings could not be saved. Run the latest database migration and try again.");
+    redirect(`/dashboard/teacher/profile?error=instagram_sync_failed&message=${message}`);
+  }
+
+  revalidatePath("/dashboard/teacher/profile");
+  redirect("/dashboard/teacher/profile?saved=instagram-settings");
 }
 
 export async function toggleTeacherFollowAction(formData: FormData) {

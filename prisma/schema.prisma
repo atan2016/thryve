@@ -75,6 +75,8 @@ model Teacher {
   websiteUrl               String?
   linkedinUrl              String?
   instagramUrl             String?
+  instagramUserId          String?
+  instagramAccessToken     String?
   facebookUrl              String?
   resumeUrl                String?
   resumeFileName           String?

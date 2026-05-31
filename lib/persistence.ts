@@ -143,15 +143,38 @@ const HOMEPAGE_LOCAL_GIGS: HomepageJobCard[] = [
 /** Pilates class cards — prefer over teacher headshots (e.g. Robin’s Pilates Foundations). */
 const PILATES_CLASS_IMAGE_FALLBACKS = [
   "/assets/images/pilates-studio-v-sit.png",
-  "/assets/images/pilates-group-class.png"
+  "/assets/images/pilates-group-class.png",
+  "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1200&q=80&auto=format&fit=crop"
+];
+
+/** Meditation / mindfulness cards — quiet seated practice, not generic movement. */
+const MEDITATION_CLASS_IMAGE_FALLBACKS = [
+  "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1528319725582-ddc096101511?w=1200&q=80&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=1200&q=80&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1499209974431-9dddcece7f88?w=1200&q=80&auto=format&fit=crop"
+];
+
+/** Heated studio classes — prefer sweaty, active class imagery over calm yoga portraits. */
+const HEATED_CLASS_IMAGE_FALLBACKS = [
+  "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1200&q=80&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1545389336-cf090694435e?w=1200&q=80&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1518310383802-640c2de311b2?w=1200&q=80&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=1200&q=80&auto=format&fit=crop"
+];
+
+const BREATHWORK_CLASS_IMAGE_FALLBACKS = [
+  "https://images.unsplash.com/photo-1528319725582-ddc096101511?w=1200&q=80&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200&q=80&auto=format&fit=crop"
 ];
 
 /** Yoga / movement class cards — used when the event title describes a studio class (e.g. Heated Vinyasa). */
 const YOGA_CLASS_IMAGE_FALLBACKS = [
-  "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=1200&q=80&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1200&q=80&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1545389336-cf090694435e?w=1200&q=80&auto=format&fit=crop"
+  "https://images.unsplash.com/photo-1545389336-cf090694435e?w=1200&q=80&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1599447292180-45fd84092ef4?w=1200&q=80&auto=format&fit=crop"
 ];
 
 const CATEGORY_IMAGE_FALLBACKS: Record<string, string[]> = {
@@ -165,16 +188,8 @@ const CATEGORY_IMAGE_FALLBACKS: Record<string, string[]> = {
     "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1200&q=80&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop"
   ],
-  Meditation: [
-    "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1528319725582-ddc096101511?w=1200&q=80&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=1200&q=80&auto=format&fit=crop"
-  ],
-  Breathwork: [
-    "https://images.unsplash.com/photo-1528319725582-ddc096101511?w=1200&q=80&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=1200&q=80&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=1200&q=80&auto=format&fit=crop"
-  ],
+  Meditation: MEDITATION_CLASS_IMAGE_FALLBACKS,
+  Breathwork: BREATHWORK_CLASS_IMAGE_FALLBACKS,
   Community: [
     "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=1200&q=80&auto=format&fit=crop",
     "https://images.unsplash.com/photo-1499209974431-9dddcece7f88?w=1200&q=80&auto=format&fit=crop",
@@ -206,6 +221,18 @@ function titleDescribesPilatesClass(title: string) {
   return /\bpilates\b/i.test(title);
 }
 
+function titleDescribesMeditationClass(title: string, category?: string) {
+  return /\b(meditation|meditate|mindfulness|mindful|satsang)\b/i.test(`${title} ${category ?? ""}`);
+}
+
+function titleDescribesBreathworkClass(title: string, category?: string) {
+  return /\b(breathwork|breath\s*work|breathing|pranayama)\b/i.test(`${title} ${category ?? ""}`);
+}
+
+function titleDescribesHeatedClass(title: string) {
+  return /\b(heated|hot|bikram|inferno)\b/i.test(title);
+}
+
 function titleDescribesYogaMovementClass(title: string) {
   if (titleDescribesPilatesClass(title)) {
     return false;
@@ -218,6 +245,18 @@ function titleDescribesYogaMovementClass(title: string) {
 }
 
 function getHomepageEventStockImages(title: string, category: string) {
+  if (titleDescribesMeditationClass(title, category)) {
+    return MEDITATION_CLASS_IMAGE_FALLBACKS;
+  }
+
+  if (titleDescribesBreathworkClass(title, category)) {
+    return BREATHWORK_CLASS_IMAGE_FALLBACKS;
+  }
+
+  if (titleDescribesHeatedClass(title)) {
+    return HEATED_CLASS_IMAGE_FALLBACKS;
+  }
+
   if (titleDescribesPilatesClass(title)) {
     return PILATES_CLASS_IMAGE_FALLBACKS;
   }
@@ -1534,10 +1573,17 @@ function buildHomepageEventImageMix(
   };
 }
 
-function pickFromPool(pool: string[], index: number, exclude?: string | null) {
+function pickFromPool(pool: string[], index: number, usedImages: Set<string>, exclude?: string | null) {
   const eligible = withoutExcludedHomepageEventImages(pool);
   if (eligible.length === 0) {
     return undefined;
+  }
+
+  for (let offset = 0; offset < eligible.length; offset += 1) {
+    const candidate = eligible[(index + offset) % eligible.length];
+    if (candidate && candidate !== exclude && !usedImages.has(candidate)) {
+      return candidate;
+    }
   }
 
   for (let offset = 0; offset < eligible.length; offset += 1) {
@@ -1547,12 +1593,13 @@ function pickFromPool(pool: string[], index: number, exclude?: string | null) {
     }
   }
 
-  return eligible[index % eligible.length];
+  return undefined;
 }
 
-/** Alternate headshots, demo/stock, and story art; avoid identical images on neighboring cards. */
+/** Alternate headshots, demo/stock, and story art; avoid duplicate images across the visible event list. */
 function mixAdjacentHomepageEventImages(events: HomepageEventCardDraft[]) {
   let previousImage: string | null = null;
+  const usedImages = new Set<string>();
   let preferHeadshot = true;
 
   for (let index = 0; index < events.length; index += 1) {
@@ -1560,19 +1607,25 @@ function mixAdjacentHomepageEventImages(events: HomepageEventCardDraft[]) {
     const mix = event.imageMix;
 
     if (!mix) {
+      usedImages.add(event.imageSrc);
       previousImage = event.imageSrc;
       continue;
     }
 
-    if (mix.customImage) {
+    if (mix.customImage && !usedImages.has(mix.customImage)) {
       event.imageSrc = mix.customImage;
+      usedImages.add(event.imageSrc);
       previousImage = event.imageSrc;
       continue;
     }
 
     const pilatesClass = titleDescribesPilatesClass(event.title);
+    const meditationClass = titleDescribesMeditationClass(event.title, event.category);
+    const breathworkClass = titleDescribesBreathworkClass(event.title, event.category);
+    const heatedClass = titleDescribesHeatedClass(event.title);
     const yogaClass = titleDescribesYogaMovementClass(event.title);
-    const tiers: string[][] = pilatesClass
+    const shouldPreferTopicalStock = pilatesClass || meditationClass || breathworkClass || heatedClass;
+    const tiers: string[][] = shouldPreferTopicalStock
       ? [mix.stocks, mix.stories, mix.hosts]
       : yogaClass
         ? preferHeadshot
@@ -1585,7 +1638,7 @@ function mixAdjacentHomepageEventImages(events: HomepageEventCardDraft[]) {
 
     let picked: string | undefined;
     for (const tier of tiers) {
-      picked = pickFromPool(tier, index + hashLabel(event.id), previousImage);
+      picked = pickFromPool(tier, index + hashLabel(event.id), usedImages, previousImage);
       if (picked) {
         break;
       }
@@ -1597,10 +1650,14 @@ function mixAdjacentHomepageEventImages(events: HomepageEventCardDraft[]) {
       );
       const workshopFallback = withoutExcludedHomepageEventImages(CATEGORY_IMAGE_FALLBACKS.Workshop);
       picked =
-        pickFromPool(fallbackPool, index, previousImage) ?? workshopFallback[0] ?? CATEGORY_IMAGE_FALLBACKS.Workshop[0];
+        pickFromPool(fallbackPool, index, usedImages, previousImage) ??
+        pickFromPool(workshopFallback, index, usedImages, previousImage) ??
+        workshopFallback.find((image) => image !== previousImage) ??
+        CATEGORY_IMAGE_FALLBACKS.Workshop[0];
     }
 
     event.imageSrc = picked;
+    usedImages.add(picked);
     previousImage = picked;
   }
 }
@@ -3801,6 +3858,68 @@ export async function updateTeacherPublicCalendarVisibility(teacherId: string, s
   }
 
   return teacher;
+}
+
+export async function updateTeacherInstagramSyncSettings(
+  teacherId: string,
+  input: {
+    instagramUserId?: string;
+    instagramAccessToken?: string;
+    clearAccessToken?: boolean;
+  }
+) {
+  const instagramUserId = input.instagramUserId?.trim() || null;
+  const accessToken = input.instagramAccessToken?.trim();
+
+  if (input.clearAccessToken) {
+    await db.$executeRaw`
+      UPDATE "Teacher"
+      SET "instagramUserId" = ${instagramUserId}, "instagramAccessToken" = NULL
+      WHERE "id" = ${teacherId}
+    `;
+    return;
+  }
+
+  if (accessToken) {
+    await db.$executeRaw`
+      UPDATE "Teacher"
+      SET "instagramUserId" = ${instagramUserId}, "instagramAccessToken" = ${accessToken}
+      WHERE "id" = ${teacherId}
+    `;
+    return;
+  }
+
+  await db.$executeRaw`
+    UPDATE "Teacher"
+    SET "instagramUserId" = ${instagramUserId}
+    WHERE "id" = ${teacherId}
+  `;
+}
+
+export async function getTeacherInstagramSyncSettings(teacherId: string) {
+  try {
+    const rows = await db.$queryRaw<Array<{ instagramUserId: string | null; instagramAccessToken: string | null }>>`
+      SELECT "instagramUserId", "instagramAccessToken"
+      FROM "Teacher"
+      WHERE "id" = ${teacherId}
+      LIMIT 1
+    `;
+    const settings = rows[0];
+
+    return {
+      instagramUserId: settings?.instagramUserId ?? undefined,
+      instagramSyncEnabled: Boolean(settings?.instagramAccessToken)
+    };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError || error instanceof Prisma.PrismaClientUnknownRequestError) {
+      return {
+        instagramUserId: undefined,
+        instagramSyncEnabled: false
+      };
+    }
+
+    throw error;
+  }
 }
 
 export async function submitTeacherImportOnboarding(teacherId: string, input: TeacherImportSourceInput) {
