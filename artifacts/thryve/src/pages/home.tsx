@@ -69,7 +69,7 @@ export function HomePage() {
 
       <FeaturedLocalGigsCarousel gigs={demoHomepageJobs} isSignedIn={!!user} />
 
-      {user && (
+      {user?.role === "teacher" && (
         <LinkedInJobSearch jobs={demoLinkedInJobs} />
       )}
     </div>

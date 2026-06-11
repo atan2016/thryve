@@ -146,28 +146,16 @@ export function LinkedInJobSearch({ jobs }: { jobs: LinkedInJob[] }) {
 
   return (
     <section id="linkedin-jobs" className="scroll-mt-24 space-y-6" aria-labelledby="linkedin-jobs-heading">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#0A66C2]/10 text-[#0A66C2]">
-            <LinkedInLogo className="h-5 w-5" />
-          </span>
-          <div>
-            <h2 id="linkedin-jobs-heading" className="text-2xl font-semibold tracking-tight text-slate-900">
-              Yoga Teacher Jobs on LinkedIn
-            </h2>
-            <p className="mt-0.5 text-sm text-slate-500">Search and apply to yoga teaching positions near you</p>
-          </div>
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#0A66C2]/10 text-[#0A66C2]">
+          <LinkedInLogo className="h-5 w-5" />
+        </span>
+        <div>
+          <h2 id="linkedin-jobs-heading" className="text-2xl font-semibold tracking-tight text-slate-900">
+            Yoga Teacher Jobs on LinkedIn
+          </h2>
+          <p className="mt-0.5 text-sm text-slate-500">Search and apply to yoga teaching positions near you</p>
         </div>
-        <a
-          href={buildLinkedInUrl(keywords, location)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex shrink-0 items-center gap-2 rounded-xl border border-[#0A66C2]/30 bg-white px-4 py-2 text-sm font-semibold text-[#0A66C2] shadow-sm transition hover:bg-[#0A66C2]/5"
-        >
-          <LinkedInLogo className="h-4 w-4" />
-          View all on LinkedIn
-          <IconExternalLink className="h-3.5 w-3.5" />
-        </a>
       </div>
 
       <form
