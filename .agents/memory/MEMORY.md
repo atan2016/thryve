@@ -1,1 +1,0 @@
-- [Thryve migration](thryve-migration.md) — Next.js→Vite+React migration; no live DB, all mock data; auth via localStorage; wouter for routing.
