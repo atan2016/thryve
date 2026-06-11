@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FeaturedEventsCarousel } from "@/components/featured-events-carousel";
 import { FeaturedLocalGigsCarousel } from "@/components/featured-local-gigs-carousel";
 import { FeaturedTeachersCarousel } from "@/components/featured-teachers-carousel";
+import { JobSearch } from "@/components/job-search";
 import { toggleEventHostFollowAction } from "@/lib/actions";
 import { getSession } from "@/lib/auth/session";
 import { isProdBuild } from "@/lib/is-production";
@@ -93,6 +94,8 @@ export default async function HomePage() {
       {homepageJobs.length > 0 ? (
         <FeaturedLocalGigsCarousel gigs={homepageJobs} isSignedIn={Boolean(session)} />
       ) : null}
+
+      {session?.role === "teacher" && <JobSearch />}
 
       <FeaturedTeachersCarousel teachers={featuredTeachersForCarousel} viewerUserId={session?.userId ?? null} />
     </div>
