@@ -11,7 +11,7 @@ function createPrismaClient() {
 }
 
 /** Recreate the client after schema changes (e.g. new models) so dev HMR does not keep a stale delegate. */
-function resolvePrismaClient(): PrismaClient {
+function getPrismaClient(): PrismaClient {
   const cached = globalForPrisma.prisma;
   if (cached && "passwordResetToken" in cached) {
     return cached;
@@ -22,9 +22,11 @@ function resolvePrismaClient(): PrismaClient {
   return client;
 }
 
-export const db = new Proxy({} as PrismaClient, {
+export const db = getPrismaClient();
+
+const originalDb = new Proxy({} as PrismaClient, {
   get(_target, property, receiver) {
-    const client = resolvePrismaClient();
+    const client = getPrismaClient();
     const value = Reflect.get(client, property, receiver) as unknown;
 
     if (typeof value === "function") {
