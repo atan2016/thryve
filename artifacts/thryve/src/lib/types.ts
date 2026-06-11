@@ -131,6 +131,21 @@ export type HomepageJobCard = {
   contactRole?: string;
 };
 
+export type LinkedInJob = {
+  id: string;
+  title: string;
+  company: string;
+  companyLogoUrl?: string;
+  location: string;
+  type: string;
+  level: string;
+  postedAgo: string;
+  applicants?: string;
+  linkedinJobId: string;
+  description: string;
+  skills: string[];
+};
+
 export type SearchFilters = {
   category?: ServiceCategory;
   style?: string;

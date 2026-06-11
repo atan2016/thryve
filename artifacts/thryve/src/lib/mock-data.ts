@@ -1,5 +1,5 @@
 import { addDays, addHours, addMinutes, startOfDay } from "date-fns";
-import type { Teacher, TeacherOffering, Badge, TeacherBadge, HomepageEventCard, HomepageJobCard } from "./types";
+import type { Teacher, TeacherOffering, Badge, TeacherBadge, HomepageEventCard, HomepageJobCard, LinkedInJob } from "./types";
 
 const today = startOfDay(new Date());
 
@@ -356,6 +356,87 @@ export const demoHomepageEvents: HomepageEventCard[] = [
 ];
 
 export const demoHomepageJobs: HomepageJobCard[] = [];
+
+export const demoLinkedInJobs: LinkedInJob[] = [
+  {
+    id: "li-job-1",
+    title: "Yoga Instructor – Morning & Evening Classes",
+    company: "Equinox Fitness",
+    location: "San Francisco, CA",
+    type: "Part-time",
+    level: "Associate",
+    postedAgo: "2 days ago",
+    applicants: "47 applicants",
+    linkedinJobId: "3856012904",
+    description: "Equinox is seeking an experienced Yoga Instructor to lead Vinyasa and Hatha classes at our SF locations. You'll work alongside world-class instructors and access premium facilities.",
+    skills: ["Vinyasa", "Hatha", "RYT-200", "Sequencing", "Pranayama"]
+  },
+  {
+    id: "li-job-2",
+    title: "Yoga & Mindfulness Coach",
+    company: "Google",
+    location: "Mountain View, CA (On-site)",
+    type: "Contract",
+    level: "Mid-Senior",
+    postedAgo: "5 days ago",
+    applicants: "112 applicants",
+    linkedinJobId: "3841987123",
+    description: "Join Google's Wellness team to lead weekly yoga and mindfulness sessions for employees at the Googleplex. Corporate wellness experience preferred. Flexible schedule.",
+    skills: ["Corporate Wellness", "Mindfulness", "Meditation", "Yin Yoga", "Restorative"]
+  },
+  {
+    id: "li-job-3",
+    title: "Lead Yoga Teacher – Teacher Training Program",
+    company: "CorePower Yoga",
+    location: "San Jose, CA",
+    type: "Full-time",
+    level: "Senior",
+    postedAgo: "1 week ago",
+    applicants: "88 applicants",
+    linkedinJobId: "3829405611",
+    description: "CorePower Yoga is hiring a Lead Teacher to co-facilitate our 200-hour RYT program. Must hold RYT-500. You'll mentor teacher candidates and teach 8–10 public classes per week.",
+    skills: ["RYT-500", "Teacher Training", "Curriculum Design", "Hot Yoga", "Leadership"]
+  },
+  {
+    id: "li-job-4",
+    title: "Prenatal & Postnatal Yoga Specialist",
+    company: "UCSF Health & Wellness",
+    location: "San Francisco, CA (Hybrid)",
+    type: "Part-time",
+    level: "Associate",
+    postedAgo: "3 days ago",
+    applicants: "34 applicants",
+    linkedinJobId: "3862198745",
+    description: "UCSF is looking for a certified pre/postnatal yoga instructor to lead weekly classes for expectant and new mothers as part of our integrative medicine department.",
+    skills: ["Prenatal Yoga", "Postnatal Yoga", "RYT-200", "Women's Health", "Restorative"]
+  },
+  {
+    id: "li-job-5",
+    title: "Kids Yoga Instructor",
+    company: "Oakland Unified School District",
+    location: "Oakland, CA",
+    type: "Part-time",
+    level: "Entry level",
+    postedAgo: "4 days ago",
+    applicants: "61 applicants",
+    linkedinJobId: "3851234098",
+    description: "Bring yoga and mindfulness into Oakland K-8 classrooms. Morning sessions Mon–Fri. Background check required. Training provided for working with youth.",
+    skills: ["Kids Yoga", "School Programs", "Mindfulness", "Curriculum", "CPR Certified"]
+  },
+  {
+    id: "li-job-6",
+    title: "Yoga Studio Manager & Instructor",
+    company: "Peacebank Yoga",
+    location: "Redwood City, CA",
+    type: "Full-time",
+    level: "Mid-Senior",
+    postedAgo: "6 days ago",
+    applicants: "29 applicants",
+    linkedinJobId: "3839012567",
+    description: "Growing Peninsula yoga studio is looking for a Manager/Instructor hybrid. Teach 5 classes/week, oversee scheduling, handle studio communications, and support special events.",
+    skills: ["Studio Management", "Vinyasa", "Scheduling", "Customer Service", "RYT-200"]
+  }
+];
 
 export function getTeacherWithDetails(teacher: Teacher) {
   const badges = demoTeacherBadges

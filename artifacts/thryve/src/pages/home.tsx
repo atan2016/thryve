@@ -2,7 +2,8 @@ import { Link } from "wouter";
 import { FeaturedTeachersCarousel } from "@/components/featured-teachers-carousel";
 import { FeaturedEventsCarousel } from "@/components/featured-events-carousel";
 import { FeaturedLocalGigsCarousel } from "@/components/featured-local-gigs-carousel";
-import { demoTeachers, demoHomepageEvents, demoHomepageJobs } from "@/lib/mock-data";
+import { LinkedInJobSearch } from "@/components/linkedin-job-search";
+import { demoTeachers, demoHomepageEvents, demoHomepageJobs, demoLinkedInJobs } from "@/lib/mock-data";
 import { useAuth } from "@/lib/auth-context";
 
 export function HomePage() {
@@ -67,6 +68,10 @@ export function HomePage() {
       <FeaturedEventsCarousel events={demoHomepageEvents} isSignedIn={!!user} />
 
       <FeaturedLocalGigsCarousel gigs={demoHomepageJobs} isSignedIn={!!user} />
+
+      {user && (
+        <LinkedInJobSearch jobs={demoLinkedInJobs} />
+      )}
     </div>
   );
 }
