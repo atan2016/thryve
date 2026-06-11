@@ -1,11 +1,23 @@
-import { useState } from "react";
-import type { LinkedInJob } from "@/lib/types";
+import { useState, useEffect, useCallback } from "react";
+
+type Job = {
+  id: string;
+  title: string;
+  company: string;
+  companyLogoUrl?: string;
+  location: string;
+  type: string;
+  postedAgo: string;
+  applyUrl: string | null;
+  description: string;
+  skills: string[];
+};
 
 const typeColors: Record<string, string> = {
   "Full-time": "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100",
   "Part-time": "bg-sky-50 text-sky-700 ring-1 ring-sky-100",
   "Contract": "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
-  "Internship": "bg-violet-50 text-violet-700 ring-1 ring-violet-100"
+  "Internship": "bg-violet-50 text-violet-700 ring-1 ring-violet-100",
 };
 
 function LinkedInLogo({ className }: { className?: string }) {
@@ -33,14 +45,6 @@ function IconMapPin({ className }: { className?: string }) {
   );
 }
 
-function IconUsers({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-    </svg>
-  );
-}
-
 function IconClock({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden>
@@ -57,22 +61,47 @@ function IconExternalLink({ className }: { className?: string }) {
   );
 }
 
-function buildLinkedInUrl(keywords: string, location: string) {
-  const params = new URLSearchParams();
-  params.set("keywords", keywords || "yoga teacher");
-  params.set("location", location || "San Francisco Bay Area");
-  params.set("f_TPR", "r604800");
-  return `https://www.linkedin.com/jobs/search/?${params.toString()}`;
+function SkeletonCard() {
+  return (
+    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 animate-pulse">
+      <div className="flex items-start justify-between gap-3">
+        <div className="h-11 w-11 rounded-xl bg-slate-100" />
+        <div className="h-6 w-20 rounded-full bg-slate-100" />
+      </div>
+      <div className="mt-3 space-y-2">
+        <div className="h-4 w-3/4 rounded bg-slate-100" />
+        <div className="h-3 w-1/2 rounded bg-slate-100" />
+      </div>
+      <div className="mt-3 space-y-1.5">
+        <div className="h-3 w-2/3 rounded bg-slate-100" />
+        <div className="h-3 w-1/3 rounded bg-slate-100" />
+      </div>
+      <div className="mt-3 space-y-1">
+        <div className="h-3 w-full rounded bg-slate-100" />
+        <div className="h-3 w-4/5 rounded bg-slate-100" />
+      </div>
+      <div className="mt-3 flex gap-1.5">
+        <div className="h-5 w-16 rounded-full bg-slate-100" />
+        <div className="h-5 w-16 rounded-full bg-slate-100" />
+        <div className="h-5 w-12 rounded-full bg-slate-100" />
+      </div>
+      <div className="mt-4 h-10 w-full rounded-xl bg-slate-100" />
+    </div>
+  );
 }
 
-function JobCard({ job }: { job: LinkedInJob }) {
-  const applyUrl = `https://www.linkedin.com/jobs/view/${job.linkedinJobId}/`;
+function JobCard({ job }: { job: Job }) {
+  const applyUrl = job.applyUrl ?? `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(job.title)}`;
 
   return (
     <article className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md hover:border-[#0A66C2]/30">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0A66C2]/10 text-[#0A66C2]">
-          <LinkedInLogo className="h-5 w-5" />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#0A66C2]/10">
+          {job.companyLogoUrl ? (
+            <img src={job.companyLogoUrl} alt={job.company} className="h-full w-full object-contain p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+          ) : (
+            <LinkedInLogo className="h-5 w-5 text-[#0A66C2]" />
+          )}
         </div>
         <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${typeColors[job.type] ?? "bg-stone-100 text-stone-700"}`}>
           {job.type}
@@ -89,34 +118,30 @@ function JobCard({ job }: { job: LinkedInJob }) {
           <IconMapPin className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate">{job.location}</span>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5">
-            <IconClock className="h-3.5 w-3.5 shrink-0" />
-            {job.postedAgo}
-          </span>
-          {job.applicants && (
-            <span className="flex items-center gap-1.5">
-              <IconUsers className="h-3.5 w-3.5 shrink-0" />
-              {job.applicants}
-            </span>
-          )}
+        <div className="flex items-center gap-1.5">
+          <IconClock className="h-3.5 w-3.5 shrink-0" />
+          <span>{job.postedAgo}</span>
         </div>
       </div>
 
-      <p className="mt-3 text-xs text-slate-600 line-clamp-2 leading-relaxed">{job.description}</p>
+      {job.description && (
+        <p className="mt-3 text-xs text-slate-600 line-clamp-2 leading-relaxed">{job.description}</p>
+      )}
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {job.skills.slice(0, 3).map((skill) => (
-          <span key={skill} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
-            {skill}
-          </span>
-        ))}
-        {job.skills.length > 3 && (
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">
-            +{job.skills.length - 3} more
-          </span>
-        )}
-      </div>
+      {job.skills.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {job.skills.slice(0, 3).map((skill) => (
+            <span key={skill} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
+              {skill}
+            </span>
+          ))}
+          {job.skills.length > 3 && (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">
+              +{job.skills.length - 3} more
+            </span>
+          )}
+        </div>
+      )}
 
       <a
         href={applyUrl}
@@ -132,17 +157,43 @@ function JobCard({ job }: { job: LinkedInJob }) {
   );
 }
 
-export function LinkedInJobSearch({ jobs }: { jobs: LinkedInJob[] }) {
+export function LinkedInJobSearch() {
   const [keywords, setKeywords] = useState("yoga teacher");
   const [location, setLocation] = useState("San Francisco Bay Area");
-  const [visibleCount, setVisibleCount] = useState(4);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
+
+  const fetchJobs = useCallback(async (query: string, loc: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ query, location: loc });
+      const res = await fetch(`/api/jobs/search?${params.toString()}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? `Request failed (${res.status})`);
+      }
+      const data = await res.json() as { jobs: Job[] };
+      setJobs(data.jobs);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load jobs");
+      setJobs([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchJobs("yoga teacher", "San Francisco Bay Area");
+  }, [fetchJobs]);
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    window.open(buildLinkedInUrl(keywords, location), "_blank", "noopener,noreferrer");
+    setSearched(true);
+    fetchJobs(keywords, location);
   }
-
-  const visibleJobs = jobs.slice(0, visibleCount);
 
   return (
     <section id="linkedin-jobs" className="scroll-mt-24 space-y-6" aria-labelledby="linkedin-jobs-heading">
@@ -154,7 +205,7 @@ export function LinkedInJobSearch({ jobs }: { jobs: LinkedInJob[] }) {
           <h2 id="linkedin-jobs-heading" className="text-2xl font-semibold tracking-tight text-slate-900">
             Yoga Teacher Jobs on LinkedIn
           </h2>
-          <p className="mt-0.5 text-sm text-slate-500">Search and apply to yoga teaching positions near you</p>
+          <p className="mt-0.5 text-sm text-slate-500">Live job listings — search and apply directly</p>
         </div>
       </div>
 
@@ -163,7 +214,7 @@ export function LinkedInJobSearch({ jobs }: { jobs: LinkedInJob[] }) {
         className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-gradient-to-br from-[#EBF3FB] to-[#F5F9FF] p-4 sm:flex-row sm:items-end"
       >
         <div className="flex-1">
-          <label htmlFor="li-keywords" className="mb-1 block text-xs font-semibold text-slate-600 uppercase tracking-wide">
+          <label htmlFor="li-keywords" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Role / Keywords
           </label>
           <div className="relative">
@@ -179,7 +230,7 @@ export function LinkedInJobSearch({ jobs }: { jobs: LinkedInJob[] }) {
           </div>
         </div>
         <div className="flex-1">
-          <label htmlFor="li-location" className="mb-1 block text-xs font-semibold text-slate-600 uppercase tracking-wide">
+          <label htmlFor="li-location" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-600">
             Location
           </label>
           <div className="relative">
@@ -196,34 +247,32 @@ export function LinkedInJobSearch({ jobs }: { jobs: LinkedInJob[] }) {
         </div>
         <button
           type="submit"
-          className="flex items-center justify-center gap-2 rounded-xl bg-[#0A66C2] px-6 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-[#0958a8] active:scale-[0.98] sm:w-auto w-full"
+          disabled={loading}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0A66C2] px-6 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-[#0958a8] active:scale-[0.98] disabled:opacity-60 sm:w-auto"
         >
           <IconSearch className="h-4 w-4" />
-          Search LinkedIn
+          {loading && searched ? "Searching…" : "Search Jobs"}
         </button>
       </form>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {visibleJobs.map((job) => (
-          <JobCard key={job.id} job={job} />
-        ))}
-      </div>
-
-      {visibleCount < jobs.length && (
-        <div className="flex justify-center">
-          <button
-            type="button"
-            onClick={() => setVisibleCount((c) => c + 4)}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#0A66C2]/40 hover:text-[#0A66C2]"
-          >
-            Show more jobs
-          </button>
+      {error && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
         </div>
       )}
 
-      <p className="text-center text-xs text-slate-400">
-        Job listings are representative examples. Click any card to view the live posting on LinkedIn.
-      </p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {loading
+          ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+          : jobs.map((job) => <JobCard key={job.id} job={job} />)
+        }
+      </div>
+
+      {!loading && jobs.length === 0 && !error && (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">
+          No jobs found. Try different keywords or a broader location.
+        </div>
+      )}
     </section>
   );
 }

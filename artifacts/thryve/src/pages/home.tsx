@@ -3,7 +3,7 @@ import { FeaturedTeachersCarousel } from "@/components/featured-teachers-carouse
 import { FeaturedEventsCarousel } from "@/components/featured-events-carousel";
 import { FeaturedLocalGigsCarousel } from "@/components/featured-local-gigs-carousel";
 import { LinkedInJobSearch } from "@/components/linkedin-job-search";
-import { demoTeachers, demoHomepageEvents, demoHomepageJobs, demoLinkedInJobs } from "@/lib/mock-data";
+import { demoTeachers, demoHomepageEvents, demoHomepageJobs } from "@/lib/mock-data";
 import { useAuth } from "@/lib/auth-context";
 
 export function HomePage() {
@@ -70,7 +70,7 @@ export function HomePage() {
       <FeaturedLocalGigsCarousel gigs={demoHomepageJobs} isSignedIn={!!user} />
 
       {user?.role === "teacher" && (
-        <LinkedInJobSearch jobs={demoLinkedInJobs} />
+        <LinkedInJobSearch />
       )}
     </div>
   );
